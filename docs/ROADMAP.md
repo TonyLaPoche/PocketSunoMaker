@@ -47,9 +47,11 @@ Construire un editeur video desktop macOS, 100% open source et gratuit, sous Flu
 - [x] Trim in/out
 - [x] Deplacement drag and drop sur timeline
 - [x] Snapping basique
-- [x] Outils contextuels sur clip selectionne (duree, trim, suppression)
+- [x] Outils contextuels sur clip selectionne (duree, trim, suppression) [retires ensuite pour alleger l'UI]
 - [x] Etirement rapide de duree pour clips image
 - [x] Barres d'outils timeline fixes (non impactees par le zoom de la zone clips)
+- [x] Zoom par defaut a 10% et increment boutons +/- a 2%
+- [x] Graduation/rule timeline retiree (UI simplifiee)
 
 ## M3 - Preview et export
 - [x] Transport preview v1 (play/pause/seek)
@@ -60,6 +62,10 @@ Construire un editeur video desktop macOS, 100% open source et gratuit, sous Flu
 - [x] Synchronisation audio/video v1 (transport + audio actif)
 - [x] Queue d'export
 - [x] Exports presets: YouTube, Shorts, Reels
+- [x] Feedback visuel d'export en cours (spinner + barre indeterminee + job actif)
+- [x] Hardening permissions macOS sur medias references (fallback preview + erreurs explicites)
+- [x] Synchronisation Media Bin depuis un projet `.psm` charge
+- [x] Suppression unitaire des medias depuis le Media Bin
 
 ## M3.5 - Refonte UX/UI "Studio" (en cours)
 - [x] Etape 1 - Shell applicatif "pro montage"
@@ -70,8 +76,8 @@ Construire un editeur video desktop macOS, 100% open source et gratuit, sous Flu
 - [x] Etape 2 - Timeline orientee production
   - Barre d'outils timeline complete et fixe (selection, lame, trim, split, zoom, snapping, marqueurs)
   - Pistes mieux structurees (headers piste, etats mute/solo/lock, labels plus lisibles)
-  - Playhead, ruler et selection clips avec hierarchie visuelle forte (accent actif uniquement)
-  - Progression: headers piste enrichis (mute/solo/lock), toggle snapping global, badge playhead et ruler renforce
+  - Playhead et selection clips avec hierarchie visuelle forte (accent actif uniquement)
+  - Progression: headers piste enrichis (mute/solo/lock), toggle snapping global, badge playhead renforce
 - [ ] Etape 3 - Inspecteur et coherence visuelle cyberpunk
   - Panneau inspecteur contextuel (transform, opacite, vitesse, audio de base)
   - Systeme de densite/contraste: neon reserve aux elements actifs, texte secondaire adouci
