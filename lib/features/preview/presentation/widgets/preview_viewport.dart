@@ -15,12 +15,14 @@ class PreviewViewport extends StatefulWidget {
     required this.project,
     required this.positionMs,
     required this.isPlaying,
+    this.viewportHeight = 190,
     super.key,
   });
 
   final Project project;
   final int positionMs;
   final bool isPlaying;
+  final double viewportHeight;
 
   @override
   State<PreviewViewport> createState() => _PreviewViewportState();
@@ -79,6 +81,7 @@ class _PreviewViewportState extends State<PreviewViewport> {
 
     if (activeVisualClip == null) {
       return _ViewportFrame(
+        height: widget.viewportHeight,
         child: _FallbackLabel(
           label: 'Aucun clip visuel actif',
           details: 'Place le playhead sur un clip video/image.',
@@ -95,6 +98,7 @@ class _PreviewViewportState extends State<PreviewViewport> {
       final File imageFile = File(activeVisualClip.clip.assetPath);
       if (!imageFile.existsSync()) {
         return _ViewportFrame(
+          height: widget.viewportHeight,
           child: const _FallbackLabel(
             label: 'Image introuvable',
             details: 'Le fichier source est inaccessible.',
@@ -102,6 +106,7 @@ class _PreviewViewportState extends State<PreviewViewport> {
         );
       }
       return _ViewportFrame(
+        height: widget.viewportHeight,
         child: Stack(
           fit: StackFit.expand,
           children: <Widget>[
@@ -116,6 +121,7 @@ class _PreviewViewportState extends State<PreviewViewport> {
       final VideoPlayerController? controller = _videoController;
       if (controller == null || !controller.value.isInitialized) {
         return _ViewportFrame(
+          height: widget.viewportHeight,
           child: const _FallbackLabel(
             label: 'Chargement video...',
             details: 'Initialisation du decoder.',
@@ -123,6 +129,7 @@ class _PreviewViewportState extends State<PreviewViewport> {
         );
       }
       return _ViewportFrame(
+        height: widget.viewportHeight,
         child: Stack(
           fit: StackFit.expand,
           children: <Widget>[
@@ -141,6 +148,7 @@ class _PreviewViewportState extends State<PreviewViewport> {
     }
 
     return _ViewportFrame(
+      height: widget.viewportHeight,
       child: _FallbackLabel(
         label: 'Format non supporte',
         details: p.basename(activeVisualClip.clip.assetPath),
@@ -239,14 +247,15 @@ class _PreviewViewportState extends State<PreviewViewport> {
 }
 
 class _ViewportFrame extends StatelessWidget {
-  const _ViewportFrame({required this.child});
+  const _ViewportFrame({required this.child, required this.height});
 
   final Widget child;
+  final double height;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 190,
+      height: height,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: context.cyberpunk.border),

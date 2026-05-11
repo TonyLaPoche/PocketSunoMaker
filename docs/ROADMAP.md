@@ -61,6 +61,26 @@ Construire un editeur video desktop macOS, 100% open source et gratuit, sous Flu
 - [x] Queue d'export
 - [x] Exports presets: YouTube, Shorts, Reels
 
+## M3.5 - Refonte UX/UI "Studio" (en cours)
+- [x] Etape 1 - Shell applicatif "pro montage"
+  - Header compact avec navigation principale (Fichier, Edition, Affichage, Lecture, Export)
+  - Layout stable en 4 zones: Media Bin gauche, Preview haut centre, Timeline bas centre, Inspecteur droite
+  - Timeline deplacee en bande basse sur toute la largeur disponible
+  - Statut bar basse (etat projet, mode magnetique, feedback actions)
+- [ ] Etape 2 - Timeline orientee production
+  - Barre d'outils timeline complete et fixe (selection, lame, trim, split, zoom, snapping, marqueurs)
+  - Pistes mieux structurees (headers piste, etats mute/solo/lock, labels plus lisibles)
+  - Playhead, ruler et selection clips avec hierarchie visuelle forte (accent actif uniquement)
+  - Progression en cours: headers piste enrichis (mute/solo/lock) + largeur utile timeline contrainte
+- [ ] Etape 3 - Inspecteur et coherence visuelle cyberpunk
+  - Panneau inspecteur contextuel (transform, opacite, vitesse, audio de base)
+  - Systeme de densite/contraste: neon reserve aux elements actifs, texte secondaire adouci
+  - Harmonisation composants (cards, boutons, sliders, separateurs) pour un rendu coherent non "gadget"
+- [ ] Etape 4 - Finition interaction et ergonomie
+  - Micro-interactions fluides (hover, focus, selection, transitions courtes)
+  - Accessibilite desktop (tailles minimales de cibles, lisibilite, raccourcis de base)
+  - Validation UX sur sessions montage longues (fatigue visuelle, rapidite d'execution)
+
 ## M4 - Enrichissements
 - [ ] Sous-titres et texte anime
 - [ ] Effets (glitch, rotation, etc.) pluginables

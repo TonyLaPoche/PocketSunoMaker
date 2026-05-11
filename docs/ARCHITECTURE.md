@@ -27,23 +27,35 @@ Cette architecture suit une logique Clean Architecture pour garder une base main
 ## Modules actuels
 
 - `features/project`
-  - creation de projet locale (base)
-  - presets export (modele domaine)
+  - creation/chargement/sauvegarde de projet local `.psm`
+  - edition timeline (move/trim/split/snap)
+  - orchestration etat projet (controllers Riverpod)
 - `features/media_import`
   - import fichiers via picker
   - import drag and drop
-  - classification media (audio/video/image)
+  - classification media (audio/video/image) + metadonnees (`ffprobe`)
+- `features/preview`
+  - transport lecture/pause/seek
+  - synchronisation audio/video en preview
+  - rendu media actif (video/image)
+- `features/export`
+  - file de jobs export
+  - presets cibles (YouTube, Shorts, Reels)
+  - service export FFmpeg (base)
 
 ## Modules planifies
 
-- `features/timeline`
-  - pistes, clips, trim, snapping
-- `features/preview`
-  - lecteur, seek, synchro
-- `features/export`
-  - pipeline ffmpeg, presets, progress/cancel
 - `features/effects`
   - transformations, effets, texte, sous-titres
+- `features/inspector`
+  - panneau contextuel des proprietes clip/piste/projet
+  - edition rapide des parametres (transform, opacite, audio)
+- `features/timeline_advanced`
+  - automation courbes/keyframes
+  - gestion avancee des pistes (mute/solo/lock, routing)
+- `features/export_advanced`
+  - progression fine, annulation, retries
+  - presets utilisateurs et profils personnalises
 
 ## Donnees projet (cible)
 
@@ -52,6 +64,13 @@ Format `*.psm` (JSON):
 - media bin (assets references)
 - timeline (tracks, clips, keyframes/effects)
 - options export
+
+## Etat de maturite (resume)
+
+- base fonctionnelle de montage local: OK
+- preview synchronisee: OK
+- export v1: present, a renforcer vers pipeline complet
+- refonte UX/UI Studio (M3.5): prochaine priorite
 
 ## Principes qualite
 

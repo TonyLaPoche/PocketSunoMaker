@@ -68,256 +68,69 @@ class ProjectHomePage extends ConsumerWidget {
     final previewController = ref.read(previewControllerProvider.notifier);
     final exportState = ref.watch(exportQueueControllerProvider);
     final exportController = ref.read(exportQueueControllerProvider.notifier);
+    final Project? project = projectState.currentProject;
 
     return Scaffold(
       body: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: context.cyberpunk.border),
-                gradient: LinearGradient(
-                  colors: <Color>[
-                    context.cyberpunk.bgSecondary,
-                    context.cyberpunk.bgPrimary,
-                  ],
-                ),
+            _StudioTopBar(
+              isProjectLoading: projectState.isLoading,
+              isMediaLoading: mediaState.isLoading,
+              onCreateProject: projectController.createNewProject,
+              onImportMedia: mediaController.pickMediaFiles,
+              onSaveProject: projectController.saveCurrentProject,
+              onLoadProject: projectController.loadProjectFromDisk,
+            ),
+            const SizedBox(height: 8),
+            if (projectState.errorMessage != null ||
+                mediaState.errorMessage != null)
+              _ErrorBanner(
+                message: projectState.errorMessage ?? mediaState.errorMessage!,
               ),
-              child: Row(
+            if (projectState.errorMessage != null ||
+                mediaState.errorMessage != null)
+              const SizedBox(height: 8),
+            Expanded(
+              child: Column(
                 children: <Widget>[
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: <Widget>[
-                        Text(
-                          'PocketSunoMaker Studio',
-                          style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(
-                                color: context.cyberpunk.neonPink,
-                                fontWeight: FontWeight.w800,
+                        SizedBox(
+                          width: 300,
+                          child: _PanelShell(
+                            title: 'Medias',
+                            child: DropTarget(
+                              onDragEntered: (_) =>
+                                  mediaController.setDraggingOver(true),
+                              onDragExited: (_) =>
+                                  mediaController.setDraggingOver(false),
+                              onDragDone: (DropDoneDetails details) {
+                                final List<String> paths = details.files
+                                    .map((file) => file.path)
+                                    .toList();
+                                mediaController.setDraggingOver(false);
+                                mediaController.importDroppedFiles(paths);
+                              },
+                              child: MediaBinPanel(
+                                assets: mediaState.assets,
+                                isLoading: mediaState.isLoading,
+                                canAddToTimeline: project != null,
+                                onAddToTimeline:
+                                    projectController.addAssetToTimeline,
                               ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Montage video/audio local - timeline multi-pistes',
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: context.cyberpunk.textMuted),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Flexible(
-                    child: Wrap(
-                      alignment: WrapAlignment.end,
-                      spacing: 10,
-                      runSpacing: 8,
-                      children: <Widget>[
-                        FilledButton.icon(
-                          onPressed: projectState.isLoading
-                              ? null
-                              : projectController.createNewProject,
-                          icon: const Icon(Icons.add),
-                          label: Text(
-                            projectState.isLoading
-                                ? 'Creation...'
-                                : 'Nouveau projet',
+                            ),
                           ),
                         ),
-                        OutlinedButton.icon(
-                          onPressed: mediaState.isLoading
-                              ? null
-                              : mediaController.pickMediaFiles,
-                          icon: const Icon(Icons.file_open_outlined),
-                          label: const Text('Importer medias'),
-                        ),
-                        OutlinedButton.icon(
-                          onPressed: projectState.isLoading
-                              ? null
-                              : projectController.saveCurrentProject,
-                          icon: const Icon(Icons.save_outlined),
-                          label: const Text('Sauvegarder'),
-                        ),
-                        OutlinedButton.icon(
-                          onPressed: projectState.isLoading
-                              ? null
-                              : projectController.loadProjectFromDisk,
-                          icon: const Icon(Icons.folder_open_outlined),
-                          label: const Text('Charger'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            if (projectState.currentProject != null)
-              Text(
-                'Projet courant: ${projectState.currentProject!.name} '
-                '(${projectState.currentProject!.canvasWidth}x${projectState.currentProject!.canvasHeight}, '
-                '${projectState.currentProject!.fps}fps)',
-              ),
-            if (projectState.projectFilePath != null)
-              Text(
-                'Fichier projet: ${projectState.projectFilePath!}',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: context.cyberpunk.textMuted,
-                ),
-              ),
-            if (projectState.errorMessage != null) ...<Widget>[
-              const SizedBox(height: 8),
-              Text(
-                projectState.errorMessage!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-            ],
-            if (mediaState.errorMessage != null) ...<Widget>[
-              const SizedBox(height: 8),
-              Text(
-                mediaState.errorMessage!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-            ],
-            const SizedBox(height: 24),
-            Expanded(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  SizedBox(
-                    width: 320,
-                    child: Card(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(
-                              'Media Bin',
-                              style: Theme.of(context).textTheme.titleLarge,
-                            ),
-                            const SizedBox(height: 6),
-                            Expanded(
-                              child: DropTarget(
-                                onDragEntered: (_) =>
-                                    mediaController.setDraggingOver(true),
-                                onDragExited: (_) =>
-                                    mediaController.setDraggingOver(false),
-                                onDragDone: (DropDoneDetails details) {
-                                  final List<String> paths = details.files
-                                      .map((file) => file.path)
-                                      .toList();
-                                  mediaController.setDraggingOver(false);
-                                  mediaController.importDroppedFiles(paths);
-                                },
-                                child: DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(12),
-                                    color: context.cyberpunk.bgSecondary,
-                                  ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 6,
-                                    ),
-                                    child: MediaBinPanel(
-                                      assets: mediaState.assets,
-                                      isLoading: mediaState.isLoading,
-                                      canAddToTimeline:
-                                          projectState.currentProject != null,
-                                      onAddToTimeline:
-                                          projectController.addAssetToTimeline,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: ListView(
-                          children: <Widget>[
-                            Text(
-                              'Presets export cibles',
-                              style: Theme.of(context).textTheme.titleLarge,
-                            ),
-                            const SizedBox(height: 12),
-                            DropdownButtonFormField<ExportPreset>(
-                              initialValue: exportState.selectedPreset,
-                              isExpanded: true,
-                              decoration: const InputDecoration(
-                                labelText: 'Preset export',
-                                border: OutlineInputBorder(),
-                                isDense: true,
-                              ),
-                              items: ExportPreset.defaults
-                                  .map(
-                                    (ExportPreset preset) =>
-                                        DropdownMenuItem<ExportPreset>(
-                                          value: preset,
-                                          child: Text(preset.label),
-                                        ),
-                                  )
-                                  .toList(growable: false),
-                              onChanged: (ExportPreset? preset) {
-                                if (preset == null) {
-                                  return;
-                                }
-                                exportController.selectPreset(preset);
-                              },
-                            ),
-                            const SizedBox(height: 8),
-                            FilledButton.icon(
-                              onPressed: projectState.currentProject == null
-                                  ? null
-                                  : () => exportController.enqueueExport(
-                                      projectState.currentProject,
-                                    ),
-                              icon: const Icon(Icons.upload_file_outlined),
-                              label: Text(
-                                exportState.isProcessing
-                                    ? 'Export en cours...'
-                                    : 'Ajouter a la queue',
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            if (exportState.errorMessage != null)
-                              Text(
-                                exportState.errorMessage!,
-                                style: TextStyle(
-                                  color: Theme.of(context).colorScheme.error,
-                                ),
-                              ),
-                            const SizedBox(height: 8),
-                            ...exportState.jobs
-                                .take(5)
-                                .map(
-                                  (ExportJob job) => Padding(
-                                    padding: const EdgeInsets.only(bottom: 6),
-                                    child: Text(
-                                      '- ${job.presetLabel}: ${_statusLabel(job.status)}'
-                                      '${job.message != null ? ' (${job.message})' : ''}',
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.bodySmall,
-                                    ),
-                                  ),
-                                ),
-                            const SizedBox(height: 12),
-                            PreviewPanel(
-                              project: projectState.currentProject,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _PanelShell(
+                            title: 'Lecteur',
+                            child: PreviewPanel(
+                              project: project,
                               state: previewState,
                               onTogglePlayPause:
                                   previewController.togglePlayPause,
@@ -325,36 +138,152 @@ class ProjectHomePage extends ConsumerWidget {
                               onScrubEnd: previewController.endScrub,
                               onSeekTo: previewController.seekTo,
                             ),
-                            const SizedBox(height: 12),
-                            Text(
-                              'Timeline',
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            const SizedBox(height: 6),
-                            SizedBox(
-                              height: 300,
-                              child: TimelinePanel(
-                                project: projectState.currentProject,
-                                playheadMs: previewState.currentPositionMs,
-                                isPlaying: previewState.isPlaying,
-                                onMoveClipByDelta:
-                                    projectController.moveClipByDelta,
-                                onTrimClipStartByDelta:
-                                    projectController.trimClipStartByDelta,
-                                onTrimClipEndByDelta:
-                                    projectController.trimClipEndByDelta,
-                                onSplitClipAtPlayhead:
-                                    projectController.splitClipAtPlayhead,
-                                onRemoveClip: projectController.removeClip,
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
+                        const SizedBox(width: 12),
+                        SizedBox(
+                          width: 280,
+                          child: _PanelShell(
+                            title: 'Inspecteur / Export',
+                            child: ListView(
+                              children: <Widget>[
+                                Text(
+                                  'Preset export',
+                                  style: Theme.of(context).textTheme.titleSmall,
+                                ),
+                                const SizedBox(height: 8),
+                                DropdownButtonFormField<ExportPreset>(
+                                  initialValue: exportState.selectedPreset,
+                                  isExpanded: true,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Preset',
+                                    border: OutlineInputBorder(),
+                                    isDense: true,
+                                  ),
+                                  items: ExportPreset.defaults
+                                      .map(
+                                        (ExportPreset preset) =>
+                                            DropdownMenuItem(
+                                              value: preset,
+                                              child: Text(preset.label),
+                                            ),
+                                      )
+                                      .toList(growable: false),
+                                  onChanged: (ExportPreset? preset) {
+                                    if (preset == null) {
+                                      return;
+                                    }
+                                    exportController.selectPreset(preset);
+                                  },
+                                ),
+                                const SizedBox(height: 8),
+                                FilledButton.icon(
+                                  onPressed: project == null
+                                      ? null
+                                      : () => exportController.enqueueExport(
+                                          project,
+                                        ),
+                                  icon: const Icon(Icons.upload_file_outlined),
+                                  label: Text(
+                                    exportState.isProcessing
+                                        ? 'Export en cours...'
+                                        : 'Ajouter a la queue',
+                                  ),
+                                ),
+                                if (exportState.errorMessage !=
+                                    null) ...<Widget>[
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    exportState.errorMessage!,
+                                    style: TextStyle(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.error,
+                                    ),
+                                  ),
+                                ],
+                                const SizedBox(height: 12),
+                                Text(
+                                  'Jobs export',
+                                  style: Theme.of(context).textTheme.titleSmall,
+                                ),
+                                const SizedBox(height: 6),
+                                ...exportState.jobs
+                                    .take(6)
+                                    .map(
+                                      (ExportJob job) => Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 6,
+                                        ),
+                                        child: Text(
+                                          '- ${job.presetLabel}: ${_statusLabel(job.status)}'
+                                          '${job.message != null ? ' (${job.message})' : ''}',
+                                          style: Theme.of(
+                                            context,
+                                          ).textTheme.bodySmall,
+                                        ),
+                                      ),
+                                    ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'Projet',
+                                  style: Theme.of(context).textTheme.titleSmall,
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  project == null
+                                      ? 'Aucun projet actif'
+                                      : '${project.name}\n${project.canvasWidth}x${project.canvasHeight} - ${project.fps} fps',
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                                if (projectState.projectFilePath !=
+                                    null) ...<Widget>[
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    projectState.projectFilePath!,
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(
+                                          color: context.cyberpunk.textMuted,
+                                        ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 300,
+                    width: double.infinity,
+                    child: _PanelShell(
+                      title: 'Timeline',
+                      child: TimelinePanel(
+                        project: project,
+                        playheadMs: previewState.currentPositionMs,
+                        isPlaying: previewState.isPlaying,
+                        onMoveClipByDelta: projectController.moveClipByDelta,
+                        onTrimClipStartByDelta:
+                            projectController.trimClipStartByDelta,
+                        onTrimClipEndByDelta:
+                            projectController.trimClipEndByDelta,
+                        onSplitClipAtPlayhead:
+                            projectController.splitClipAtPlayhead,
+                        onRemoveClip: projectController.removeClip,
                       ),
                     ),
                   ),
                 ],
               ),
+            ),
+            const SizedBox(height: 8),
+            _StudioStatusBar(
+              isPlaying: previewState.isPlaying,
+              currentPositionMs: previewState.currentPositionMs,
+              projectName: project?.name,
+              exportJobsCount: exportState.jobs.length,
             ),
           ],
         ),
@@ -373,5 +302,201 @@ class ProjectHomePage extends ConsumerWidget {
       case ExportJobStatus.failed:
         return 'echec';
     }
+  }
+}
+
+class _StudioTopBar extends StatelessWidget {
+  const _StudioTopBar({
+    required this.isProjectLoading,
+    required this.isMediaLoading,
+    required this.onCreateProject,
+    required this.onImportMedia,
+    required this.onSaveProject,
+    required this.onLoadProject,
+  });
+
+  final bool isProjectLoading;
+  final bool isMediaLoading;
+  final VoidCallback onCreateProject;
+  final VoidCallback onImportMedia;
+  final VoidCallback onSaveProject;
+  final VoidCallback onLoadProject;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: context.cyberpunk.border),
+        color: context.cyberpunk.bgSecondary,
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: <Widget>[
+            Text(
+              'PocketSunoMaker',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: context.cyberpunk.neonPink,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(width: 18),
+            ...<String>[
+              'Fichier',
+              'Edition',
+              'Affichage',
+              'Lecture',
+              'Export',
+            ].map(
+              (String label) => Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: Text(
+                  label,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: context.cyberpunk.textMuted,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            FilledButton.icon(
+              onPressed: isProjectLoading ? null : onCreateProject,
+              icon: const Icon(Icons.add),
+              label: Text(isProjectLoading ? 'Creation...' : 'Nouveau'),
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton.icon(
+              onPressed: isMediaLoading ? null : onImportMedia,
+              icon: const Icon(Icons.file_open_outlined),
+              label: const Text('Importer'),
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton.icon(
+              onPressed: isProjectLoading ? null : onSaveProject,
+              icon: const Icon(Icons.save_outlined),
+              label: const Text('Sauvegarder'),
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton.icon(
+              onPressed: isProjectLoading ? null : onLoadProject,
+              icon: const Icon(Icons.folder_open_outlined),
+              label: const Text('Charger'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PanelShell extends StatelessWidget {
+  const _PanelShell({required this.title, required this.child});
+
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(title, style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: 8),
+            Expanded(child: child),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ErrorBanner extends StatelessWidget {
+  const _ErrorBanner({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        color: Theme.of(context).colorScheme.error.withValues(alpha: 0.12),
+        border: Border.all(color: Theme.of(context).colorScheme.error),
+      ),
+      child: Text(
+        message,
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: Theme.of(context).colorScheme.error,
+        ),
+      ),
+    );
+  }
+}
+
+class _StudioStatusBar extends StatelessWidget {
+  const _StudioStatusBar({
+    required this.isPlaying,
+    required this.currentPositionMs,
+    required this.projectName,
+    required this.exportJobsCount,
+  });
+
+  final bool isPlaying;
+  final int currentPositionMs;
+  final String? projectName;
+  final int exportJobsCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final String positionLabel = (currentPositionMs / 1000).toStringAsFixed(2);
+    return Container(
+      height: 30,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: context.cyberpunk.border),
+        color: context.cyberpunk.bgSecondary,
+      ),
+      child: Row(
+        children: <Widget>[
+          Icon(
+            isPlaying ? Icons.play_circle : Icons.pause_circle,
+            size: 14,
+            color: isPlaying
+                ? context.cyberpunk.neonBlue
+                : context.cyberpunk.textMuted,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            isPlaying ? 'Lecture' : 'Pause',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(width: 14),
+          Text(
+            'Tempo: ${positionLabel}s',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(width: 14),
+          Text(
+            projectName ?? 'Sans projet',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: context.cyberpunk.textMuted),
+          ),
+          const Spacer(),
+          Text(
+            'Exports: $exportJobsCount',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -53,64 +53,87 @@ class PreviewPanel extends StatelessWidget {
         'Aucun';
 
     return _PanelCard(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text(
-              'Preview transport',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            PreviewViewport(
-              project: project!,
-              positionMs: state.currentPositionMs,
-              isPlaying: state.isPlaying,
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: <Widget>[
-                FilledButton.icon(
-                  onPressed: state.durationMs <= 0 ? null : onTogglePlayPause,
-                  icon: Icon(state.isPlaying ? Icons.pause : Icons.play_arrow),
-                  label: Text(state.isPlaying ? 'Pause' : 'Play'),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  '${_formatTime(state.currentPositionMs)} / ${_formatTime(state.durationMs)}',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: context.cyberpunk.textMuted,
+      child: LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints constraints) {
+          final double viewportHeight = (constraints.maxHeight * 0.4).clamp(
+            96.0,
+            190.0,
+          );
+          return Padding(
+            padding: const EdgeInsets.all(12),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    'Preview transport',
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Slider(
-              min: 0,
-              max: state.durationMs <= 0 ? 1 : state.durationMs.toDouble(),
-              value: state.currentPositionMs
-                  .clamp(0, state.durationMs <= 0 ? 1 : state.durationMs)
-                  .toDouble(),
-              onChangeStart: (_) => onScrubStart(),
-              onChangeEnd: (_) => onScrubEnd(),
-              onChanged: (double value) => onSeekTo(value.round()),
-            ),
-            Text(
-              'Video active: $activeVideoClip',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: context.cyberpunk.neonBlue,
+                  const SizedBox(height: 8),
+                  PreviewViewport(
+                    project: project!,
+                    positionMs: state.currentPositionMs,
+                    isPlaying: state.isPlaying,
+                    viewportHeight: viewportHeight,
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: <Widget>[
+                      FilledButton.icon(
+                        onPressed: state.durationMs <= 0
+                            ? null
+                            : onTogglePlayPause,
+                        icon: Icon(
+                          state.isPlaying ? Icons.pause : Icons.play_arrow,
+                        ),
+                        label: Text(state.isPlaying ? 'Pause' : 'Play'),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          '${_formatTime(state.currentPositionMs)} / ${_formatTime(state.durationMs)}',
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: context.cyberpunk.textMuted),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Slider(
+                    min: 0,
+                    max: state.durationMs <= 0
+                        ? 1
+                        : state.durationMs.toDouble(),
+                    value: state.currentPositionMs
+                        .clamp(0, state.durationMs <= 0 ? 1 : state.durationMs)
+                        .toDouble(),
+                    onChangeStart: (_) => onScrubStart(),
+                    onChangeEnd: (_) => onScrubEnd(),
+                    onChanged: (double value) => onSeekTo(value.round()),
+                  ),
+                  Text(
+                    'Video active: $activeVideoClip',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.cyberpunk.neonBlue,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Audio actif: $activeAudioClip',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.cyberpunk.neonPink,
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              'Audio actif: $activeAudioClip',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: context.cyberpunk.neonPink,
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

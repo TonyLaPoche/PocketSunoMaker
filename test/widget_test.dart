@@ -15,7 +15,7 @@ void main() {
   ) async {
     await tester.pumpWidget(const ProviderScope(child: PocketSunoMakerApp()));
 
-    expect(find.text('PocketSunoMaker Studio'), findsOneWidget);
-    expect(find.text('Nouveau projet'), findsOneWidget);
+    expect(find.text('PocketSunoMaker'), findsOneWidget);
+    expect(find.text('Nouveau'), findsOneWidget);
   });
 }
