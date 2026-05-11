@@ -215,6 +215,7 @@ class ProjectController extends Notifier<ProjectState> {
     required String trackId,
     required String clipId,
     required int deltaMs,
+    bool useSnapping = true,
   }) {
     final Project? project = state.currentProject;
     if (project == null) {
@@ -236,14 +237,16 @@ class ProjectController extends Notifier<ProjectState> {
                     ? -clip.timelineStartMs
                     : deltaMs;
                 final int candidateStart = clip.timelineStartMs + rawDelta;
-                final int snappedStart = _snapStartMs(
-                  trackId: trackId,
-                  clipId: clipId,
-                  candidateStartMs: candidateStart,
-                  clipDurationMs: clip.durationMs,
-                );
-                final int nextStart = snappedStart < 0 ? 0 : snappedStart;
-                return clip.copyWith(timelineStartMs: nextStart);
+                final int nextStart = useSnapping
+                    ? _snapStartMs(
+                        trackId: trackId,
+                        clipId: clipId,
+                        candidateStartMs: candidateStart,
+                        clipDurationMs: clip.durationMs,
+                      )
+                    : candidateStart;
+                final int safeStart = nextStart < 0 ? 0 : nextStart;
+                return clip.copyWith(timelineStartMs: safeStart);
               })
               .toList(growable: false);
 
@@ -296,6 +299,7 @@ class ProjectController extends Notifier<ProjectState> {
     required String trackId,
     required String clipId,
     required int deltaMs,
+    bool useSnapping = true,
   }) {
     _updateClip(
       trackId: trackId,
@@ -313,12 +317,14 @@ class ProjectController extends Notifier<ProjectState> {
         );
         final int candidateStart = clip.timelineStartMs + clampedDelta;
         final int candidateDuration = clip.durationMs - clampedDelta;
-        final int snappedStart = _snapStartMs(
-          trackId: trackId,
-          clipId: clipId,
-          candidateStartMs: candidateStart,
-          clipDurationMs: candidateDuration,
-        );
+        final int snappedStart = useSnapping
+            ? _snapStartMs(
+                trackId: trackId,
+                clipId: clipId,
+                candidateStartMs: candidateStart,
+                clipDurationMs: candidateDuration,
+              )
+            : candidateStart;
         final int snappedDelta = snappedStart - clip.timelineStartMs;
         final int appliedDelta = _clampInt(
           snappedDelta,
@@ -337,6 +343,7 @@ class ProjectController extends Notifier<ProjectState> {
     required String trackId,
     required String clipId,
     required int deltaMs,
+    bool useSnapping = true,
   }) {
     _updateClip(
       trackId: trackId,
@@ -348,11 +355,13 @@ class ProjectController extends Notifier<ProjectState> {
             : deltaMs;
         final int candidateEnd =
             clip.timelineStartMs + clip.durationMs + clampedDelta;
-        final int snappedEnd = _snapEndMs(
-          trackId: trackId,
-          clipId: clipId,
-          candidateEndMs: candidateEnd,
-        );
+        final int snappedEnd = useSnapping
+            ? _snapEndMs(
+                trackId: trackId,
+                clipId: clipId,
+                candidateEndMs: candidateEnd,
+              )
+            : candidateEnd;
         final int snappedDelta =
             snappedEnd - (clip.timelineStartMs + clip.durationMs);
         final int appliedDelta = snappedDelta < lowerBoundDelta

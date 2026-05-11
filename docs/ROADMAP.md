@@ -67,11 +67,11 @@ Construire un editeur video desktop macOS, 100% open source et gratuit, sous Flu
   - Layout stable en 4 zones: Media Bin gauche, Preview haut centre, Timeline bas centre, Inspecteur droite
   - Timeline deplacee en bande basse sur toute la largeur disponible
   - Statut bar basse (etat projet, mode magnetique, feedback actions)
-- [ ] Etape 2 - Timeline orientee production
+- [x] Etape 2 - Timeline orientee production
   - Barre d'outils timeline complete et fixe (selection, lame, trim, split, zoom, snapping, marqueurs)
   - Pistes mieux structurees (headers piste, etats mute/solo/lock, labels plus lisibles)
   - Playhead, ruler et selection clips avec hierarchie visuelle forte (accent actif uniquement)
-  - Progression en cours: headers piste enrichis (mute/solo/lock) + largeur utile timeline contrainte
+  - Progression: headers piste enrichis (mute/solo/lock), toggle snapping global, badge playhead et ruler renforce
 - [ ] Etape 3 - Inspecteur et coherence visuelle cyberpunk
   - Panneau inspecteur contextuel (transform, opacite, vitesse, audio de base)
   - Systeme de densite/contraste: neon reserve aux elements actifs, texte secondaire adouci

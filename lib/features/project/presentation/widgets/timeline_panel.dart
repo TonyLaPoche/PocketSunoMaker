@@ -31,18 +31,21 @@ class TimelinePanel extends StatefulWidget {
     required String trackId,
     required String clipId,
     required int deltaMs,
+    bool useSnapping,
   })
   onMoveClipByDelta;
   final void Function({
     required String trackId,
     required String clipId,
     required int deltaMs,
+    bool useSnapping,
   })
   onTrimClipStartByDelta;
   final void Function({
     required String trackId,
     required String clipId,
     required int deltaMs,
+    bool useSnapping,
   })
   onTrimClipEndByDelta;
   final void Function({
@@ -63,6 +66,7 @@ class _TimelinePanelState extends State<TimelinePanel> {
   String? selectedTrackId;
   TimelineEditTool activeTool = TimelineEditTool.select;
   double zoomLevel = 1.0;
+  bool snappingEnabled = true;
   double _lastPanZoomScale = 1.0;
   final List<int> markersMs = <int>[];
   final Set<String> mutedTrackIds = <String>{};
@@ -101,6 +105,9 @@ class _TimelinePanelState extends State<TimelinePanel> {
         (_timelineStartLeft + (widget.playheadMs / 1000) * pixelsPerSecond)
             .clamp(0, timelineWidth)
             .toDouble();
+    final double playheadLabelLeft = (playheadLeft - 26)
+        .clamp(0.0, math.max(0.0, timelineWidth - 56))
+        .toDouble();
     final ({String trackId, Clip clip})? selectedClipRef = _resolveSelectedClip(
       widget.project!,
     );
@@ -125,6 +132,7 @@ class _TimelinePanelState extends State<TimelinePanel> {
             minZoom: _minZoom,
             maxZoom: _maxZoom,
             zoomDivisions: ((_maxZoom - _minZoom) * 100).round(),
+            snappingEnabled: snappingEnabled,
             markerCount: markersMs.length,
             onToolSelected: (TimelineEditTool tool) {
               setState(() {
@@ -160,6 +168,11 @@ class _TimelinePanelState extends State<TimelinePanel> {
                 zoomLevel = (zoomLevel - 0.15).clamp(_minZoom, _maxZoom);
               });
             },
+            onToggleSnapping: () {
+              setState(() {
+                snappingEnabled = !snappingEnabled;
+              });
+            },
           ),
           if (selectedClipRef != null)
             _SelectedClipToolbar(
@@ -175,6 +188,7 @@ class _TimelinePanelState extends State<TimelinePanel> {
                   trackId: selectedClipRef.trackId,
                   clipId: selectedClipRef.clip.id,
                   deltaMs: -500,
+                  useSnapping: snappingEnabled,
                 );
               },
               onStretchLonger: () {
@@ -182,6 +196,7 @@ class _TimelinePanelState extends State<TimelinePanel> {
                   trackId: selectedClipRef.trackId,
                   clipId: selectedClipRef.clip.id,
                   deltaMs: 500,
+                  useSnapping: snappingEnabled,
                 );
               },
               onDelete: () {
@@ -313,6 +328,7 @@ class _TimelinePanelState extends State<TimelinePanel> {
                                           playheadMs: widget.playheadMs,
                                           activeTool: activeTool,
                                           selectedClipId: selectedClipId,
+                                          snappingEnabled: snappingEnabled,
                                           isTrackMuted: isTrackMuted,
                                           isTrackSolo: isTrackSolo,
                                           isTrackLocked: isTrackLocked,
@@ -401,6 +417,37 @@ class _TimelinePanelState extends State<TimelinePanel> {
                           );
                         }),
                         Positioned(
+                          left: playheadLabelLeft,
+                          top: 2,
+                          child: IgnorePointer(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(6),
+                                color: context.cyberpunk.neonBlue.withValues(
+                                  alpha: 0.18,
+                                ),
+                                border: Border.all(
+                                  color: context.cyberpunk.neonBlue.withValues(
+                                    alpha: 0.65,
+                                  ),
+                                ),
+                              ),
+                              child: Text(
+                                _formatTimelineTime(widget.playheadMs),
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(
+                                      color: context.cyberpunk.neonBlue,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Positioned(
                           left: playheadLeft,
                           top: 0,
                           bottom: 0,
@@ -476,6 +523,14 @@ class _TimelinePanelState extends State<TimelinePanel> {
     }
     return next;
   }
+
+  String _formatTimelineTime(int ms) {
+    final int totalSeconds = ms ~/ 1000;
+    final int minutes = totalSeconds ~/ 60;
+    final int seconds = totalSeconds % 60;
+    final int centiseconds = (ms % 1000) ~/ 10;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}.${centiseconds.toString().padLeft(2, '0')}';
+  }
 }
 
 class _TimelineToolbar extends StatelessWidget {
@@ -485,6 +540,7 @@ class _TimelineToolbar extends StatelessWidget {
     required this.minZoom,
     required this.maxZoom,
     required this.zoomDivisions,
+    required this.snappingEnabled,
     required this.markerCount,
     required this.onToolSelected,
     required this.onAddMarker,
@@ -492,6 +548,7 @@ class _TimelineToolbar extends StatelessWidget {
     required this.onZoomChanged,
     required this.onZoomIn,
     required this.onZoomOut,
+    required this.onToggleSnapping,
   });
 
   final TimelineEditTool activeTool;
@@ -499,6 +556,7 @@ class _TimelineToolbar extends StatelessWidget {
   final double minZoom;
   final double maxZoom;
   final int zoomDivisions;
+  final bool snappingEnabled;
   final int markerCount;
   final ValueChanged<TimelineEditTool> onToolSelected;
   final VoidCallback onAddMarker;
@@ -506,6 +564,7 @@ class _TimelineToolbar extends StatelessWidget {
   final ValueChanged<double> onZoomChanged;
   final VoidCallback onZoomIn;
   final VoidCallback onZoomOut;
+  final VoidCallback onToggleSnapping;
 
   @override
   Widget build(BuildContext context) {
@@ -545,6 +604,12 @@ class _TimelineToolbar extends StatelessWidget {
             icon: Icons.bookmark_add_outlined,
             isActive: activeTool == TimelineEditTool.marker,
             onTap: () => onToolSelected(TimelineEditTool.marker),
+          ),
+          _ToolButton(
+            label: snappingEnabled ? 'Snap ON' : 'Snap OFF',
+            icon: Icons.grid_on_outlined,
+            isActive: snappingEnabled,
+            onTap: onToggleSnapping,
           ),
           TextButton.icon(
             onPressed: onAddMarker,
@@ -772,28 +837,38 @@ class _TimelineRuler extends StatelessWidget {
     return SizedBox(
       height: 34,
       width: width,
-      child: Stack(
-        children: List<Widget>.generate(seconds + 1, (int second) {
-          final double left = second * pixelsPerSecond;
-          return Positioned(
-            left: left,
-            top: 0,
-            bottom: 0,
-            child: Row(
-              children: <Widget>[
-                Container(width: 1, color: context.cyberpunk.border),
-                const SizedBox(width: 4),
-                if (second % 2 == 0)
-                  Text(
-                    '${second}s',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: context.cyberpunk.textMuted,
-                    ),
-                  ),
-              ],
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: context.cyberpunk.border.withValues(alpha: 0.8),
             ),
-          );
-        }),
+          ),
+          color: context.cyberpunk.bgPrimary.withValues(alpha: 0.45),
+        ),
+        child: Stack(
+          children: List<Widget>.generate(seconds + 1, (int second) {
+            final double left = second * pixelsPerSecond;
+            return Positioned(
+              left: left,
+              top: 0,
+              bottom: 0,
+              child: Row(
+                children: <Widget>[
+                  Container(width: 1, color: context.cyberpunk.border),
+                  const SizedBox(width: 4),
+                  if (second % 2 == 0)
+                    Text(
+                      '${second}s',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: context.cyberpunk.textMuted,
+                      ),
+                    ),
+                ],
+              ),
+            );
+          }),
+        ),
       ),
     );
   }
@@ -807,6 +882,7 @@ class _TimelineTrackRow extends StatelessWidget {
     required this.playheadMs,
     required this.activeTool,
     required this.selectedClipId,
+    required this.snappingEnabled,
     required this.isTrackMuted,
     required this.isTrackSolo,
     required this.isTrackLocked,
@@ -828,6 +904,7 @@ class _TimelineTrackRow extends StatelessWidget {
   final int playheadMs;
   final TimelineEditTool activeTool;
   final String? selectedClipId;
+  final bool snappingEnabled;
   final bool isTrackMuted;
   final bool isTrackSolo;
   final bool isTrackLocked;
@@ -841,18 +918,21 @@ class _TimelineTrackRow extends StatelessWidget {
     required String trackId,
     required String clipId,
     required int deltaMs,
+    bool useSnapping,
   })
   onMoveClipByDelta;
   final void Function({
     required String trackId,
     required String clipId,
     required int deltaMs,
+    bool useSnapping,
   })
   onTrimClipStartByDelta;
   final void Function({
     required String trackId,
     required String clipId,
     required int deltaMs,
+    bool useSnapping,
   })
   onTrimClipEndByDelta;
   final void Function({
@@ -867,10 +947,21 @@ class _TimelineTrackRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool isSelectedTrack =
+        selectedClipId != null &&
+        track.clips.any((Clip clip) => clip.id == selectedClipId);
     return SizedBox(
       height: rowHeight,
       child: Stack(
         children: <Widget>[
+          if (isSelectedTrack)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Container(
+                  color: context.cyberpunk.neonBlue.withValues(alpha: 0.06),
+                ),
+              ),
+            ),
           Positioned.fill(
             child: Row(
               children: <Widget>[
@@ -978,6 +1069,7 @@ class _TimelineTrackRow extends StatelessWidget {
                     trackId: track.id,
                     clipId: clip.id,
                     deltaMs: deltaMs,
+                    useSnapping: snappingEnabled,
                   );
                 },
                 onTrimEndByDeltaPx: (double deltaPx) {
@@ -990,6 +1082,7 @@ class _TimelineTrackRow extends StatelessWidget {
                     trackId: track.id,
                     clipId: clip.id,
                     deltaMs: deltaMs,
+                    useSnapping: snappingEnabled,
                   );
                 },
                 onMoveByDeltaPx: (double deltaPx) {
@@ -1002,6 +1095,7 @@ class _TimelineTrackRow extends StatelessWidget {
                     trackId: track.id,
                     clipId: clip.id,
                     deltaMs: deltaMs,
+                    useSnapping: snappingEnabled,
                   );
                 },
               ),
