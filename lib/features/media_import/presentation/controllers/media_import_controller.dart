@@ -48,35 +48,26 @@ class MediaImportController extends Notifier<MediaImportState> {
   }
 
   Future<void> pickMediaFiles() async {
-    _log('pickMediaFiles start');
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
       final Result<List<MediaAsset>> result = await _pickMediaAssetsUseCase()
           .timeout(const Duration(seconds: 20));
       _mergeResult(result, emptyMessage: 'Aucun media selectionne.');
-    } on TimeoutException catch (error, stackTrace) {
-      _log('pickMediaFiles timeout: $error');
-      _log(stackTrace.toString());
+    } on TimeoutException {
       state = state.copyWith(
         isLoading: false,
         errorMessage:
             'Import trop long. Reessaie avec moins de fichiers en une fois.',
       );
-    } catch (error, stackTrace) {
-      _log('pickMediaFiles unexpected error: $error');
-      _log(stackTrace.toString());
+    } catch (_) {
       state = state.copyWith(
         isLoading: false,
         errorMessage: 'Erreur inattendue pendant l import.',
       );
     }
-    _log(
-      'pickMediaFiles end, loading=${state.isLoading}, assets=${state.assets.length}',
-    );
   }
 
   Future<void> importDroppedFiles(List<String> paths) async {
-    _log('importDroppedFiles start, paths=${paths.length}');
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
       final Result<List<MediaAsset>> result =
@@ -85,22 +76,16 @@ class MediaImportController extends Notifier<MediaImportState> {
           ).timeout(const Duration(seconds: 20));
       _mergeResult(result, emptyMessage: 'Aucun fichier exploitable depose.');
     } on TimeoutException {
-      _log('importDroppedFiles timeout');
       state = state.copyWith(
         isLoading: false,
         errorMessage: 'Import trop long apres depot des fichiers.',
       );
-    } catch (error, stackTrace) {
-      _log('importDroppedFiles unexpected error: $error');
-      _log(stackTrace.toString());
+    } catch (_) {
       state = state.copyWith(
         isLoading: false,
         errorMessage: 'Erreur inattendue pendant l import.',
       );
     }
-    _log(
-      'importDroppedFiles end, loading=${state.isLoading}, assets=${state.assets.length}',
-    );
   }
 
   void setDraggingOver(bool value) {
@@ -114,7 +99,6 @@ class MediaImportController extends Notifier<MediaImportState> {
     if (result case Success<List<MediaAsset>>(:final List<MediaAsset> value)) {
       if (value.isEmpty) {
         state = state.copyWith(isLoading: false, errorMessage: emptyMessage);
-        _log('mergeResult success but empty');
         return;
       }
       final Map<String, MediaAsset> deduplicated = <String, MediaAsset>{
@@ -128,9 +112,6 @@ class MediaImportController extends Notifier<MediaImportState> {
         isLoading: false,
         errorMessage: null,
       );
-      _log(
-        'mergeResult success, imported=${value.length}, total=${state.assets.length}',
-      );
       return;
     }
 
@@ -141,11 +122,5 @@ class MediaImportController extends Notifier<MediaImportState> {
     };
 
     state = state.copyWith(isLoading: false, errorMessage: failureMessage);
-    _log('mergeResult failure: $failureMessage');
-  }
-
-  void _log(String message) {
-    // ignore: avoid_print
-    print('[MediaImportController] $message');
   }
 }

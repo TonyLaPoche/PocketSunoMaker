@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:file_selector/file_selector.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:path/path.dart' as p;
 
 import '../../domain/entities/media_asset.dart';
@@ -16,49 +17,44 @@ class LocalMediaImportDataSource {
   Future<List<String>> pickPaths() async {
     // On laisse volontairement le picker sans filtre strict: cela evite les
     // soucis de compatibilite selon l'OS et laisse l'utilisateur choisir librement.
-    _log('Opening native file picker');
     final List<XFile> files = await openFiles();
-    final List<String> paths = files
-        .map((XFile file) => file.path)
-        .toList(growable: false);
-    _log('Picker returned ${paths.length} file(s)');
-    return paths;
+    return files.map((XFile file) => file.path).toList(growable: false);
   }
 
   Future<List<MediaAsset>> buildAssetsFromPaths(List<String> paths) async {
-    _log('Building assets from ${paths.length} path(s)');
     final List<MediaAsset> assets = <MediaAsset>[];
 
     for (final String mediaPath in paths) {
       final File file = File(mediaPath);
       if (!await file.exists()) {
-        _log('File does not exist, skip: $mediaPath');
         continue;
       }
 
       final FileStat stat = await file.stat();
+      final MediaKind kind = _resolveKind(mediaPath);
       final MediaProbeResult probeResult = await _safeReadMetadata(mediaPath);
+      final int? durationMs =
+          probeResult.durationMs ??
+          (kind == MediaKind.audio
+              ? await _safeReadAudioDurationMs(mediaPath)
+              : null);
       assets.add(
         MediaAsset(
           id: '${stat.modified.millisecondsSinceEpoch}-${p.basename(mediaPath)}',
           path: mediaPath,
           fileName: p.basename(mediaPath),
-          kind: _resolveKind(mediaPath),
+          kind: kind,
           sizeBytes: stat.size,
           createdAt: stat.modified,
-          durationMs: probeResult.durationMs,
+          durationMs: durationMs,
           videoWidth: probeResult.videoWidth,
           videoHeight: probeResult.videoHeight,
           frameRate: probeResult.frameRate,
           codec: probeResult.codec,
         ),
       );
-      _log(
-        'Asset built: ${p.basename(mediaPath)} (durationMs=${probeResult.durationMs})',
-      );
     }
 
-    _log('buildAssetsFromPaths done, assets=${assets.length}');
     return assets;
   }
 
@@ -111,14 +107,20 @@ class LocalMediaImportDataSource {
   Future<MediaProbeResult> _safeReadMetadata(String mediaPath) async {
     try {
       return await metadataReader.read(mediaPath);
-    } catch (error) {
-      _log('Metadata read error for $mediaPath: $error');
+    } catch (_) {
       return const MediaProbeResult();
     }
   }
 
-  void _log(String message) {
-    // ignore: avoid_print
-    print('[LocalMediaImportDataSource] $message');
+  Future<int?> _safeReadAudioDurationMs(String mediaPath) async {
+    final AudioPlayer player = AudioPlayer();
+    try {
+      await player.setFilePath(mediaPath).timeout(const Duration(seconds: 4));
+      return player.duration?.inMilliseconds;
+    } catch (_) {
+      return null;
+    } finally {
+      await player.dispose();
+    }
   }
 }

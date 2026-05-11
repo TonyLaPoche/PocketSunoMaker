@@ -21,7 +21,6 @@ class FfprobeMetadataReader {
   const FfprobeMetadataReader();
 
   Future<MediaProbeResult> read(String mediaPath) async {
-    _log('ffprobe start: $mediaPath');
     final ProcessResult result =
         await Process.run('ffprobe', <String>[
           '-v',
@@ -37,13 +36,11 @@ class FfprobeMetadataReader {
         );
 
     if (result.exitCode != 0) {
-      _log('ffprobe failed (exit=${result.exitCode}) stderr=${result.stderr}');
       return const MediaProbeResult();
     }
 
     final Object? decoded = jsonDecode(result.stdout as String);
     if (decoded is! Map<String, dynamic>) {
-      _log('ffprobe invalid json payload');
       return const MediaProbeResult();
     }
 
@@ -76,17 +73,13 @@ class FfprobeMetadataReader {
     final String? codec =
         (videoStream?['codec_name'] ?? audioStream?['codec_name']) as String?;
 
-    final MediaProbeResult probe = MediaProbeResult(
+    return MediaProbeResult(
       durationMs: durationMs,
       videoWidth: width,
       videoHeight: height,
       frameRate: frameRate,
       codec: codec,
     );
-    _log(
-      'ffprobe ok duration=${probe.durationMs} codec=${probe.codec} res=${probe.videoWidth}x${probe.videoHeight}',
-    );
-    return probe;
   }
 
   int? _parseDurationMs(Object? secondsAsValue) {
@@ -134,10 +127,5 @@ class FfprobeMetadataReader {
       return null;
     }
     return numerator / denominator;
-  }
-
-  void _log(String message) {
-    // ignore: avoid_print
-    print('[FfprobeMetadataReader] $message');
   }
 }

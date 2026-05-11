@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 
 import '../../../../app/theme/cyberpunk_palette.dart';
+import '../../../export/domain/entities/export_job.dart';
+import '../../../export/presentation/controllers/export_queue_controller.dart';
 import '../../../media_import/presentation/controllers/media_import_controller.dart';
 import '../../../media_import/presentation/widgets/media_bin_panel.dart';
 import '../../../preview/presentation/controllers/preview_controller.dart';
@@ -65,6 +67,8 @@ class ProjectHomePage extends ConsumerWidget {
     final mediaController = ref.read(mediaImportControllerProvider.notifier);
     final previewState = ref.watch(previewControllerProvider);
     final previewController = ref.read(previewControllerProvider.notifier);
+    final exportState = ref.watch(exportQueueControllerProvider);
+    final exportController = ref.read(exportQueueControllerProvider.notifier);
 
     return Scaffold(
       appBar: AppBar(title: const Text('PocketSunoMaker')),
@@ -219,14 +223,67 @@ class ProjectHomePage extends ConsumerWidget {
                               style: Theme.of(context).textTheme.titleLarge,
                             ),
                             const SizedBox(height: 12),
-                            ...ExportPreset.defaults.map(
-                              (ExportPreset preset) => Padding(
-                                padding: const EdgeInsets.only(bottom: 8),
-                                child: Text(
-                                  '- ${preset.label}: ${preset.width}x${preset.height} @ ${preset.frameRate}fps',
-                                ),
+                            DropdownButtonFormField<ExportPreset>(
+                              initialValue: exportState.selectedPreset,
+                              isExpanded: true,
+                              decoration: const InputDecoration(
+                                labelText: 'Preset export',
+                                border: OutlineInputBorder(),
+                                isDense: true,
+                              ),
+                              items: ExportPreset.defaults
+                                  .map(
+                                    (ExportPreset preset) =>
+                                        DropdownMenuItem<ExportPreset>(
+                                          value: preset,
+                                          child: Text(preset.label),
+                                        ),
+                                  )
+                                  .toList(growable: false),
+                              onChanged: (ExportPreset? preset) {
+                                if (preset == null) {
+                                  return;
+                                }
+                                exportController.selectPreset(preset);
+                              },
+                            ),
+                            const SizedBox(height: 8),
+                            FilledButton.icon(
+                              onPressed: projectState.currentProject == null
+                                  ? null
+                                  : () => exportController.enqueueExport(
+                                      projectState.currentProject,
+                                    ),
+                              icon: const Icon(Icons.upload_file_outlined),
+                              label: Text(
+                                exportState.isProcessing
+                                    ? 'Export en cours...'
+                                    : 'Ajouter a la queue',
                               ),
                             ),
+                            const SizedBox(height: 8),
+                            if (exportState.errorMessage != null)
+                              Text(
+                                exportState.errorMessage!,
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.error,
+                                ),
+                              ),
+                            const SizedBox(height: 8),
+                            ...exportState.jobs
+                                .take(5)
+                                .map(
+                                  (ExportJob job) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 6),
+                                    child: Text(
+                                      '- ${job.presetLabel}: ${_statusLabel(job.status)}'
+                                      '${job.message != null ? ' (${job.message})' : ''}',
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.bodySmall,
+                                    ),
+                                  ),
+                                ),
                             const SizedBox(height: 12),
                             PreviewPanel(
                               project: projectState.currentProject,
@@ -289,5 +346,18 @@ class ProjectHomePage extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  String _statusLabel(ExportJobStatus status) {
+    switch (status) {
+      case ExportJobStatus.queued:
+        return 'en attente';
+      case ExportJobStatus.running:
+        return 'en cours';
+      case ExportJobStatus.succeeded:
+        return 'termine';
+      case ExportJobStatus.failed:
+        return 'echec';
+    }
   }
 }

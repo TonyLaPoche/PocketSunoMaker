@@ -50,8 +50,8 @@ Construire un editeur video desktop macOS, 100% open source et gratuit, sous Flu
 - [x] Preview media reelle v1 (video/image active)
 - [x] Preview temps reel robuste
 - [x] Synchronisation audio/video v1 (transport + audio actif)
-- [ ] Queue d'export
-- [ ] Exports presets: YouTube, Shorts, Reels
+- [x] Queue d'export
+- [x] Exports presets: YouTube, Shorts, Reels
 
 ## M4 - Enrichissements
 - [ ] Sous-titres et texte anime
