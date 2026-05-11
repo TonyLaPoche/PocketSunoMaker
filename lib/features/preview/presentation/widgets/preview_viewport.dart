@@ -8,6 +8,7 @@ import 'package:video_player/video_player.dart';
 import '../../../../app/theme/cyberpunk_palette.dart';
 import '../../../project/domain/entities/project.dart';
 import '../../../project/domain/entities/track.dart';
+import '../../../project/domain/entities/clip.dart' as project_clip;
 import '../models/active_clip_info.dart';
 import '../utils/preview_clip_resolver.dart';
 
@@ -17,6 +18,9 @@ class PreviewViewport extends StatefulWidget {
     required this.positionMs,
     required this.isPlaying,
     this.viewportHeight = 190,
+    this.selectedTextClipId,
+    this.onTextClipSelected,
+    this.onMoveSelectedTextByDelta,
     super.key,
   });
 
@@ -24,6 +28,10 @@ class PreviewViewport extends StatefulWidget {
   final int positionMs;
   final bool isPlaying;
   final double viewportHeight;
+  final String? selectedTextClipId;
+  final void Function(String trackId, project_clip.Clip clip)?
+  onTextClipSelected;
+  final ValueChanged<Offset>? onMoveSelectedTextByDelta;
 
   @override
   State<PreviewViewport> createState() => _PreviewViewportState();
@@ -79,13 +87,36 @@ class _PreviewViewportState extends State<PreviewViewport> {
       positionMs: widget.positionMs,
       type: TrackType.video,
     );
+    final ActiveClipInfo? activeTextClip = findActiveClip(
+      project: widget.project,
+      positionMs: widget.positionMs,
+      type: TrackType.text,
+    );
 
     if (activeVisualClip == null) {
       return _ViewportFrame(
         height: widget.viewportHeight,
-        child: _FallbackLabel(
-          label: 'Aucun clip visuel actif',
-          details: 'Place le playhead sur un clip video/image.',
+        child: Stack(
+          fit: StackFit.expand,
+          children: <Widget>[
+            _FallbackLabel(
+              label: 'Aucun clip visuel actif',
+              details: 'Place le playhead sur un clip video/image.',
+            ),
+            if (activeTextClip != null)
+              _TextOverlay(
+                clip: activeTextClip.clip,
+                text: _resolveText(activeTextClip),
+                isSelected: widget.selectedTextClipId == activeTextClip.clip.id,
+                onTap: widget.onTextClipSelected == null
+                    ? null
+                    : () => widget.onTextClipSelected!(
+                        activeTextClip.trackId,
+                        activeTextClip.clip,
+                      ),
+                onPanUpdate: widget.onMoveSelectedTextByDelta,
+              ),
+          ],
         ),
       );
     }
@@ -136,6 +167,19 @@ class _PreviewViewportState extends State<PreviewViewport> {
               ),
             ),
             _CornerLabel(label: p.basename(activeVisualClip.clip.assetPath)),
+            if (activeTextClip != null)
+              _TextOverlay(
+                clip: activeTextClip.clip,
+                text: _resolveText(activeTextClip),
+                isSelected: widget.selectedTextClipId == activeTextClip.clip.id,
+                onTap: widget.onTextClipSelected == null
+                    ? null
+                    : () => widget.onTextClipSelected!(
+                        activeTextClip.trackId,
+                        activeTextClip.clip,
+                      ),
+                onPanUpdate: widget.onMoveSelectedTextByDelta,
+              ),
           ],
         ),
       );
@@ -171,6 +215,19 @@ class _PreviewViewportState extends State<PreviewViewport> {
               ),
             ),
             _CornerLabel(label: p.basename(activeVisualClip.clip.assetPath)),
+            if (activeTextClip != null)
+              _TextOverlay(
+                clip: activeTextClip.clip,
+                text: _resolveText(activeTextClip),
+                isSelected: widget.selectedTextClipId == activeTextClip.clip.id,
+                onTap: widget.onTextClipSelected == null
+                    ? null
+                    : () => widget.onTextClipSelected!(
+                        activeTextClip.trackId,
+                        activeTextClip.clip,
+                      ),
+                onPanUpdate: widget.onMoveSelectedTextByDelta,
+              ),
           ],
         ),
       );
@@ -285,6 +342,14 @@ class _PreviewViewportState extends State<PreviewViewport> {
   double _degToRad(double deg) {
     return deg * math.pi / 180.0;
   }
+
+  String _resolveText(ActiveClipInfo info) {
+    final String? text = info.clip.textContent?.trim();
+    if (text == null || text.isEmpty) {
+      return 'Texte';
+    }
+    return text;
+  }
 }
 
 class _VisualTransform extends StatelessWidget {
@@ -330,6 +395,85 @@ class _ViewportFrame extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: child,
     );
+  }
+}
+
+class _TextOverlay extends StatelessWidget {
+  const _TextOverlay({
+    required this.clip,
+    required this.text,
+    required this.isSelected,
+    this.onTap,
+    this.onPanUpdate,
+  });
+
+  final project_clip.Clip clip;
+  final String text;
+  final bool isSelected;
+  final VoidCallback? onTap;
+  final ValueChanged<Offset>? onPanUpdate;
+
+  @override
+  Widget build(BuildContext context) {
+    final TextStyle textStyle = TextStyle(
+      color: _colorFromHex(
+        clip.textColorHex,
+        fallback: context.cyberpunk.textPrimary,
+      ),
+      fontWeight: clip.textBold ? FontWeight.w700 : FontWeight.w500,
+      fontStyle: clip.textItalic ? FontStyle.italic : FontStyle.normal,
+      fontSize: clip.textFontSizePx.clamp(12.0, 220.0),
+      fontFamily: clip.textFontFamily,
+      height: 1.1,
+    );
+    return Align(
+      alignment: Alignment.center,
+      child: Transform.translate(
+        offset: Offset(clip.textPosXPx, clip.textPosYPx),
+        child: GestureDetector(
+          onTap: onTap,
+          onPanUpdate: isSelected && onPanUpdate != null
+              ? (DragUpdateDetails details) => onPanUpdate!(details.delta)
+              : null,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: _colorFromHex(
+                clip.textBackgroundHex,
+                fallback: Colors.black,
+              ).withValues(alpha: 0.62),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isSelected
+                    ? context.cyberpunk.neonPink
+                    : context.cyberpunk.neonBlue.withValues(alpha: 0.35),
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              child: Text(
+                text,
+                textAlign: TextAlign.center,
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
+                style: textStyle,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _colorFromHex(String hex, {required Color fallback}) {
+    final String normalized = hex.replaceAll('#', '').trim();
+    if (normalized.length != 6) {
+      return fallback;
+    }
+    final int? rgb = int.tryParse(normalized, radix: 16);
+    if (rgb == null) {
+      return fallback;
+    }
+    return Color(0xFF000000 | rgb);
   }
 }
 

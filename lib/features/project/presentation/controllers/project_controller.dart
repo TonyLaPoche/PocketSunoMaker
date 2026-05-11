@@ -428,6 +428,14 @@ class ProjectController extends Notifier<ProjectState> {
     required double volume,
     required double scale,
     required double rotationDeg,
+    double? textPosXPx,
+    double? textPosYPx,
+    double? textFontSizePx,
+    String? textFontFamily,
+    bool? textBold,
+    bool? textItalic,
+    String? textColorHex,
+    String? textBackgroundHex,
   }) {
     _updateClip(
       trackId: trackId,
@@ -439,8 +447,109 @@ class ProjectController extends Notifier<ProjectState> {
           volume: volume.clamp(0.0, 2.0),
           scale: scale.clamp(0.5, 2.0),
           rotationDeg: rotationDeg.clamp(-180.0, 180.0),
+          textPosXPx: textPosXPx?.clamp(-2000.0, 2000.0),
+          textPosYPx: textPosYPx?.clamp(-2000.0, 2000.0),
+          textFontSizePx: textFontSizePx?.clamp(12.0, 220.0),
+          textFontFamily: textFontFamily,
+          textBold: textBold,
+          textItalic: textItalic,
+          textColorHex: textColorHex,
+          textBackgroundHex: textBackgroundHex,
         );
       },
+    );
+  }
+
+  void addTextClipAt({
+    required int startMs,
+    String text = 'Nouveau texte',
+    int durationMs = 3000,
+  }) {
+    final Project? project = state.currentProject;
+    if (project == null) {
+      return;
+    }
+    final List<Track> tracks = List<Track>.from(project.tracks);
+    final int safeStartMs = startMs < 0 ? 0 : startMs;
+    final int safeDurationMs = durationMs < _minClipDurationMs
+        ? _minClipDurationMs
+        : durationMs;
+    final Track? existingTextTrack = tracks
+        .where((Track track) => track.type == TrackType.text)
+        .fold<Track?>(null, (Track? current, Track next) {
+          if (current == null || next.index > current.index) {
+            return next;
+          }
+          return current;
+        });
+    final Clip textClip = Clip(
+      id: 'clip-${DateTime.now().microsecondsSinceEpoch}',
+      assetPath: '',
+      timelineStartMs: safeStartMs,
+      sourceInMs: 0,
+      sourceOutMs: safeDurationMs,
+      textContent: text,
+    );
+    if (existingTextTrack == null) {
+      final Track newTextTrack = Track(
+        id: 'text-track-${DateTime.now().millisecondsSinceEpoch}',
+        type: TrackType.text,
+        index: tracks.length,
+        clips: <Clip>[textClip],
+      );
+      tracks.add(newTextTrack);
+    } else {
+      final int trackIndex = tracks.indexWhere(
+        (Track track) => track.id == existingTextTrack.id,
+      );
+      if (trackIndex == -1) {
+        return;
+      }
+      final List<Clip> clips = List<Clip>.from(existingTextTrack.clips)
+        ..add(textClip);
+      clips.sort(
+        (Clip a, Clip b) => a.timelineStartMs.compareTo(b.timelineStartMs),
+      );
+      tracks[trackIndex] = existingTextTrack.copyWith(clips: clips);
+    }
+    state = state.copyWith(
+      currentProject: project.copyWith(
+        tracks: tracks,
+        durationMs: _computeProjectDurationMs(tracks),
+      ),
+      errorMessage: null,
+    );
+  }
+
+  void updateClipTextContent({
+    required String trackId,
+    required String clipId,
+    required String text,
+  }) {
+    final String sanitized = text.trim();
+    if (sanitized.isEmpty) {
+      return;
+    }
+    _updateClip(
+      trackId: trackId,
+      clipId: clipId,
+      update: (Clip clip) => clip.copyWith(textContent: sanitized),
+    );
+  }
+
+  void moveTextClipByDelta({
+    required String trackId,
+    required String clipId,
+    required double deltaXPx,
+    required double deltaYPx,
+  }) {
+    _updateClip(
+      trackId: trackId,
+      clipId: clipId,
+      update: (Clip clip) => clip.copyWith(
+        textPosXPx: (clip.textPosXPx + deltaXPx).clamp(-2000.0, 2000.0),
+        textPosYPx: (clip.textPosYPx + deltaYPx).clamp(-2000.0, 2000.0),
+      ),
     );
   }
 
@@ -480,8 +589,10 @@ class ProjectController extends Notifier<ProjectState> {
 
   int _countInaccessibleClipSources(Project project) {
     final Set<String> uniquePaths = project.tracks
+        .where((Track track) => track.type != TrackType.text)
         .expand((Track track) => track.clips)
         .map((Clip clip) => clip.assetPath)
+        .where((String path) => path.isNotEmpty)
         .toSet();
     int inaccessible = 0;
     for (final String path in uniquePaths) {

@@ -12,6 +12,7 @@ import '../../domain/entities/media_asset.dart';
 import '../../infrastructure/datasources/local_media_import_data_source.dart';
 import '../../infrastructure/repositories/local_media_import_repository.dart';
 import '../../../project/domain/entities/project.dart';
+import '../../../project/domain/entities/track.dart';
 import 'media_import_state.dart';
 
 final Provider<PickMediaAssetsUseCase> pickMediaAssetsUseCaseProvider =
@@ -107,8 +108,10 @@ class MediaImportController extends Notifier<MediaImportState> {
       return;
     }
     final Set<String> clipPaths = project.tracks
+        .where((track) => track.type != TrackType.text)
         .expand((track) => track.clips)
         .map((clip) => clip.assetPath)
+        .where((String path) => path.isNotEmpty)
         .toSet();
     if (clipPaths.isEmpty) {
       return;

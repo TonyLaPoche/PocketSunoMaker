@@ -28,7 +28,11 @@ ActiveClipInfo? findActiveClip({
 
       if (best == null || hasHigherTrackPriority || sameTrackButLaterStart) {
         final int sourcePositionMs = clip.sourceInMs + (positionMs - clipStart);
-        best = ActiveClipInfo(clip: clip, sourcePositionMs: sourcePositionMs);
+        best = ActiveClipInfo(
+          clip: clip,
+          trackId: track.id,
+          sourcePositionMs: sourcePositionMs,
+        );
         bestTrackIndex = track.index;
         bestStart = clipStart;
       }

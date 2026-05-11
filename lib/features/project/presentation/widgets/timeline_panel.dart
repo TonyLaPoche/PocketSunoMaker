@@ -910,21 +910,25 @@ class _TimelineTrackRow extends StatelessWidget {
             ),
           ),
           ...track.clips.map((Clip clip) {
+            final bool isTextClip = track.type == TrackType.text;
+            final double clipHeight = isTextClip ? 30 : 42;
             final double left =
                 _trackHeaderWidth +
                 (clip.timelineStartMs / 1000) * pixelsPerSecond;
             final double width = math.max(
               (clip.durationMs / 1000) * pixelsPerSecond,
-              42,
+              isTextClip ? 60 : 42,
             );
             return Positioned(
               left: left,
-              top: 10,
+              top: (rowHeight - clipHeight) / 2,
               child: _TimelineClipWidget(
                 clip: clip,
                 width: width,
+                height: clipHeight,
                 playheadMs: playheadMs,
                 trackId: track.id,
+                isTextClip: isTextClip,
                 isSelected: selectedClipId == clip.id,
                 canTrim:
                     (activeTool == TimelineEditTool.trim ||
@@ -942,6 +946,11 @@ class _TimelineTrackRow extends StatelessWidget {
                 onRemove: () =>
                     onRemoveClip(trackId: track.id, clipId: clip.id),
                 onSplitClipAtPlayhead: onSplitClipAtPlayhead,
+                displayLabel: track.type == TrackType.text
+                    ? (clip.textContent?.trim().isNotEmpty == true
+                          ? clip.textContent!.trim()
+                          : 'Texte')
+                    : p.basename(clip.assetPath),
                 onTrimStartByDeltaPx: (double deltaPx) {
                   final int deltaMs = (deltaPx / pixelsPerSecond * 1000)
                       .round();
@@ -1041,8 +1050,10 @@ class _TimelineClipWidget extends StatelessWidget {
   const _TimelineClipWidget({
     required this.clip,
     required this.width,
+    required this.height,
     required this.playheadMs,
     required this.trackId,
+    required this.isTextClip,
     required this.isSelected,
     required this.canTrim,
     required this.canMove,
@@ -1053,6 +1064,7 @@ class _TimelineClipWidget extends StatelessWidget {
     required this.onSelect,
     required this.onRemove,
     required this.onSplitClipAtPlayhead,
+    required this.displayLabel,
     required this.onTrimStartByDeltaPx,
     required this.onTrimEndByDeltaPx,
     required this.onMoveByDeltaPx,
@@ -1060,8 +1072,10 @@ class _TimelineClipWidget extends StatelessWidget {
 
   final Clip clip;
   final double width;
+  final double height;
   final int playheadMs;
   final String trackId;
+  final bool isTextClip;
   final bool isSelected;
   final bool canTrim;
   final bool canMove;
@@ -1071,6 +1085,7 @@ class _TimelineClipWidget extends StatelessWidget {
   final bool reducedVisualIntensity;
   final VoidCallback onSelect;
   final VoidCallback onRemove;
+  final String displayLabel;
   final void Function({
     required String trackId,
     required String clipId,
@@ -1086,22 +1101,36 @@ class _TimelineClipWidget extends StatelessWidget {
     final double baseAlpha = reducedVisualIntensity ? 0.68 : 0.85;
     final double glowAlpha = reducedVisualIntensity ? 0.12 : 0.24;
     final double selectedGlowAlpha = reducedVisualIntensity ? 0.2 : 0.35;
+    final List<Color> gradientColors = isTextClip
+        ? <Color>[
+            context.cyberpunk.neonBlue.withValues(
+              alpha: reducedVisualIntensity ? 0.55 : 0.72,
+            ),
+            context.cyberpunk.neonViolet.withValues(
+              alpha: reducedVisualIntensity ? 0.55 : 0.72,
+            ),
+          ]
+        : <Color>[
+            context.cyberpunk.neonPink.withValues(alpha: baseAlpha),
+            context.cyberpunk.neonViolet.withValues(alpha: baseAlpha),
+          ];
+    final bool showDeleteIcon = isSelected && canDelete && width >= 44;
+    final double handleWidth = width < 34 ? 4 : 6;
     return Opacity(
       opacity: dimmed ? 0.35 : 1,
       child: Container(
         width: width,
-        height: 42,
+        height: height,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
-          gradient: LinearGradient(
-            colors: <Color>[
-              context.cyberpunk.neonPink.withValues(alpha: baseAlpha),
-              context.cyberpunk.neonViolet.withValues(alpha: baseAlpha),
-            ],
-          ),
+          gradient: LinearGradient(colors: gradientColors),
           boxShadow: <BoxShadow>[
             BoxShadow(
-              color: context.cyberpunk.neonPink.withValues(alpha: glowAlpha),
+              color:
+                  (isTextClip
+                          ? context.cyberpunk.neonBlue
+                          : context.cyberpunk.neonPink)
+                      .withValues(alpha: glowAlpha),
               blurRadius: 12,
             ),
             if (isSelected)
@@ -1120,6 +1149,7 @@ class _TimelineClipWidget extends StatelessWidget {
               onDrag: onTrimStartByDeltaPx,
               isLeft: true,
               enabled: canTrim,
+              width: handleWidth,
             ),
             Expanded(
               child: GestureDetector(
@@ -1141,30 +1171,42 @@ class _TimelineClipWidget extends StatelessWidget {
                 },
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 6,
+                    horizontal: 2,
+                    vertical: 4,
                   ),
                   child: Row(
                     children: <Widget>[
-                      Expanded(
-                        child: Text(
-                          p.basename(clip.assetPath),
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(
-                                color: context.cyberpunk.textPrimary,
-                                fontWeight: FontWeight.w600,
-                              ),
+                      if (isTextClip)
+                        const Padding(
+                          padding: EdgeInsets.only(right: 4),
+                          child: Icon(
+                            Icons.subtitles_outlined,
+                            size: 12,
+                            color: Colors.white,
+                          ),
                         ),
-                      ),
-                      if (isSelected && canDelete)
+                      if (width >= 24)
+                        Expanded(
+                          child: Text(
+                            displayLabel,
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: context.cyberpunk.textPrimary,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: isTextClip ? 11 : null,
+                                ),
+                          ),
+                        ),
+                      if (showDeleteIcon)
                         InkWell(
                           onTap: onRemove,
                           child: const Padding(
-                            padding: EdgeInsets.only(left: 6),
+                            padding: EdgeInsets.only(left: 4),
                             child: Icon(
                               Icons.close,
-                              size: 16,
+                              size: 14,
                               color: Colors.white,
                             ),
                           ),
@@ -1178,6 +1220,7 @@ class _TimelineClipWidget extends StatelessWidget {
               onDrag: onTrimEndByDeltaPx,
               isLeft: false,
               enabled: canTrim,
+              width: handleWidth,
             ),
           ],
         ),
@@ -1191,11 +1234,13 @@ class _TrimHandle extends StatelessWidget {
     required this.onDrag,
     required this.isLeft,
     required this.enabled,
+    this.width = 8,
   });
 
   final ValueChanged<double> onDrag;
   final bool isLeft;
   final bool enabled;
+  final double width;
 
   @override
   Widget build(BuildContext context) {
@@ -1210,7 +1255,7 @@ class _TrimHandle extends StatelessWidget {
           }
         },
         child: Container(
-          width: 8,
+          width: width,
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: enabled ? 0.28 : 0.1),
             borderRadius: BorderRadius.horizontal(

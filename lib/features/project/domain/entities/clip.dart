@@ -10,6 +10,15 @@ class Clip {
     this.volume = 1.0,
     this.scale = 1.0,
     this.rotationDeg = 0.0,
+    this.textContent,
+    this.textPosXPx = 0.0,
+    this.textPosYPx = 0.0,
+    this.textFontSizePx = 42.0,
+    this.textFontFamily = 'Roboto',
+    this.textBold = false,
+    this.textItalic = false,
+    this.textColorHex = '#FFFFFF',
+    this.textBackgroundHex = '#000000',
   });
 
   final String id;
@@ -22,6 +31,15 @@ class Clip {
   final double volume;
   final double scale;
   final double rotationDeg;
+  final String? textContent;
+  final double textPosXPx;
+  final double textPosYPx;
+  final double textFontSizePx;
+  final String textFontFamily;
+  final bool textBold;
+  final bool textItalic;
+  final String textColorHex;
+  final String textBackgroundHex;
 
   int get durationMs => sourceOutMs - sourceInMs;
 
@@ -36,6 +54,15 @@ class Clip {
     double? volume,
     double? scale,
     double? rotationDeg,
+    String? textContent,
+    double? textPosXPx,
+    double? textPosYPx,
+    double? textFontSizePx,
+    String? textFontFamily,
+    bool? textBold,
+    bool? textItalic,
+    String? textColorHex,
+    String? textBackgroundHex,
   }) {
     return Clip(
       id: id ?? this.id,
@@ -48,6 +75,15 @@ class Clip {
       volume: volume ?? this.volume,
       scale: scale ?? this.scale,
       rotationDeg: rotationDeg ?? this.rotationDeg,
+      textContent: textContent ?? this.textContent,
+      textPosXPx: textPosXPx ?? this.textPosXPx,
+      textPosYPx: textPosYPx ?? this.textPosYPx,
+      textFontSizePx: textFontSizePx ?? this.textFontSizePx,
+      textFontFamily: textFontFamily ?? this.textFontFamily,
+      textBold: textBold ?? this.textBold,
+      textItalic: textItalic ?? this.textItalic,
+      textColorHex: textColorHex ?? this.textColorHex,
+      textBackgroundHex: textBackgroundHex ?? this.textBackgroundHex,
     );
   }
 }

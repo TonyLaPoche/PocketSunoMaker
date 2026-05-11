@@ -75,6 +75,15 @@ class LocalProjectDataSource {
       'volume': clip.volume,
       'scale': clip.scale,
       'rotationDeg': clip.rotationDeg,
+      'textContent': clip.textContent,
+      'textPosXPx': clip.textPosXPx,
+      'textPosYPx': clip.textPosYPx,
+      'textFontSizePx': clip.textFontSizePx,
+      'textFontFamily': clip.textFontFamily,
+      'textBold': clip.textBold,
+      'textItalic': clip.textItalic,
+      'textColorHex': clip.textColorHex,
+      'textBackgroundHex': clip.textBackgroundHex,
     };
   }
 
@@ -127,6 +136,15 @@ class LocalProjectDataSource {
       volume: _asDouble(json['volume'], fallback: 1.0),
       scale: _asDouble(json['scale'], fallback: 1.0),
       rotationDeg: _asDouble(json['rotationDeg'], fallback: 0.0),
+      textContent: json['textContent'] as String?,
+      textPosXPx: _asDouble(json['textPosXPx'], fallback: 0.0),
+      textPosYPx: _asDouble(json['textPosYPx'], fallback: 0.0),
+      textFontSizePx: _asDouble(json['textFontSizePx'], fallback: 42.0),
+      textFontFamily: json['textFontFamily'] as String? ?? 'Roboto',
+      textBold: _asBool(json['textBold'], fallback: false),
+      textItalic: _asBool(json['textItalic'], fallback: false),
+      textColorHex: json['textColorHex'] as String? ?? '#FFFFFF',
+      textBackgroundHex: json['textBackgroundHex'] as String? ?? '#000000',
     );
   }
 
@@ -146,6 +164,21 @@ class LocalProjectDataSource {
     }
     if (value is String) {
       return double.tryParse(value) ?? fallback;
+    }
+    return fallback;
+  }
+
+  bool _asBool(Object? value, {required bool fallback}) {
+    if (value is bool) {
+      return value;
+    }
+    if (value is String) {
+      if (value.toLowerCase() == 'true') {
+        return true;
+      }
+      if (value.toLowerCase() == 'false') {
+        return false;
+      }
     }
     return fallback;
   }

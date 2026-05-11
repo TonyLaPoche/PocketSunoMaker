@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/theme/cyberpunk_palette.dart';
+import '../../../project/domain/entities/clip.dart';
 import '../../../project/domain/entities/project.dart';
 import '../../../project/domain/entities/track.dart';
 import '../controllers/preview_state.dart';
@@ -15,6 +16,9 @@ class PreviewPanel extends StatelessWidget {
     required this.onScrubStart,
     required this.onScrubEnd,
     required this.onSeekTo,
+    this.selectedTextClipId,
+    this.onTextClipSelected,
+    this.onMoveSelectedTextByDelta,
     super.key,
   });
 
@@ -24,6 +28,9 @@ class PreviewPanel extends StatelessWidget {
   final VoidCallback onScrubStart;
   final VoidCallback onScrubEnd;
   final ValueChanged<int> onSeekTo;
+  final String? selectedTextClipId;
+  final void Function(String trackId, Clip clip)? onTextClipSelected;
+  final ValueChanged<Offset>? onMoveSelectedTextByDelta;
 
   @override
   Widget build(BuildContext context) {
@@ -75,6 +82,9 @@ class PreviewPanel extends StatelessWidget {
                     positionMs: state.currentPositionMs,
                     isPlaying: state.isPlaying,
                     viewportHeight: viewportHeight,
+                    selectedTextClipId: selectedTextClipId,
+                    onTextClipSelected: onTextClipSelected,
+                    onMoveSelectedTextByDelta: onMoveSelectedTextByDelta,
                   ),
                   const SizedBox(height: 8),
                   Row(

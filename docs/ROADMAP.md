@@ -90,7 +90,9 @@ Construire un editeur video desktop macOS, 100% open source et gratuit, sous Flu
   - [x] Progression: micro-interactions hover sur panneaux studio + raccourcis clavier de base (Play/Pause, Nouveau, Importer, Sauvegarder, Charger) + cibles boutons principales agrandies + raccourcis timeline (V/B/T/H/M, N snapping, S split) + seek clavier rapide (fleches gauche/droite) + mode confort visuel (intensite neon reduite)
 
 ## M4 - Enrichissements
+- [x] Section Timeline étirable (réduction des trois sections "Media", "Lecteur" et Inspecteur/Export)
 - [ ] Sous-titres et texte anime
+  - Progression en cours: texte overlay v1 (clip texte dedie, edition depuis inspecteur, style typographique de base: police/taille px/gras/italique/couleurs, positionnement drag dans preview, rendu timeline specifique, persistance `.psm`)
 - [ ] Effets (glitch, rotation, etc.) pluginables
 - [ ] Visualizer lie au son
 - [ ] UX avancee (raccourcis, undo/redo, marqueurs)
