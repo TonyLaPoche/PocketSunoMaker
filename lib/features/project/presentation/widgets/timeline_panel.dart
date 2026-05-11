@@ -12,6 +12,8 @@ class TimelinePanel extends StatefulWidget {
   const TimelinePanel({
     required this.project,
     required this.onMoveClipByDelta,
+    required this.onTrimClipStartByDelta,
+    required this.onTrimClipEndByDelta,
     required this.onRemoveClip,
     super.key,
   });
@@ -23,6 +25,18 @@ class TimelinePanel extends StatefulWidget {
     required int deltaMs,
   })
   onMoveClipByDelta;
+  final void Function({
+    required String trackId,
+    required String clipId,
+    required int deltaMs,
+  })
+  onTrimClipStartByDelta;
+  final void Function({
+    required String trackId,
+    required String clipId,
+    required int deltaMs,
+  })
+  onTrimClipEndByDelta;
   final void Function({required String trackId, required String clipId})
   onRemoveClip;
 
@@ -93,6 +107,8 @@ class _TimelinePanelState extends State<TimelinePanel> {
                           });
                         },
                         onMoveClipByDelta: widget.onMoveClipByDelta,
+                        onTrimClipStartByDelta: widget.onTrimClipStartByDelta,
+                        onTrimClipEndByDelta: widget.onTrimClipEndByDelta,
                         onRemoveClip: widget.onRemoveClip,
                       );
                     },
@@ -158,6 +174,8 @@ class _TimelineTrackRow extends StatelessWidget {
     required this.selectedClipId,
     required this.onSelectClip,
     required this.onMoveClipByDelta,
+    required this.onTrimClipStartByDelta,
+    required this.onTrimClipEndByDelta,
     required this.onRemoveClip,
   });
 
@@ -172,6 +190,18 @@ class _TimelineTrackRow extends StatelessWidget {
     required int deltaMs,
   })
   onMoveClipByDelta;
+  final void Function({
+    required String trackId,
+    required String clipId,
+    required int deltaMs,
+  })
+  onTrimClipStartByDelta;
+  final void Function({
+    required String trackId,
+    required String clipId,
+    required int deltaMs,
+  })
+  onTrimClipEndByDelta;
   final void Function({required String trackId, required String clipId})
   onRemoveClip;
 
@@ -226,6 +256,30 @@ class _TimelineTrackRow extends StatelessWidget {
                 onSelect: () => onSelectClip(clip.id),
                 onRemove: () =>
                     onRemoveClip(trackId: track.id, clipId: clip.id),
+                onTrimStartByDeltaPx: (double deltaPx) {
+                  final int deltaMs = (deltaPx / pixelsPerSecond * 1000)
+                      .round();
+                  if (deltaMs == 0) {
+                    return;
+                  }
+                  onTrimClipStartByDelta(
+                    trackId: track.id,
+                    clipId: clip.id,
+                    deltaMs: deltaMs,
+                  );
+                },
+                onTrimEndByDeltaPx: (double deltaPx) {
+                  final int deltaMs = (deltaPx / pixelsPerSecond * 1000)
+                      .round();
+                  if (deltaMs == 0) {
+                    return;
+                  }
+                  onTrimClipEndByDelta(
+                    trackId: track.id,
+                    clipId: clip.id,
+                    deltaMs: deltaMs,
+                  );
+                },
                 onMoveByDeltaPx: (double deltaPx) {
                   final int deltaMs = (deltaPx / pixelsPerSecond * 1000)
                       .round();
@@ -254,6 +308,8 @@ class _TimelineClipWidget extends StatelessWidget {
     required this.isSelected,
     required this.onSelect,
     required this.onRemove,
+    required this.onTrimStartByDeltaPx,
+    required this.onTrimEndByDeltaPx,
     required this.onMoveByDeltaPx,
   });
 
@@ -262,61 +318,106 @@ class _TimelineClipWidget extends StatelessWidget {
   final bool isSelected;
   final VoidCallback onSelect;
   final VoidCallback onRemove;
+  final ValueChanged<double> onTrimStartByDeltaPx;
+  final ValueChanged<double> onTrimEndByDeltaPx;
   final ValueChanged<double> onMoveByDeltaPx;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onHorizontalDragUpdate: (DragUpdateDetails details) {
-        onMoveByDeltaPx(details.delta.dx);
-      },
-      onTap: onSelect,
-      child: Container(
-        width: width,
-        height: 42,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          gradient: LinearGradient(
-            colors: <Color>[
-              context.cyberpunk.neonPink.withValues(alpha: 0.85),
-              context.cyberpunk.neonViolet.withValues(alpha: 0.85),
-            ],
-          ),
-          boxShadow: <BoxShadow>[
-            BoxShadow(
-              color: context.cyberpunk.neonPink.withValues(alpha: 0.24),
-              blurRadius: 12,
-            ),
-            if (isSelected)
-              BoxShadow(
-                color: context.cyberpunk.neonBlue.withValues(alpha: 0.35),
-                blurRadius: 16,
-                spreadRadius: 1.5,
-              ),
+    return Container(
+      width: width,
+      height: 42,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        gradient: LinearGradient(
+          colors: <Color>[
+            context.cyberpunk.neonPink.withValues(alpha: 0.85),
+            context.cyberpunk.neonViolet.withValues(alpha: 0.85),
           ],
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        child: Row(
-          children: <Widget>[
-            Expanded(
-              child: Text(
-                p.basename(clip.assetPath),
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: context.cyberpunk.textPrimary,
-                  fontWeight: FontWeight.w600,
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: context.cyberpunk.neonPink.withValues(alpha: 0.24),
+            blurRadius: 12,
+          ),
+          if (isSelected)
+            BoxShadow(
+              color: context.cyberpunk.neonBlue.withValues(alpha: 0.35),
+              blurRadius: 16,
+              spreadRadius: 1.5,
+            ),
+        ],
+      ),
+      child: Row(
+        children: <Widget>[
+          _TrimHandle(onDrag: onTrimStartByDeltaPx, isLeft: true),
+          Expanded(
+            child: GestureDetector(
+              onHorizontalDragUpdate: (DragUpdateDetails details) {
+                onMoveByDeltaPx(details.delta.dx);
+              },
+              onTap: onSelect,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                child: Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        p.basename(clip.assetPath),
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: context.cyberpunk.textPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    if (isSelected)
+                      InkWell(
+                        onTap: onRemove,
+                        child: const Padding(
+                          padding: EdgeInsets.only(left: 6),
+                          child: Icon(
+                            Icons.close,
+                            size: 16,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),
-            if (isSelected)
-              InkWell(
-                onTap: onRemove,
-                child: const Padding(
-                  padding: EdgeInsets.only(left: 6),
-                  child: Icon(Icons.close, size: 16, color: Colors.white),
-                ),
-              ),
-          ],
+          ),
+          _TrimHandle(onDrag: onTrimEndByDeltaPx, isLeft: false),
+        ],
+      ),
+    );
+  }
+}
+
+class _TrimHandle extends StatelessWidget {
+  const _TrimHandle({required this.onDrag, required this.isLeft});
+
+  final ValueChanged<double> onDrag;
+  final bool isLeft;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.resizeColumn,
+      child: GestureDetector(
+        onHorizontalDragUpdate: (DragUpdateDetails details) {
+          onDrag(details.delta.dx);
+        },
+        child: Container(
+          width: 8,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.28),
+            borderRadius: BorderRadius.horizontal(
+              left: isLeft ? const Radius.circular(8) : Radius.zero,
+              right: isLeft ? Radius.zero : const Radius.circular(8),
+            ),
+          ),
         ),
       ),
     );

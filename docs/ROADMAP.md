@@ -40,8 +40,8 @@ Construire un editeur video desktop macOS, 100% open source et gratuit, sous Flu
 - [x] Ajout clip depuis Media Bin (prototype)
 - [x] Timeline visuelle multi-pistes (prototype)
 - [x] Ajout/suppression de clips
-- [ ] Trim in/out
-- [ ] Deplacement drag and drop sur timeline
+- [x] Trim in/out
+- [x] Deplacement drag and drop sur timeline
 - [ ] Snapping basique
 
 ## M3 - Preview et export

@@ -48,6 +48,7 @@ class ProjectController extends Notifier<ProjectState> {
     label: 'PocketSunoMaker Project',
     extensions: <String>['psm'],
   );
+  static const int _minClipDurationMs = 500;
 
   @override
   ProjectState build() {
@@ -282,6 +283,51 @@ class ProjectController extends Notifier<ProjectState> {
     );
   }
 
+  void trimClipStartByDelta({
+    required String trackId,
+    required String clipId,
+    required int deltaMs,
+  }) {
+    _updateClip(
+      trackId: trackId,
+      clipId: clipId,
+      update: (Clip clip) {
+        final int lowerBoundDelta = _maxInt(
+          -clip.sourceInMs,
+          -clip.timelineStartMs,
+        );
+        final int upperBoundDelta = clip.durationMs - _minClipDurationMs;
+        final int appliedDelta = _clampInt(
+          deltaMs,
+          lowerBoundDelta,
+          upperBoundDelta,
+        );
+        return clip.copyWith(
+          sourceInMs: clip.sourceInMs + appliedDelta,
+          timelineStartMs: clip.timelineStartMs + appliedDelta,
+        );
+      },
+    );
+  }
+
+  void trimClipEndByDelta({
+    required String trackId,
+    required String clipId,
+    required int deltaMs,
+  }) {
+    _updateClip(
+      trackId: trackId,
+      clipId: clipId,
+      update: (Clip clip) {
+        final int lowerBoundDelta = -(clip.durationMs - _minClipDurationMs);
+        final int appliedDelta = deltaMs < lowerBoundDelta
+            ? lowerBoundDelta
+            : deltaMs;
+        return clip.copyWith(sourceOutMs: clip.sourceOutMs + appliedDelta);
+      },
+    );
+  }
+
   String _sanitizeFileName(String source) {
     final String noExtension = p.basenameWithoutExtension(source.trim());
     final String safe = noExtension.replaceAll(RegExp(r'[^a-zA-Z0-9_\- ]'), '');
@@ -324,4 +370,56 @@ class ProjectController extends Notifier<ProjectState> {
     }
     return 10000;
   }
+
+  void _updateClip({
+    required String trackId,
+    required String clipId,
+    required Clip Function(Clip clip) update,
+  }) {
+    final Project? project = state.currentProject;
+    if (project == null) {
+      return;
+    }
+
+    final List<Track> updatedTracks = project.tracks
+        .map((Track track) {
+          if (track.id != trackId) {
+            return track;
+          }
+
+          final List<Clip> updatedClips = track.clips
+              .map((Clip clip) {
+                if (clip.id != clipId) {
+                  return clip;
+                }
+                return update(clip);
+              })
+              .toList(growable: false);
+
+          return track.copyWith(clips: updatedClips);
+        })
+        .toList(growable: false);
+
+    state = state.copyWith(
+      currentProject: project.copyWith(
+        tracks: updatedTracks,
+        durationMs: _computeProjectDurationMs(updatedTracks),
+      ),
+    );
+  }
+
+  int _clampInt(int value, int min, int max) {
+    if (max < min) {
+      return min;
+    }
+    if (value < min) {
+      return min;
+    }
+    if (value > max) {
+      return max;
+    }
+    return value;
+  }
+
+  int _maxInt(int a, int b) => a > b ? a : b;
 }

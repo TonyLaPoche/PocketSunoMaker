@@ -210,6 +210,10 @@ class ProjectHomePage extends ConsumerWidget {
                                 project: projectState.currentProject,
                                 onMoveClipByDelta:
                                     projectController.moveClipByDelta,
+                                onTrimClipStartByDelta:
+                                    projectController.trimClipStartByDelta,
+                                onTrimClipEndByDelta:
+                                    projectController.trimClipEndByDelta,
                                 onRemoveClip: projectController.removeClip,
                               ),
                             ),
