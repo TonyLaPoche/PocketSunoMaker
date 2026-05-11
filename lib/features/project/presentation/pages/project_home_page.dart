@@ -12,7 +12,6 @@ import '../../../preview/presentation/controllers/preview_audio_sync_controller.
 import '../../../preview/presentation/widgets/preview_panel.dart';
 import '../../domain/entities/export_preset.dart';
 import '../../domain/entities/project.dart';
-import '../../domain/entities/track.dart';
 import '../controllers/project_controller.dart';
 import '../widgets/timeline_panel.dart';
 
@@ -71,61 +70,93 @@ class ProjectHomePage extends ConsumerWidget {
     final exportController = ref.read(exportQueueControllerProvider.notifier);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('PocketSunoMaker')),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text(
-              'Base clean architecture prete.',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Phase 1 active: creation de projet + import media local.',
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 20),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: <Widget>[
-                FilledButton.icon(
-                  onPressed: projectState.isLoading
-                      ? null
-                      : projectController.createNewProject,
-                  icon: const Icon(Icons.add),
-                  label: Text(
-                    projectState.isLoading
-                        ? 'Creation en cours...'
-                        : 'Nouveau projet',
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: context.cyberpunk.border),
+                gradient: LinearGradient(
+                  colors: <Color>[
+                    context.cyberpunk.bgSecondary,
+                    context.cyberpunk.bgPrimary,
+                  ],
+                ),
+              ),
+              child: Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          'PocketSunoMaker Studio',
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(
+                                color: context.cyberpunk.neonPink,
+                                fontWeight: FontWeight.w800,
+                              ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Montage video/audio local - timeline multi-pistes',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: context.cyberpunk.textMuted),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                OutlinedButton.icon(
-                  onPressed: mediaState.isLoading
-                      ? null
-                      : mediaController.pickMediaFiles,
-                  icon: const Icon(Icons.file_open_outlined),
-                  label: const Text('Importer medias'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: projectState.isLoading
-                      ? null
-                      : projectController.saveCurrentProject,
-                  icon: const Icon(Icons.save_outlined),
-                  label: const Text('Sauvegarder .psm'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: projectState.isLoading
-                      ? null
-                      : projectController.loadProjectFromDisk,
-                  icon: const Icon(Icons.folder_open_outlined),
-                  label: const Text('Charger .psm'),
-                ),
-              ],
+                  const SizedBox(width: 16),
+                  Flexible(
+                    child: Wrap(
+                      alignment: WrapAlignment.end,
+                      spacing: 10,
+                      runSpacing: 8,
+                      children: <Widget>[
+                        FilledButton.icon(
+                          onPressed: projectState.isLoading
+                              ? null
+                              : projectController.createNewProject,
+                          icon: const Icon(Icons.add),
+                          label: Text(
+                            projectState.isLoading
+                                ? 'Creation...'
+                                : 'Nouveau projet',
+                          ),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: mediaState.isLoading
+                              ? null
+                              : mediaController.pickMediaFiles,
+                          icon: const Icon(Icons.file_open_outlined),
+                          label: const Text('Importer medias'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: projectState.isLoading
+                              ? null
+                              : projectController.saveCurrentProject,
+                          icon: const Icon(Icons.save_outlined),
+                          label: const Text('Sauvegarder'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: projectState.isLoading
+                              ? null
+                              : projectController.loadProjectFromDisk,
+                          icon: const Icon(Icons.folder_open_outlined),
+                          label: const Text('Charger'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             if (projectState.currentProject != null)
               Text(
                 'Projet courant: ${projectState.currentProject!.name} '
@@ -296,12 +327,12 @@ class ProjectHomePage extends ConsumerWidget {
                             ),
                             const SizedBox(height: 12),
                             Text(
-                              'Timeline (base):',
+                              'Timeline',
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 6),
                             SizedBox(
-                              height: 220,
+                              height: 300,
                               child: TimelinePanel(
                                 project: projectState.currentProject,
                                 playheadMs: previewState.currentPositionMs,
@@ -315,26 +346,6 @@ class ProjectHomePage extends ConsumerWidget {
                                     projectController.splitClipAtPlayhead,
                                 onRemoveClip: projectController.removeClip,
                               ),
-                            ),
-                            const SizedBox(height: 10),
-                            if (projectState.currentProject == null)
-                              const Text(
-                                '- Cree un projet pour activer la timeline.',
-                              )
-                            else ...<Widget>[
-                              Text(
-                                '- Duree projet: ${projectState.currentProject!.durationMs} ms',
-                              ),
-                              ...projectState.currentProject!.tracks.map(
-                                (Track track) => Text(
-                                  '- ${track.type.name} track #${track.index}: ${track.clips.length} clip(s)',
-                                ),
-                              ),
-                            ],
-                            const SizedBox(height: 12),
-                            Text(
-                              'Metadonnees medias via ffprobe: actif.',
-                              style: Theme.of(context).textTheme.bodySmall,
                             ),
                           ],
                         ),

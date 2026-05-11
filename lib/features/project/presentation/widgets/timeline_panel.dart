@@ -58,13 +58,15 @@ class TimelinePanel extends StatefulWidget {
 
 class _TimelinePanelState extends State<TimelinePanel> {
   String? selectedClipId;
+  String? selectedTrackId;
   TimelineEditTool activeTool = TimelineEditTool.select;
   double zoomLevel = 1.0;
+  double _lastPanZoomScale = 1.0;
   final List<int> markersMs = <int>[];
   final ScrollController horizontalScrollController = ScrollController();
 
   static const double _basePixelsPerSecond = 100;
-  static const double _minZoom = 0.35;
+  static const double _minZoom = 0.01;
   static const double _maxZoom = 3.0;
   static const double _rowHeight = 64;
   static const double _timelineStartLeft = 88;
@@ -92,6 +94,9 @@ class _TimelinePanelState extends State<TimelinePanel> {
         (_timelineStartLeft + (widget.playheadMs / 1000) * pixelsPerSecond)
             .clamp(0, timelineWidth)
             .toDouble();
+    final ({String trackId, Clip clip})? selectedClipRef = _resolveSelectedClip(
+      widget.project!,
+    );
 
     return Container(
       decoration: BoxDecoration(
@@ -99,172 +104,283 @@ class _TimelinePanelState extends State<TimelinePanel> {
         border: Border.all(color: context.cyberpunk.border),
         color: context.cyberpunk.bgSecondary,
       ),
-      child: Listener(
-        onPointerSignal: (PointerSignalEvent event) {
-          if (event is! PointerScrollEvent) {
-            return;
-          }
-          final double wheelDelta = event.scrollDelta.dy;
-          if (wheelDelta.abs() < 0.01) {
-            return;
-          }
-          setState(() {
-            final double next = zoomLevel - (wheelDelta * 0.0025);
-            zoomLevel = next.clamp(_minZoom, _maxZoom);
-          });
-        },
-        child: SingleChildScrollView(
-          controller: horizontalScrollController,
-          scrollDirection: Axis.horizontal,
-          child: SizedBox(
-            width: timelineWidth,
-            child: GestureDetector(
-              onHorizontalDragUpdate: activeTool == TimelineEditTool.hand
-                  ? (DragUpdateDetails details) {
-                      final double target =
-                          horizontalScrollController.offset - details.delta.dx;
-                      final double clamped = target.clamp(
-                        0.0,
-                        horizontalScrollController.position.maxScrollExtent,
-                      );
-                      horizontalScrollController.jumpTo(clamped);
-                    }
-                  : null,
-              child: Stack(
-                children: <Widget>[
-                  Column(
-                    children: <Widget>[
-                      _TimelineToolbar(
-                        activeTool: activeTool,
-                        zoomLevel: zoomLevel,
-                        markerCount: markersMs.length,
-                        onToolSelected: (TimelineEditTool tool) {
-                          setState(() {
-                            activeTool = tool;
-                          });
-                        },
-                        onAddMarker: () {
-                          setState(() {
-                            if (!markersMs.contains(widget.playheadMs)) {
-                              markersMs
-                                ..add(widget.playheadMs)
-                                ..sort();
-                            }
-                          });
-                        },
-                        onClearMarkers: () {
-                          setState(() {
-                            markersMs.clear();
-                          });
-                        },
-                        onZoomChanged: (double value) {
-                          setState(() {
-                            zoomLevel = value;
-                          });
-                        },
-                        onZoomIn: () {
-                          setState(() {
-                            zoomLevel = (zoomLevel + 0.15).clamp(
-                              _minZoom,
-                              _maxZoom,
+      child: Column(
+        children: <Widget>[
+          _TimelineToolbar(
+            activeTool: activeTool,
+            zoomLevel: zoomLevel,
+            markerCount: markersMs.length,
+            onToolSelected: (TimelineEditTool tool) {
+              setState(() {
+                activeTool = tool;
+              });
+            },
+            onAddMarker: () {
+              setState(() {
+                if (!markersMs.contains(widget.playheadMs)) {
+                  markersMs
+                    ..add(widget.playheadMs)
+                    ..sort();
+                }
+              });
+            },
+            onClearMarkers: () {
+              setState(() {
+                markersMs.clear();
+              });
+            },
+            onZoomChanged: (double value) {
+              setState(() {
+                zoomLevel = value;
+              });
+            },
+            onZoomIn: () {
+              setState(() {
+                zoomLevel = (zoomLevel + 0.15).clamp(_minZoom, _maxZoom);
+              });
+            },
+            onZoomOut: () {
+              setState(() {
+                zoomLevel = (zoomLevel - 0.15).clamp(_minZoom, _maxZoom);
+              });
+            },
+          ),
+          if (selectedClipRef != null)
+            _SelectedClipToolbar(
+              clip: selectedClipRef.clip,
+              activeTool: activeTool,
+              onToolSelected: (TimelineEditTool tool) {
+                setState(() {
+                  activeTool = tool;
+                });
+              },
+              onStretchShorter: () {
+                widget.onTrimClipEndByDelta(
+                  trackId: selectedClipRef.trackId,
+                  clipId: selectedClipRef.clip.id,
+                  deltaMs: -500,
+                );
+              },
+              onStretchLonger: () {
+                widget.onTrimClipEndByDelta(
+                  trackId: selectedClipRef.trackId,
+                  clipId: selectedClipRef.clip.id,
+                  deltaMs: 500,
+                );
+              },
+              onDelete: () {
+                widget.onRemoveClip(
+                  trackId: selectedClipRef.trackId,
+                  clipId: selectedClipRef.clip.id,
+                );
+                setState(() {
+                  selectedClipId = null;
+                  selectedTrackId = null;
+                });
+              },
+            ),
+          Expanded(
+            child: Listener(
+              onPointerPanZoomStart: (_) {
+                _lastPanZoomScale = 1.0;
+              },
+              onPointerPanZoomUpdate: (PointerPanZoomUpdateEvent event) {
+                final double scaleDelta = event.scale - _lastPanZoomScale;
+                _lastPanZoomScale = event.scale;
+                if (scaleDelta.abs() > 0.001) {
+                  setState(() {
+                    final double next = zoomLevel + (scaleDelta * 1.2);
+                    zoomLevel = next.clamp(_minZoom, _maxZoom);
+                  });
+                }
+                if (!horizontalScrollController.hasClients) {
+                  return;
+                }
+                final double target =
+                    horizontalScrollController.offset - event.panDelta.dx;
+                final double clamped = target.clamp(
+                  0.0,
+                  horizontalScrollController.position.maxScrollExtent,
+                );
+                horizontalScrollController.jumpTo(clamped);
+              },
+              onPointerPanZoomEnd: (_) {
+                _lastPanZoomScale = 1.0;
+              },
+              onPointerSignal: (PointerSignalEvent event) {
+                if (event is! PointerScrollEvent) {
+                  return;
+                }
+                final double dx = event.scrollDelta.dx;
+                final double dy = event.scrollDelta.dy;
+                if (dx.abs() < 0.01 && dy.abs() < 0.01) {
+                  return;
+                }
+                if (!horizontalScrollController.hasClients) {
+                  return;
+                }
+                final double horizontalDelta = dx.abs() > 0.01 ? dx : dy;
+                final double target =
+                    horizontalScrollController.offset - horizontalDelta;
+                final double clamped = target.clamp(
+                  0.0,
+                  horizontalScrollController.position.maxScrollExtent,
+                );
+                horizontalScrollController.jumpTo(clamped);
+              },
+              child: SingleChildScrollView(
+                controller: horizontalScrollController,
+                scrollDirection: Axis.horizontal,
+                child: SizedBox(
+                  width: timelineWidth,
+                  child: GestureDetector(
+                    onHorizontalDragUpdate: activeTool == TimelineEditTool.hand
+                        ? (DragUpdateDetails details) {
+                            final double target =
+                                horizontalScrollController.offset -
+                                details.delta.dx;
+                            final double clamped = target.clamp(
+                              0.0,
+                              horizontalScrollController
+                                  .position
+                                  .maxScrollExtent,
                             );
-                          });
-                        },
-                        onZoomOut: () {
-                          setState(() {
-                            zoomLevel = (zoomLevel - 0.15).clamp(
-                              _minZoom,
-                              _maxZoom,
-                            );
-                          });
-                        },
-                      ),
-                      _TimelineRuler(
-                        width: timelineWidth,
-                        durationMs: durationMs,
-                        pixelsPerSecond: pixelsPerSecond,
-                      ),
-                      const Divider(height: 1),
-                      if (widget.project!.tracks.isEmpty)
-                        const Expanded(
-                          child: Center(
-                            child: Text(
-                              'Ajoute des medias au projet pour creer des clips.',
+                            horizontalScrollController.jumpTo(clamped);
+                          }
+                        : null,
+                    child: Stack(
+                      children: <Widget>[
+                        Column(
+                          children: <Widget>[
+                            _TimelineRuler(
+                              width: timelineWidth,
+                              durationMs: durationMs,
+                              pixelsPerSecond: pixelsPerSecond,
+                            ),
+                            const Divider(height: 1),
+                            if (widget.project!.tracks.isEmpty)
+                              const Expanded(
+                                child: Center(
+                                  child: Text(
+                                    'Ajoute des medias au projet pour creer des clips.',
+                                  ),
+                                ),
+                              )
+                            else
+                              Expanded(
+                                child: ListView.separated(
+                                  itemCount: widget.project!.tracks.length,
+                                  separatorBuilder: (_, _) =>
+                                      const Divider(height: 1),
+                                  itemBuilder:
+                                      (BuildContext context, int index) {
+                                        final Track track =
+                                            widget.project!.tracks[index];
+                                        return _TimelineTrackRow(
+                                          track: track,
+                                          rowHeight: _rowHeight,
+                                          pixelsPerSecond: pixelsPerSecond,
+                                          playheadMs: widget.playheadMs,
+                                          activeTool: activeTool,
+                                          selectedClipId: selectedClipId,
+                                          onSelectClip:
+                                              ({
+                                                required String trackId,
+                                                required String clipId,
+                                              }) {
+                                                setState(() {
+                                                  selectedClipId = clipId;
+                                                  selectedTrackId = trackId;
+                                                });
+                                              },
+                                          onMoveClipByDelta:
+                                              widget.onMoveClipByDelta,
+                                          onTrimClipStartByDelta:
+                                              widget.onTrimClipStartByDelta,
+                                          onTrimClipEndByDelta:
+                                              widget.onTrimClipEndByDelta,
+                                          onSplitClipAtPlayhead:
+                                              widget.onSplitClipAtPlayhead,
+                                          onRemoveClip:
+                                              ({
+                                                required String trackId,
+                                                required String clipId,
+                                              }) {
+                                                widget.onRemoveClip(
+                                                  trackId: trackId,
+                                                  clipId: clipId,
+                                                );
+                                                if (selectedClipId == clipId) {
+                                                  setState(() {
+                                                    selectedClipId = null;
+                                                    selectedTrackId = null;
+                                                  });
+                                                }
+                                              },
+                                        );
+                                      },
+                                ),
+                              ),
+                          ],
+                        ),
+                        ...markersMs.map((int markerMs) {
+                          final double markerLeft =
+                              (_timelineStartLeft +
+                                      (markerMs / 1000) * pixelsPerSecond)
+                                  .clamp(0, timelineWidth)
+                                  .toDouble();
+                          return Positioned(
+                            left: markerLeft,
+                            top: 0,
+                            bottom: 0,
+                            child: IgnorePointer(
+                              child: Container(
+                                width: 1.5,
+                                color: Colors.amber.withValues(alpha: 0.75),
+                              ),
+                            ),
+                          );
+                        }),
+                        Positioned(
+                          left: playheadLeft,
+                          top: 0,
+                          bottom: 0,
+                          child: IgnorePointer(
+                            child: Container(
+                              width: 2,
+                              color: context.cyberpunk.neonBlue.withValues(
+                                alpha: 0.85,
+                              ),
                             ),
                           ),
-                        )
-                      else
-                        Expanded(
-                          child: ListView.separated(
-                            itemCount: widget.project!.tracks.length,
-                            separatorBuilder: (_, _) =>
-                                const Divider(height: 1),
-                            itemBuilder: (BuildContext context, int index) {
-                              final Track track = widget.project!.tracks[index];
-                              return _TimelineTrackRow(
-                                track: track,
-                                rowHeight: _rowHeight,
-                                pixelsPerSecond: pixelsPerSecond,
-                                playheadMs: widget.playheadMs,
-                                activeTool: activeTool,
-                                selectedClipId: selectedClipId,
-                                onSelectClip: (String clipId) {
-                                  setState(() {
-                                    selectedClipId = clipId;
-                                  });
-                                },
-                                onMoveClipByDelta: widget.onMoveClipByDelta,
-                                onTrimClipStartByDelta:
-                                    widget.onTrimClipStartByDelta,
-                                onTrimClipEndByDelta:
-                                    widget.onTrimClipEndByDelta,
-                                onSplitClipAtPlayhead:
-                                    widget.onSplitClipAtPlayhead,
-                                onRemoveClip: widget.onRemoveClip,
-                              );
-                            },
-                          ),
                         ),
-                    ],
-                  ),
-                  ...markersMs.map((int markerMs) {
-                    final double markerLeft =
-                        (_timelineStartLeft +
-                                (markerMs / 1000) * pixelsPerSecond)
-                            .clamp(0, timelineWidth)
-                            .toDouble();
-                    return Positioned(
-                      left: markerLeft,
-                      top: 42,
-                      bottom: 0,
-                      child: IgnorePointer(
-                        child: Container(
-                          width: 1.5,
-                          color: Colors.amber.withValues(alpha: 0.75),
-                        ),
-                      ),
-                    );
-                  }),
-                  Positioned(
-                    left: playheadLeft,
-                    top: 0,
-                    bottom: 0,
-                    child: IgnorePointer(
-                      child: Container(
-                        width: 2,
-                        color: context.cyberpunk.neonBlue.withValues(
-                          alpha: 0.85,
-                        ),
-                      ),
+                      ],
                     ),
                   ),
-                ],
+                ),
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
+  }
+
+  ({String trackId, Clip clip})? _resolveSelectedClip(Project project) {
+    if (selectedClipId == null || selectedTrackId == null) {
+      return null;
+    }
+    for (final Track track in project.tracks) {
+      if (track.id != selectedTrackId) {
+        continue;
+      }
+      for (final Clip clip in track.clips) {
+        if (clip.id == selectedClipId) {
+          return (trackId: track.id, clip: clip);
+        }
+      }
+    }
+    return null;
   }
 }
 
@@ -294,94 +410,203 @@ class _TimelineToolbar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(10, 8, 10, 6),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.fromLTRB(8, 4, 8, 2),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 6,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: <Widget>[
-          Text(
-            'Mode edition',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: context.cyberpunk.neonBlue,
-              fontWeight: FontWeight.w700,
+          _ToolButton(
+            label: 'Selection',
+            icon: Icons.ads_click_outlined,
+            isActive: activeTool == TimelineEditTool.select,
+            onTap: () => onToolSelected(TimelineEditTool.select),
+          ),
+          _ToolButton(
+            label: 'Lame',
+            icon: Icons.content_cut,
+            isActive: activeTool == TimelineEditTool.blade,
+            onTap: () => onToolSelected(TimelineEditTool.blade),
+          ),
+          _ToolButton(
+            label: 'Trim',
+            icon: Icons.tune,
+            isActive: activeTool == TimelineEditTool.trim,
+            onTap: () => onToolSelected(TimelineEditTool.trim),
+          ),
+          _ToolButton(
+            label: 'Main',
+            icon: Icons.pan_tool_alt_outlined,
+            isActive: activeTool == TimelineEditTool.hand,
+            onTap: () => onToolSelected(TimelineEditTool.hand),
+          ),
+          _ToolButton(
+            label: 'Marqueur',
+            icon: Icons.bookmark_add_outlined,
+            isActive: activeTool == TimelineEditTool.marker,
+            onTap: () => onToolSelected(TimelineEditTool.marker),
+          ),
+          TextButton.icon(
+            onPressed: onAddMarker,
+            icon: const Icon(Icons.add),
+            label: const Text('Repere'),
+          ),
+          if (markerCount > 0)
+            TextButton.icon(
+              onPressed: onClearMarkers,
+              icon: const Icon(Icons.clear_all),
+              label: Text('Effacer ($markerCount)'),
+            ),
+          const SizedBox(width: 8),
+          IconButton(
+            onPressed: onZoomOut,
+            icon: const Icon(Icons.zoom_out),
+            tooltip: 'Dezoomer timeline',
+          ),
+          SizedBox(
+            width: 140,
+            child: Slider(
+              min: 0.01,
+              max: 3.0,
+              divisions: 299,
+              value: zoomLevel,
+              onChanged: onZoomChanged,
             ),
           ),
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: <Widget>[
-              _ToolButton(
-                label: 'Selection',
-                icon: Icons.ads_click_outlined,
-                isActive: activeTool == TimelineEditTool.select,
-                onTap: () => onToolSelected(TimelineEditTool.select),
-              ),
-              _ToolButton(
-                label: 'Lame',
-                icon: Icons.content_cut,
-                isActive: activeTool == TimelineEditTool.blade,
-                onTap: () => onToolSelected(TimelineEditTool.blade),
-              ),
-              _ToolButton(
-                label: 'Trim',
-                icon: Icons.tune,
-                isActive: activeTool == TimelineEditTool.trim,
-                onTap: () => onToolSelected(TimelineEditTool.trim),
-              ),
-              _ToolButton(
-                label: 'Main',
-                icon: Icons.pan_tool_alt_outlined,
-                isActive: activeTool == TimelineEditTool.hand,
-                onTap: () => onToolSelected(TimelineEditTool.hand),
-              ),
-              _ToolButton(
-                label: 'Marqueur',
-                icon: Icons.bookmark_add_outlined,
-                isActive: activeTool == TimelineEditTool.marker,
-                onTap: () => onToolSelected(TimelineEditTool.marker),
-              ),
-              TextButton.icon(
-                onPressed: onAddMarker,
-                icon: const Icon(Icons.add),
-                label: const Text('Ajouter repere'),
-              ),
-              if (markerCount > 0)
-                TextButton.icon(
-                  onPressed: onClearMarkers,
-                  icon: const Icon(Icons.clear_all),
-                  label: Text('Effacer ($markerCount)'),
-                ),
-              const SizedBox(width: 8),
-              IconButton(
-                onPressed: onZoomOut,
-                icon: const Icon(Icons.zoom_out),
-                tooltip: 'Dezoomer timeline',
-              ),
-              SizedBox(
-                width: 140,
-                child: Slider(
-                  min: 0.35,
-                  max: 3.0,
-                  divisions: 53,
-                  value: zoomLevel,
-                  onChanged: onZoomChanged,
-                ),
-              ),
-              IconButton(
-                onPressed: onZoomIn,
-                icon: const Icon(Icons.zoom_in),
-                tooltip: 'Zoomer timeline',
-              ),
-              Text(
-                '${(zoomLevel * 100).round()}%',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: context.cyberpunk.textMuted,
-                ),
-              ),
-            ],
+          IconButton(
+            onPressed: onZoomIn,
+            icon: const Icon(Icons.zoom_in),
+            tooltip: 'Zoomer timeline',
+          ),
+          Text(
+            '${(zoomLevel * 100).round()}%',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: context.cyberpunk.textMuted),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SelectedClipToolbar extends StatelessWidget {
+  const _SelectedClipToolbar({
+    required this.clip,
+    required this.activeTool,
+    required this.onToolSelected,
+    required this.onStretchShorter,
+    required this.onStretchLonger,
+    required this.onDelete,
+  });
+
+  final Clip clip;
+  final TimelineEditTool activeTool;
+  final ValueChanged<TimelineEditTool> onToolSelected;
+  final VoidCallback onStretchShorter;
+  final VoidCallback onStretchLonger;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(8, 0, 8, 2),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        color: context.cyberpunk.bgPrimary.withValues(alpha: 0.8),
+        border: Border.all(color: context.cyberpunk.border),
+      ),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 6,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: <Widget>[
+          Text(
+            'Selection: ${p.basename(clip.assetPath)}',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: context.cyberpunk.textPrimary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          Text(
+            'Duree: ${(clip.durationMs / 1000).toStringAsFixed(2)}s',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: context.cyberpunk.textMuted),
+          ),
+          _InlineToolChip(
+            label: 'Selection',
+            icon: Icons.ads_click_outlined,
+            isActive: activeTool == TimelineEditTool.select,
+            onTap: () => onToolSelected(TimelineEditTool.select),
+          ),
+          _InlineToolChip(
+            label: 'Trim',
+            icon: Icons.tune,
+            isActive: activeTool == TimelineEditTool.trim,
+            onTap: () => onToolSelected(TimelineEditTool.trim),
+          ),
+          TextButton.icon(
+            onPressed: onStretchShorter,
+            icon: const Icon(Icons.remove),
+            label: const Text('Raccourcir 0.5s'),
+          ),
+          TextButton.icon(
+            onPressed: onStretchLonger,
+            icon: const Icon(Icons.add),
+            label: const Text('Etirer 0.5s'),
+          ),
+          IconButton(
+            onPressed: onDelete,
+            icon: const Icon(Icons.delete_outline),
+            tooltip: 'Supprimer clip',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InlineToolChip extends StatelessWidget {
+  const _InlineToolChip({
+    required this.label,
+    required this.icon,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isActive
+                ? context.cyberpunk.neonBlue
+                : context.cyberpunk.border,
+          ),
+          color: isActive
+              ? context.cyberpunk.neonBlue.withValues(alpha: 0.15)
+              : Colors.transparent,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(icon, size: 14),
+            const SizedBox(width: 5),
+            Text(label),
+          ],
+        ),
       ),
     );
   }
@@ -496,7 +721,8 @@ class _TimelineTrackRow extends StatelessWidget {
   final int playheadMs;
   final TimelineEditTool activeTool;
   final String? selectedClipId;
-  final ValueChanged<String> onSelectClip;
+  final void Function({required String trackId, required String clipId})
+  onSelectClip;
   final void Function({
     required String trackId,
     required String clipId,
@@ -574,11 +800,14 @@ class _TimelineTrackRow extends StatelessWidget {
                 playheadMs: playheadMs,
                 trackId: track.id,
                 isSelected: selectedClipId == clip.id,
-                canTrim: activeTool == TimelineEditTool.trim,
+                canTrim:
+                    activeTool == TimelineEditTool.trim ||
+                    selectedClipId == clip.id,
                 canMove: activeTool == TimelineEditTool.select,
                 canDelete: activeTool == TimelineEditTool.select,
                 canBladeSplit: activeTool == TimelineEditTool.blade,
-                onSelect: () => onSelectClip(clip.id),
+                onSelect: () =>
+                    onSelectClip(trackId: track.id, clipId: clip.id),
                 onRemove: () =>
                     onRemoveClip(trackId: track.id, clipId: clip.id),
                 onSplitClipAtPlayhead: onSplitClipAtPlayhead,

@@ -41,11 +41,14 @@ Construire un editeur video desktop macOS, 100% open source et gratuit, sous Flu
 - [x] Timeline visuelle multi-pistes (prototype)
 - [x] Barre d'outils edition (selection, lame, trim, main, marqueur)
 - [x] Zoom/dezoom timeline
+- [x] Navigation trackpad macOS (scroll vertical timeline + zoom horizontal/pinch)
 - [x] Ajout/suppression de clips
 - [x] Split clip au playhead (outil lame)
 - [x] Trim in/out
 - [x] Deplacement drag and drop sur timeline
 - [x] Snapping basique
+- [x] Outils contextuels sur clip selectionne (duree, trim, suppression)
+- [x] Etirement rapide de duree pour clips image
 
 ## M3 - Preview et export
 - [x] Transport preview v1 (play/pause/seek)
@@ -61,6 +64,7 @@ Construire un editeur video desktop macOS, 100% open source et gratuit, sous Flu
 - [ ] Effets (glitch, rotation, etc.) pluginables
 - [ ] Visualizer lie au son
 - [ ] UX avancee (raccourcis, undo/redo, marqueurs)
+- [ ] Affinage sensibilité gestes trackpad (calibrage zoom/pinch)
 
 ## Convention checklist
 
