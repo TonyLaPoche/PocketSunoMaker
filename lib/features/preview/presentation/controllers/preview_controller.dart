@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -70,7 +71,8 @@ class PreviewController extends Notifier<PreviewState> {
     }
     state = state.copyWith(isPlaying: true);
     _timer = Timer.periodic(const Duration(milliseconds: _tickMs), (_) {
-      final int next = state.currentPositionMs + _tickMs;
+      final int deltaMs = math.max(1, (_tickMs * state.playbackSpeed).round());
+      final int next = state.currentPositionMs + deltaMs;
       if (next >= state.durationMs) {
         _stopTimer();
         state = state.copyWith(
@@ -81,6 +83,14 @@ class PreviewController extends Notifier<PreviewState> {
       }
       state = state.copyWith(currentPositionMs: next);
     });
+  }
+
+  void setPlaybackSpeed(double speed) {
+    final double safe = speed.clamp(0.25, 2.0);
+    if ((state.playbackSpeed - safe).abs() < 0.001) {
+      return;
+    }
+    state = state.copyWith(playbackSpeed: safe);
   }
 
   void pause() {

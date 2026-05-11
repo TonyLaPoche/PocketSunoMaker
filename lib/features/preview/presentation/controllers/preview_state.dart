@@ -4,24 +4,28 @@ class PreviewState {
     this.isScrubbing = false,
     this.currentPositionMs = 0,
     this.durationMs = 0,
+    this.playbackSpeed = 1.0,
   });
 
   final bool isPlaying;
   final bool isScrubbing;
   final int currentPositionMs;
   final int durationMs;
+  final double playbackSpeed;
 
   PreviewState copyWith({
     bool? isPlaying,
     bool? isScrubbing,
     int? currentPositionMs,
     int? durationMs,
+    double? playbackSpeed,
   }) {
     return PreviewState(
       isPlaying: isPlaying ?? this.isPlaying,
       isScrubbing: isScrubbing ?? this.isScrubbing,
       currentPositionMs: currentPositionMs ?? this.currentPositionMs,
       durationMs: durationMs ?? this.durationMs,
+      playbackSpeed: playbackSpeed ?? this.playbackSpeed,
     );
   }
 }

@@ -26,11 +26,15 @@ class PreviewAudioSyncController {
     required Project? project,
     required int positionMs,
     required bool shouldPlay,
+    required double volume,
+    required double speed,
   }) {
     return _engine.synchronize(
       project: project,
       positionMs: positionMs,
       shouldPlay: shouldPlay,
+      volume: volume,
+      speed: speed,
     );
   }
 }

@@ -16,11 +16,15 @@ class PreviewAudioEngine {
   String? _boundPath;
   bool _isDisposed = false;
   final Set<String> _blockedPaths = <String>{};
+  double _lastVolume = 1.0;
+  double _lastSpeed = 1.0;
 
   Future<void> synchronize({
     required Project? project,
     required int positionMs,
     required bool shouldPlay,
+    required double volume,
+    required double speed,
   }) async {
     if (_isDisposed) {
       return;
@@ -59,6 +63,8 @@ class PreviewAudioEngine {
         await _player.setFilePath(sourcePath);
         _boundClipId = clipId;
         _boundPath = sourcePath;
+        _lastVolume = 1.0;
+        _lastSpeed = 1.0;
         await _player.seek(
           Duration(milliseconds: activeAudioClip.sourcePositionMs),
         );
@@ -68,6 +74,17 @@ class PreviewAudioEngine {
         if ((currentMs - desiredMs).abs() > 120) {
           await _player.seek(Duration(milliseconds: desiredMs));
         }
+      }
+
+      final double safeVolume = volume.clamp(0.0, 2.0);
+      if ((_lastVolume - safeVolume).abs() > 0.001) {
+        await _player.setVolume(safeVolume);
+        _lastVolume = safeVolume;
+      }
+      final double safeSpeed = speed.clamp(0.25, 2.0);
+      if ((_lastSpeed - safeSpeed).abs() > 0.001) {
+        await _player.setSpeed(safeSpeed);
+        _lastSpeed = safeSpeed;
       }
 
       if (shouldPlay) {
@@ -88,6 +105,8 @@ class PreviewAudioEngine {
   Future<void> _stopAndReset() async {
     _boundClipId = null;
     _boundPath = null;
+    _lastVolume = 1.0;
+    _lastSpeed = 1.0;
     try {
       if (_player.playing) {
         await _player.pause();

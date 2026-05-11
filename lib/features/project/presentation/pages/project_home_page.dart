@@ -10,9 +10,11 @@ import '../../../media_import/presentation/widgets/media_bin_panel.dart';
 import '../../../preview/presentation/controllers/preview_controller.dart';
 import '../../../preview/presentation/controllers/preview_audio_sync_controller.dart';
 import '../../../preview/presentation/widgets/preview_panel.dart';
+import '../../../preview/presentation/utils/preview_clip_resolver.dart';
 import '../../domain/entities/clip.dart';
 import '../../domain/entities/export_preset.dart';
 import '../../domain/entities/project.dart';
+import '../../domain/entities/track.dart';
 import '../controllers/project_controller.dart';
 import '../widgets/timeline_panel.dart';
 
@@ -48,12 +50,21 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
         final Project? project = ref
             .read(projectControllerProvider)
             .currentProject;
+        final _ClipInspectorValues activeValues = _activeInspectorValues(
+          project,
+          previewTuple.$1,
+        );
+        ref
+            .read(previewControllerProvider.notifier)
+            .setPlaybackSpeed(activeValues.speed);
         ref
             .read(previewAudioSyncControllerProvider)
             .synchronize(
               project: project,
               positionMs: previewTuple.$1,
               shouldPlay: previewTuple.$2,
+              volume: activeValues.volume,
+              speed: activeValues.speed,
             );
       },
     );
@@ -61,6 +72,13 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
       projectControllerProvider.select((state) => state.currentProject),
       (_, Project? project) {
         final previewState = ref.read(previewControllerProvider);
+        final _ClipInspectorValues activeValues = _activeInspectorValues(
+          project,
+          previewState.currentPositionMs,
+        );
+        ref
+            .read(previewControllerProvider.notifier)
+            .setPlaybackSpeed(activeValues.speed);
         ref
             .read(mediaImportControllerProvider.notifier)
             .synchronizeFromProject(project);
@@ -70,6 +88,8 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
               project: project,
               positionMs: previewState.currentPositionMs,
               shouldPlay: previewState.isPlaying,
+              volume: activeValues.volume,
+              speed: activeValues.speed,
             );
       },
     );
@@ -373,6 +393,28 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
                                         _inspectorByClipId[_inspectedClip!.id] =
                                             values;
                                       });
+                                      final _ClipInspectorValues activeValues =
+                                          _activeInspectorValues(
+                                            project,
+                                            previewState.currentPositionMs,
+                                          );
+                                      ref
+                                          .read(
+                                            previewControllerProvider.notifier,
+                                          )
+                                          .setPlaybackSpeed(activeValues.speed);
+                                      ref
+                                          .read(
+                                            previewAudioSyncControllerProvider,
+                                          )
+                                          .synchronize(
+                                            project: project,
+                                            positionMs:
+                                                previewState.currentPositionMs,
+                                            shouldPlay: previewState.isPlaying,
+                                            volume: activeValues.volume,
+                                            speed: activeValues.speed,
+                                          );
                                     },
                                   ),
                                 const SizedBox(height: 12),
@@ -480,6 +522,34 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
       case ExportJobStatus.failed:
         return Theme.of(context).colorScheme.error;
     }
+  }
+
+  _ClipInspectorValues _activeInspectorValues(
+    Project? project,
+    int positionMs,
+  ) {
+    final Clip? inspectedClip = _inspectedClip;
+    if (project == null || inspectedClip == null) {
+      return _ClipInspectorValues.defaults;
+    }
+    final String inspectedClipId = inspectedClip.id;
+    final String? activeVideoClipId = findActiveClip(
+      project: project,
+      positionMs: positionMs,
+      type: TrackType.video,
+    )?.clip.id;
+    final String? activeAudioClipId = findActiveClip(
+      project: project,
+      positionMs: positionMs,
+      type: TrackType.audio,
+    )?.clip.id;
+    final bool isActive =
+        inspectedClipId == activeVideoClipId ||
+        inspectedClipId == activeAudioClipId;
+    if (!isActive) {
+      return _ClipInspectorValues.defaults;
+    }
+    return _inspectorByClipId[inspectedClipId] ?? _ClipInspectorValues.defaults;
   }
 }
 

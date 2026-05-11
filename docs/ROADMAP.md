@@ -82,7 +82,7 @@ Construire un editeur video desktop macOS, 100% open source et gratuit, sous Flu
   - Panneau inspecteur contextuel (transform, opacite, vitesse, audio de base)
   - Systeme de densite/contraste: neon reserve aux elements actifs, texte secondaire adouci
   - Harmonisation composants (cards, boutons, sliders, separateurs) pour un rendu coherent non "gadget"
-  - Progression en cours: inspecteur clip branche a la selection timeline (opacite, vitesse, volume)
+  - Progression en cours: inspecteur clip branche a la selection timeline + vitesse/volume appliques en preview quand le clip inspecte est actif
 - [ ] Etape 4 - Finition interaction et ergonomie
   - Micro-interactions fluides (hover, focus, selection, transitions courtes)
   - Accessibilite desktop (tailles minimales de cibles, lisibilite, raccourcis de base)
