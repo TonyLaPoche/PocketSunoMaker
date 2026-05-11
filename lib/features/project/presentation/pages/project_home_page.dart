@@ -5,6 +5,7 @@ import 'package:desktop_drop/desktop_drop.dart';
 import '../../../media_import/presentation/controllers/media_import_controller.dart';
 import '../../../media_import/presentation/widgets/media_bin_panel.dart';
 import '../../domain/entities/export_preset.dart';
+import '../../domain/entities/track.dart';
 import '../controllers/project_controller.dart';
 
 class ProjectHomePage extends ConsumerWidget {
@@ -34,7 +35,9 @@ class ProjectHomePage extends ConsumerWidget {
               style: Theme.of(context).textTheme.bodyLarge,
             ),
             const SizedBox(height: 20),
-            Row(
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
               children: <Widget>[
                 FilledButton.icon(
                   onPressed: projectState.isLoading
@@ -47,13 +50,26 @@ class ProjectHomePage extends ConsumerWidget {
                         : 'Nouveau projet',
                   ),
                 ),
-                const SizedBox(width: 12),
                 OutlinedButton.icon(
                   onPressed: mediaState.isLoading
                       ? null
                       : mediaController.pickMediaFiles,
                   icon: const Icon(Icons.file_open_outlined),
                   label: const Text('Importer medias'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: projectState.isLoading
+                      ? null
+                      : projectController.saveCurrentProject,
+                  icon: const Icon(Icons.save_outlined),
+                  label: const Text('Sauvegarder .psm'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: projectState.isLoading
+                      ? null
+                      : projectController.loadProjectFromDisk,
+                  icon: const Icon(Icons.folder_open_outlined),
+                  label: const Text('Charger .psm'),
                 ),
               ],
             ),
@@ -63,6 +79,11 @@ class ProjectHomePage extends ConsumerWidget {
                 'Projet courant: ${projectState.currentProject!.name} '
                 '(${projectState.currentProject!.canvasWidth}x${projectState.currentProject!.canvasHeight}, '
                 '${projectState.currentProject!.fps}fps)',
+              ),
+            if (projectState.projectFilePath != null)
+              Text(
+                'Fichier projet: ${projectState.projectFilePath!}',
+                style: Theme.of(context).textTheme.bodySmall,
               ),
             if (projectState.errorMessage != null) ...<Widget>[
               const SizedBox(height: 8),
@@ -97,7 +118,7 @@ class ProjectHomePage extends ConsumerWidget {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'Ajoute tes fichiers via le bouton ou en drag & drop.',
+                              'Ajoute tes fichiers via le bouton ou en drag & drop, puis utilise + pour envoyer un media sur la timeline.',
                               style: Theme.of(context).textTheme.bodyMedium,
                             ),
                             const SizedBox(height: 12),
@@ -133,6 +154,10 @@ class ProjectHomePage extends ConsumerWidget {
                                     child: MediaBinPanel(
                                       assets: mediaState.assets,
                                       isLoading: mediaState.isLoading,
+                                      canAddToTimeline:
+                                          projectState.currentProject != null,
+                                      onAddToTimeline:
+                                          projectController.addAssetToTimeline,
                                     ),
                                   ),
                                 ),
@@ -166,7 +191,27 @@ class ProjectHomePage extends ConsumerWidget {
                             ),
                             const SizedBox(height: 12),
                             Text(
-                              'Metadonnees avancees (duree/fps/source) seront extraites via ffprobe dans la prochaine iteration.',
+                              'Timeline (base):',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 8),
+                            if (projectState.currentProject == null)
+                              const Text(
+                                '- Cree un projet pour activer la timeline.',
+                              )
+                            else ...<Widget>[
+                              Text(
+                                '- Duree projet: ${projectState.currentProject!.durationMs} ms',
+                              ),
+                              ...projectState.currentProject!.tracks.map(
+                                (Track track) => Text(
+                                  '- ${track.type.name} track #${track.index}: ${track.clips.length} clip(s)',
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 12),
+                            Text(
+                              'Metadonnees medias via ffprobe: actif.',
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                           ],

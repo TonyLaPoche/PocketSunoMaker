@@ -16,7 +16,7 @@ Construire un editeur video desktop macOS, 100% open source et gratuit, sous Flu
 - [x] Presets export cibles (modele domaine)
 - [x] Module `media_import` (file picker + drag and drop)
 - [x] Extraction metadonnees reelles via `ffprobe`
-- [ ] Sauvegarde/chargement projet `.psm` (JSON)
+- [x] Sauvegarde/chargement projet `.psm` (JSON)
 - [ ] Timeline v1 (pistes + clips + trim/move)
 - [ ] Preview synchronisee audio/video
 - [ ] Export FFmpeg reel (pipeline bout en bout)
@@ -32,9 +32,10 @@ Construire un editeur video desktop macOS, 100% open source et gratuit, sous Flu
 - [x] Ecran principal avec base UX
 - [x] Import local des medias
 - [x] Metadonnees medias automatiques (duree, fps, resolution, codec)
-- [ ] Persistance projet locale
+- [x] Persistance projet locale
 
 ## M2 - Montage de base
+- [x] Ajout clip depuis Media Bin (prototype)
 - [ ] Timeline multi-pistes
 - [ ] Ajout/suppression de clips
 - [ ] Trim in/out

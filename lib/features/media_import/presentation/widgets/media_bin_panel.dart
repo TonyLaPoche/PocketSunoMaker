@@ -6,11 +6,15 @@ class MediaBinPanel extends StatelessWidget {
   const MediaBinPanel({
     required this.assets,
     required this.isLoading,
+    required this.onAddToTimeline,
+    required this.canAddToTimeline,
     super.key,
   });
 
   final List<MediaAsset> assets;
   final bool isLoading;
+  final ValueChanged<MediaAsset> onAddToTimeline;
+  final bool canAddToTimeline;
 
   @override
   Widget build(BuildContext context) {
@@ -35,6 +39,13 @@ class MediaBinPanel extends StatelessWidget {
             '${asset.kindLabel} - ${_formatBytes(asset.sizeBytes)}\n${asset.technicalSummary}',
           ),
           isThreeLine: true,
+          trailing: IconButton(
+            onPressed: canAddToTimeline ? () => onAddToTimeline(asset) : null,
+            tooltip: canAddToTimeline
+                ? 'Ajouter a la timeline'
+                : 'Cree d abord un projet',
+            icon: const Icon(Icons.add_circle_outline),
+          ),
         );
       },
     );

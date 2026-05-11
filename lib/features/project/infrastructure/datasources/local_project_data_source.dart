@@ -1,11 +1,14 @@
+import 'dart:convert';
+import 'dart:io';
+
 import '../../domain/entities/project.dart';
+import '../../domain/entities/clip.dart';
 import '../../domain/entities/track.dart';
 
 class LocalProjectDataSource {
   const LocalProjectDataSource();
 
   Future<Project> createProject(String projectName) async {
-    // TODO: brancher la persistence JSON .psm.
     return Project(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       name: projectName,
@@ -18,13 +21,112 @@ class LocalProjectDataSource {
   }
 
   Future<Project> loadProject(String path) async {
-    throw UnimplementedError('Load project not implemented for path: $path');
+    final File file = File(path);
+    final String rawContent = await file.readAsString();
+    final Object? decoded = jsonDecode(rawContent);
+    if (decoded is! Map<String, dynamic>) {
+      throw const FormatException('Invalid .psm content');
+    }
+    return _projectFromJson(decoded);
   }
 
   Future<void> saveProject({
     required Project project,
     required String path,
   }) async {
-    throw UnimplementedError('Save project not implemented for path: $path');
+    final File file = File(path);
+    await file.create(recursive: true);
+    final Map<String, dynamic> payload = _projectToJson(project);
+    const JsonEncoder encoder = JsonEncoder.withIndent('  ');
+    await file.writeAsString(encoder.convert(payload));
+  }
+
+  Map<String, dynamic> _projectToJson(Project project) {
+    return <String, dynamic>{
+      'schemaVersion': 1,
+      'id': project.id,
+      'name': project.name,
+      'fps': project.fps,
+      'canvasWidth': project.canvasWidth,
+      'canvasHeight': project.canvasHeight,
+      'durationMs': project.durationMs,
+      'tracks': project.tracks.map(_trackToJson).toList(growable: false),
+    };
+  }
+
+  Map<String, dynamic> _trackToJson(Track track) {
+    return <String, dynamic>{
+      'id': track.id,
+      'type': track.type.name,
+      'index': track.index,
+      'clips': track.clips.map(_clipToJson).toList(growable: false),
+    };
+  }
+
+  Map<String, dynamic> _clipToJson(Clip clip) {
+    return <String, dynamic>{
+      'id': clip.id,
+      'assetPath': clip.assetPath,
+      'timelineStartMs': clip.timelineStartMs,
+      'sourceInMs': clip.sourceInMs,
+      'sourceOutMs': clip.sourceOutMs,
+    };
+  }
+
+  Project _projectFromJson(Map<String, dynamic> json) {
+    final List<dynamic> rawTracks =
+        (json['tracks'] as List<dynamic>? ?? <dynamic>[]);
+    return Project(
+      id: json['id'] as String? ?? '',
+      name: json['name'] as String? ?? 'Untitled',
+      fps: _asInt(json['fps'], fallback: 30),
+      canvasWidth: _asInt(json['canvasWidth'], fallback: 1920),
+      canvasHeight: _asInt(json['canvasHeight'], fallback: 1080),
+      durationMs: _asInt(json['durationMs'], fallback: 0),
+      tracks: rawTracks
+          .whereType<Map<String, dynamic>>()
+          .map(_trackFromJson)
+          .toList(growable: false),
+    );
+  }
+
+  Track _trackFromJson(Map<String, dynamic> json) {
+    final List<dynamic> rawClips =
+        (json['clips'] as List<dynamic>? ?? <dynamic>[]);
+    final String rawType = json['type'] as String? ?? TrackType.video.name;
+    final TrackType type = TrackType.values.firstWhere(
+      (TrackType candidate) => candidate.name == rawType,
+      orElse: () => TrackType.video,
+    );
+
+    return Track(
+      id: json['id'] as String? ?? '',
+      type: type,
+      index: _asInt(json['index'], fallback: 0),
+      clips: rawClips
+          .whereType<Map<String, dynamic>>()
+          .map(_clipFromJson)
+          .toList(growable: false),
+    );
+  }
+
+  Clip _clipFromJson(Map<String, dynamic> json) {
+    return Clip(
+      id: json['id'] as String? ?? '',
+      assetPath: json['assetPath'] as String? ?? '',
+      timelineStartMs: _asInt(json['timelineStartMs'], fallback: 0),
+      sourceInMs: _asInt(json['sourceInMs'], fallback: 0),
+      sourceOutMs: _asInt(json['sourceOutMs'], fallback: 0),
+    );
+  }
+
+  int _asInt(Object? value, {required int fallback}) {
+    if (value is int) {
+      return value;
+    }
+    if (value is String) {
+      return int.tryParse(value) ?? fallback;
+    }
+    return fallback;
   }
 }
