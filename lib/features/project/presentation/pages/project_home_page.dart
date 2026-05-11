@@ -5,6 +5,8 @@ import 'package:desktop_drop/desktop_drop.dart';
 import '../../../../app/theme/cyberpunk_palette.dart';
 import '../../../media_import/presentation/controllers/media_import_controller.dart';
 import '../../../media_import/presentation/widgets/media_bin_panel.dart';
+import '../../../preview/presentation/controllers/preview_controller.dart';
+import '../../../preview/presentation/widgets/preview_panel.dart';
 import '../../domain/entities/export_preset.dart';
 import '../../domain/entities/track.dart';
 import '../controllers/project_controller.dart';
@@ -15,10 +17,21 @@ class ProjectHomePage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.listen<int>(
+      projectControllerProvider.select(
+        (state) => state.currentProject?.durationMs ?? 0,
+      ),
+      (_, int durationMs) {
+        ref.read(previewControllerProvider.notifier).setDuration(durationMs);
+      },
+    );
+
     final projectState = ref.watch(projectControllerProvider);
     final projectController = ref.read(projectControllerProvider.notifier);
     final mediaState = ref.watch(mediaImportControllerProvider);
     final mediaController = ref.read(mediaImportControllerProvider.notifier);
+    final previewState = ref.watch(previewControllerProvider);
+    final previewController = ref.read(previewControllerProvider.notifier);
 
     return Scaffold(
       appBar: AppBar(title: const Text('PocketSunoMaker')),
@@ -199,6 +212,14 @@ class ProjectHomePage extends ConsumerWidget {
                               ),
                             ),
                             const SizedBox(height: 12),
+                            PreviewPanel(
+                              project: projectState.currentProject,
+                              state: previewState,
+                              onTogglePlayPause:
+                                  previewController.togglePlayPause,
+                              onSeekTo: previewController.seekTo,
+                            ),
+                            const SizedBox(height: 12),
                             Text(
                               'Timeline (base):',
                               style: Theme.of(context).textTheme.titleMedium,
@@ -208,6 +229,7 @@ class ProjectHomePage extends ConsumerWidget {
                               height: 220,
                               child: TimelinePanel(
                                 project: projectState.currentProject,
+                                playheadMs: previewState.currentPositionMs,
                                 onMoveClipByDelta:
                                     projectController.moveClipByDelta,
                                 onTrimClipStartByDelta:

@@ -11,6 +11,7 @@ import '../../domain/entities/track.dart';
 class TimelinePanel extends StatefulWidget {
   const TimelinePanel({
     required this.project,
+    required this.playheadMs,
     required this.onMoveClipByDelta,
     required this.onTrimClipStartByDelta,
     required this.onTrimClipEndByDelta,
@@ -19,6 +20,7 @@ class TimelinePanel extends StatefulWidget {
   });
 
   final Project? project;
+  final int playheadMs;
   final void Function({
     required String trackId,
     required String clipId,
@@ -62,6 +64,8 @@ class _TimelinePanelState extends State<TimelinePanel> {
 
     final int durationMs = math.max(widget.project!.durationMs, 30000);
     final double timelineWidth = (durationMs / 1000) * _pixelsPerSecond + 200;
+    final double playheadLeft =
+        88 + (widget.playheadMs / 1000) * _pixelsPerSecond;
 
     return Container(
       decoration: BoxDecoration(
@@ -73,47 +77,63 @@ class _TimelinePanelState extends State<TimelinePanel> {
         scrollDirection: Axis.horizontal,
         child: SizedBox(
           width: timelineWidth,
-          child: Column(
+          child: Stack(
             children: <Widget>[
-              _TimelineRuler(
-                width: timelineWidth,
-                durationMs: durationMs,
-                pixelsPerSecond: _pixelsPerSecond,
-              ),
-              const Divider(height: 1),
-              if (widget.project!.tracks.isEmpty)
-                const Expanded(
-                  child: Center(
-                    child: Text(
-                      'Ajoute des medias au projet pour creer des clips.',
-                    ),
+              Column(
+                children: <Widget>[
+                  _TimelineRuler(
+                    width: timelineWidth,
+                    durationMs: durationMs,
+                    pixelsPerSecond: _pixelsPerSecond,
                   ),
-                )
-              else
-                Expanded(
-                  child: ListView.separated(
-                    itemCount: widget.project!.tracks.length,
-                    separatorBuilder: (_, _) => const Divider(height: 1),
-                    itemBuilder: (BuildContext context, int index) {
-                      final Track track = widget.project!.tracks[index];
-                      return _TimelineTrackRow(
-                        track: track,
-                        rowHeight: _rowHeight,
-                        pixelsPerSecond: _pixelsPerSecond,
-                        selectedClipId: selectedClipId,
-                        onSelectClip: (String clipId) {
-                          setState(() {
-                            selectedClipId = clipId;
-                          });
+                  const Divider(height: 1),
+                  if (widget.project!.tracks.isEmpty)
+                    const Expanded(
+                      child: Center(
+                        child: Text(
+                          'Ajoute des medias au projet pour creer des clips.',
+                        ),
+                      ),
+                    )
+                  else
+                    Expanded(
+                      child: ListView.separated(
+                        itemCount: widget.project!.tracks.length,
+                        separatorBuilder: (_, _) => const Divider(height: 1),
+                        itemBuilder: (BuildContext context, int index) {
+                          final Track track = widget.project!.tracks[index];
+                          return _TimelineTrackRow(
+                            track: track,
+                            rowHeight: _rowHeight,
+                            pixelsPerSecond: _pixelsPerSecond,
+                            selectedClipId: selectedClipId,
+                            onSelectClip: (String clipId) {
+                              setState(() {
+                                selectedClipId = clipId;
+                              });
+                            },
+                            onMoveClipByDelta: widget.onMoveClipByDelta,
+                            onTrimClipStartByDelta:
+                                widget.onTrimClipStartByDelta,
+                            onTrimClipEndByDelta: widget.onTrimClipEndByDelta,
+                            onRemoveClip: widget.onRemoveClip,
+                          );
                         },
-                        onMoveClipByDelta: widget.onMoveClipByDelta,
-                        onTrimClipStartByDelta: widget.onTrimClipStartByDelta,
-                        onTrimClipEndByDelta: widget.onTrimClipEndByDelta,
-                        onRemoveClip: widget.onRemoveClip,
-                      );
-                    },
+                      ),
+                    ),
+                ],
+              ),
+              Positioned(
+                left: playheadLeft,
+                top: 0,
+                bottom: 0,
+                child: IgnorePointer(
+                  child: Container(
+                    width: 2,
+                    color: context.cyberpunk.neonBlue.withValues(alpha: 0.85),
                   ),
                 ),
+              ),
             ],
           ),
         ),

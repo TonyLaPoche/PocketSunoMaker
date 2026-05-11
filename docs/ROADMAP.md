@@ -45,8 +45,10 @@ Construire un editeur video desktop macOS, 100% open source et gratuit, sous Flu
 - [x] Snapping basique
 
 ## M3 - Preview et export
+- [x] Transport preview v1 (play/pause/seek)
+- [x] Playhead synchronise avec la timeline
 - [ ] Preview temps reel robuste
-- [ ] Synchronisation audio/video
+- [ ] Synchronisation audio/video (lecture media reelle)
 - [ ] Queue d'export
 - [ ] Exports presets: YouTube, Shorts, Reels
 
