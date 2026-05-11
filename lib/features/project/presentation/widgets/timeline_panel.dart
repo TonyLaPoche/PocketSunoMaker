@@ -63,9 +63,8 @@ class TimelinePanel extends StatefulWidget {
 
 class _TimelinePanelState extends State<TimelinePanel> {
   String? selectedClipId;
-  String? selectedTrackId;
   TimelineEditTool activeTool = TimelineEditTool.select;
-  double zoomLevel = 1.0;
+  double zoomLevel = 0.10;
   bool snappingEnabled = true;
   double _lastPanZoomScale = 1.0;
   final List<int> markersMs = <int>[];
@@ -108,9 +107,6 @@ class _TimelinePanelState extends State<TimelinePanel> {
     final double playheadLabelLeft = (playheadLeft - 26)
         .clamp(0.0, math.max(0.0, timelineWidth - 56))
         .toDouble();
-    final ({String trackId, Clip clip})? selectedClipRef = _resolveSelectedClip(
-      widget.project!,
-    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
         return;
@@ -160,12 +156,12 @@ class _TimelinePanelState extends State<TimelinePanel> {
             },
             onZoomIn: () {
               setState(() {
-                zoomLevel = (zoomLevel + 0.15).clamp(_minZoom, _maxZoom);
+                zoomLevel = (zoomLevel + 0.02).clamp(_minZoom, _maxZoom);
               });
             },
             onZoomOut: () {
               setState(() {
-                zoomLevel = (zoomLevel - 0.15).clamp(_minZoom, _maxZoom);
+                zoomLevel = (zoomLevel - 0.02).clamp(_minZoom, _maxZoom);
               });
             },
             onToggleSnapping: () {
@@ -174,42 +170,6 @@ class _TimelinePanelState extends State<TimelinePanel> {
               });
             },
           ),
-          if (selectedClipRef != null)
-            _SelectedClipToolbar(
-              clip: selectedClipRef.clip,
-              activeTool: activeTool,
-              onToolSelected: (TimelineEditTool tool) {
-                setState(() {
-                  activeTool = tool;
-                });
-              },
-              onStretchShorter: () {
-                widget.onTrimClipEndByDelta(
-                  trackId: selectedClipRef.trackId,
-                  clipId: selectedClipRef.clip.id,
-                  deltaMs: -500,
-                  useSnapping: snappingEnabled,
-                );
-              },
-              onStretchLonger: () {
-                widget.onTrimClipEndByDelta(
-                  trackId: selectedClipRef.trackId,
-                  clipId: selectedClipRef.clip.id,
-                  deltaMs: 500,
-                  useSnapping: snappingEnabled,
-                );
-              },
-              onDelete: () {
-                widget.onRemoveClip(
-                  trackId: selectedClipRef.trackId,
-                  clipId: selectedClipRef.clip.id,
-                );
-                setState(() {
-                  selectedClipId = null;
-                  selectedTrackId = null;
-                });
-              },
-            ),
           Expanded(
             child: Listener(
               onPointerPanZoomStart: (_) {
@@ -286,11 +246,6 @@ class _TimelinePanelState extends State<TimelinePanel> {
                       children: <Widget>[
                         Column(
                           children: <Widget>[
-                            _TimelineRuler(
-                              width: timelineWidth,
-                              durationMs: durationMs,
-                              pixelsPerSecond: pixelsPerSecond,
-                            ),
                             const Divider(height: 1),
                             if (widget.project!.tracks.isEmpty)
                               const Expanded(
@@ -365,7 +320,6 @@ class _TimelinePanelState extends State<TimelinePanel> {
                                               }) {
                                                 setState(() {
                                                   selectedClipId = clipId;
-                                                  selectedTrackId = trackId;
                                                 });
                                               },
                                           onMoveClipByDelta:
@@ -388,7 +342,6 @@ class _TimelinePanelState extends State<TimelinePanel> {
                                                 if (selectedClipId == clipId) {
                                                   setState(() {
                                                     selectedClipId = null;
-                                                    selectedTrackId = null;
                                                   });
                                                 }
                                               },
@@ -470,23 +423,6 @@ class _TimelinePanelState extends State<TimelinePanel> {
         ],
       ),
     );
-  }
-
-  ({String trackId, Clip clip})? _resolveSelectedClip(Project project) {
-    if (selectedClipId == null || selectedTrackId == null) {
-      return null;
-    }
-    for (final Track track in project.tracks) {
-      if (track.id != selectedTrackId) {
-        continue;
-      }
-      for (final Clip clip in track.clips) {
-        if (clip.id == selectedClipId) {
-          return (trackId: track.id, clip: clip);
-        }
-      }
-    }
-    return null;
   }
 
   void _followPlayheadDuringPlayback(double playheadLeft) {
@@ -655,128 +591,6 @@ class _TimelineToolbar extends StatelessWidget {
   }
 }
 
-class _SelectedClipToolbar extends StatelessWidget {
-  const _SelectedClipToolbar({
-    required this.clip,
-    required this.activeTool,
-    required this.onToolSelected,
-    required this.onStretchShorter,
-    required this.onStretchLonger,
-    required this.onDelete,
-  });
-
-  final Clip clip;
-  final TimelineEditTool activeTool;
-  final ValueChanged<TimelineEditTool> onToolSelected;
-  final VoidCallback onStretchShorter;
-  final VoidCallback onStretchLonger;
-  final VoidCallback onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(8, 0, 8, 2),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        color: context.cyberpunk.bgPrimary.withValues(alpha: 0.8),
-        border: Border.all(color: context.cyberpunk.border),
-      ),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 6,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: <Widget>[
-          Text(
-            'Selection: ${p.basename(clip.assetPath)}',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: context.cyberpunk.textPrimary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          Text(
-            'Duree: ${(clip.durationMs / 1000).toStringAsFixed(2)}s',
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: context.cyberpunk.textMuted),
-          ),
-          _InlineToolChip(
-            label: 'Selection',
-            icon: Icons.ads_click_outlined,
-            isActive: activeTool == TimelineEditTool.select,
-            onTap: () => onToolSelected(TimelineEditTool.select),
-          ),
-          _InlineToolChip(
-            label: 'Trim',
-            icon: Icons.tune,
-            isActive: activeTool == TimelineEditTool.trim,
-            onTap: () => onToolSelected(TimelineEditTool.trim),
-          ),
-          TextButton.icon(
-            onPressed: onStretchShorter,
-            icon: const Icon(Icons.remove),
-            label: const Text('Raccourcir 0.5s'),
-          ),
-          TextButton.icon(
-            onPressed: onStretchLonger,
-            icon: const Icon(Icons.add),
-            label: const Text('Etirer 0.5s'),
-          ),
-          IconButton(
-            onPressed: onDelete,
-            icon: const Icon(Icons.delete_outline),
-            tooltip: 'Supprimer clip',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _InlineToolChip extends StatelessWidget {
-  const _InlineToolChip({
-    required this.label,
-    required this.icon,
-    required this.isActive,
-    required this.onTap,
-  });
-
-  final String label;
-  final IconData icon;
-  final bool isActive;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isActive
-                ? context.cyberpunk.neonBlue
-                : context.cyberpunk.border,
-          ),
-          color: isActive
-              ? context.cyberpunk.neonBlue.withValues(alpha: 0.15)
-              : Colors.transparent,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Icon(icon, size: 14),
-            const SizedBox(width: 5),
-            Text(label),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _ToolButton extends StatelessWidget {
   const _ToolButton({
     required this.label,
@@ -814,60 +628,6 @@ class _ToolButton extends StatelessWidget {
             const SizedBox(width: 6),
             Text(label),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TimelineRuler extends StatelessWidget {
-  const _TimelineRuler({
-    required this.width,
-    required this.durationMs,
-    required this.pixelsPerSecond,
-  });
-
-  final double width;
-  final int durationMs;
-  final double pixelsPerSecond;
-
-  @override
-  Widget build(BuildContext context) {
-    final int seconds = (durationMs / 1000).ceil();
-    return SizedBox(
-      height: 34,
-      width: width,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: context.cyberpunk.border.withValues(alpha: 0.8),
-            ),
-          ),
-          color: context.cyberpunk.bgPrimary.withValues(alpha: 0.45),
-        ),
-        child: Stack(
-          children: List<Widget>.generate(seconds + 1, (int second) {
-            final double left = second * pixelsPerSecond;
-            return Positioned(
-              left: left,
-              top: 0,
-              bottom: 0,
-              child: Row(
-                children: <Widget>[
-                  Container(width: 1, color: context.cyberpunk.border),
-                  const SizedBox(width: 4),
-                  if (second % 2 == 0)
-                    Text(
-                      '${second}s',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: context.cyberpunk.textMuted,
-                      ),
-                    ),
-                ],
-              ),
-            );
-          }),
         ),
       ),
     );

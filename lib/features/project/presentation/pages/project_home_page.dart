@@ -51,6 +51,9 @@ class ProjectHomePage extends ConsumerWidget {
       (_, Project? project) {
         final previewState = ref.read(previewControllerProvider);
         ref
+            .read(mediaImportControllerProvider.notifier)
+            .synchronizeFromProject(project);
+        ref
             .read(previewAudioSyncControllerProvider)
             .synchronize(
               project: project,
