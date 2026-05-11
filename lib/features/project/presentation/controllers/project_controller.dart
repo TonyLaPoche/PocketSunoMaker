@@ -49,6 +49,7 @@ class ProjectController extends Notifier<ProjectState> {
     extensions: <String>['psm'],
   );
   static const int _minClipDurationMs = 500;
+  static const int _snapThresholdMs = 120;
 
   @override
   ProjectState build() {
@@ -231,10 +232,18 @@ class ProjectController extends Notifier<ProjectState> {
                 if (clip.id != clipId) {
                   return clip;
                 }
-                final int nextStart = clip.timelineStartMs + deltaMs;
-                return clip.copyWith(
-                  timelineStartMs: nextStart < 0 ? 0 : nextStart,
+                final int rawDelta = deltaMs < -clip.timelineStartMs
+                    ? -clip.timelineStartMs
+                    : deltaMs;
+                final int candidateStart = clip.timelineStartMs + rawDelta;
+                final int snappedStart = _snapStartMs(
+                  trackId: trackId,
+                  clipId: clipId,
+                  candidateStartMs: candidateStart,
+                  clipDurationMs: clip.durationMs,
                 );
+                final int nextStart = snappedStart < 0 ? 0 : snappedStart;
+                return clip.copyWith(timelineStartMs: nextStart);
               })
               .toList(growable: false);
 
@@ -297,8 +306,22 @@ class ProjectController extends Notifier<ProjectState> {
           -clip.timelineStartMs,
         );
         final int upperBoundDelta = clip.durationMs - _minClipDurationMs;
-        final int appliedDelta = _clampInt(
+        final int clampedDelta = _clampInt(
           deltaMs,
+          lowerBoundDelta,
+          upperBoundDelta,
+        );
+        final int candidateStart = clip.timelineStartMs + clampedDelta;
+        final int candidateDuration = clip.durationMs - clampedDelta;
+        final int snappedStart = _snapStartMs(
+          trackId: trackId,
+          clipId: clipId,
+          candidateStartMs: candidateStart,
+          clipDurationMs: candidateDuration,
+        );
+        final int snappedDelta = snappedStart - clip.timelineStartMs;
+        final int appliedDelta = _clampInt(
+          snappedDelta,
           lowerBoundDelta,
           upperBoundDelta,
         );
@@ -320,9 +343,21 @@ class ProjectController extends Notifier<ProjectState> {
       clipId: clipId,
       update: (Clip clip) {
         final int lowerBoundDelta = -(clip.durationMs - _minClipDurationMs);
-        final int appliedDelta = deltaMs < lowerBoundDelta
+        final int clampedDelta = deltaMs < lowerBoundDelta
             ? lowerBoundDelta
             : deltaMs;
+        final int candidateEnd =
+            clip.timelineStartMs + clip.durationMs + clampedDelta;
+        final int snappedEnd = _snapEndMs(
+          trackId: trackId,
+          clipId: clipId,
+          candidateEndMs: candidateEnd,
+        );
+        final int snappedDelta =
+            snappedEnd - (clip.timelineStartMs + clip.durationMs);
+        final int appliedDelta = snappedDelta < lowerBoundDelta
+            ? lowerBoundDelta
+            : snappedDelta;
         return clip.copyWith(sourceOutMs: clip.sourceOutMs + appliedDelta);
       },
     );
@@ -422,4 +457,93 @@ class ProjectController extends Notifier<ProjectState> {
   }
 
   int _maxInt(int a, int b) => a > b ? a : b;
+
+  int _snapStartMs({
+    required String trackId,
+    required String clipId,
+    required int candidateStartMs,
+    required int clipDurationMs,
+  }) {
+    final int candidateEndMs = candidateStartMs + clipDurationMs;
+    final List<int> snapPoints = _collectSnapPoints(
+      trackId: trackId,
+      clipId: clipId,
+    );
+    final int? snappedStart = _findClosestSnap(
+      candidateMs: candidateStartMs,
+      points: snapPoints,
+    );
+    final int? snappedEnd = _findClosestSnap(
+      candidateMs: candidateEndMs,
+      points: snapPoints,
+    );
+
+    if (snappedStart == null && snappedEnd == null) {
+      return candidateStartMs;
+    }
+    if (snappedStart != null && snappedEnd == null) {
+      return snappedStart;
+    }
+    if (snappedStart == null && snappedEnd != null) {
+      return snappedEnd - clipDurationMs;
+    }
+
+    final int deltaFromStart = (snappedStart! - candidateStartMs).abs();
+    final int deltaFromEnd = (snappedEnd! - candidateEndMs).abs();
+    if (deltaFromStart <= deltaFromEnd) {
+      return snappedStart;
+    }
+    return snappedEnd - clipDurationMs;
+  }
+
+  int _snapEndMs({
+    required String trackId,
+    required String clipId,
+    required int candidateEndMs,
+  }) {
+    final List<int> snapPoints = _collectSnapPoints(
+      trackId: trackId,
+      clipId: clipId,
+    );
+    return _findClosestSnap(candidateMs: candidateEndMs, points: snapPoints) ??
+        candidateEndMs;
+  }
+
+  List<int> _collectSnapPoints({
+    required String trackId,
+    required String clipId,
+  }) {
+    final Project? project = state.currentProject;
+    if (project == null) {
+      return <int>[0];
+    }
+
+    final List<int> points = <int>[0];
+    for (final Track track in project.tracks) {
+      for (final Clip clip in track.clips) {
+        if (track.id == trackId && clip.id == clipId) {
+          continue;
+        }
+        points.add(clip.timelineStartMs);
+        points.add(clip.timelineStartMs + clip.durationMs);
+      }
+    }
+    return points;
+  }
+
+  int? _findClosestSnap({required int candidateMs, required List<int> points}) {
+    int? bestPoint;
+    int? bestDistance;
+    for (final int point in points) {
+      final int distance = (point - candidateMs).abs();
+      if (distance > _snapThresholdMs) {
+        continue;
+      }
+      if (bestDistance == null || distance < bestDistance) {
+        bestDistance = distance;
+        bestPoint = point;
+      }
+    }
+    return bestPoint;
+  }
 }

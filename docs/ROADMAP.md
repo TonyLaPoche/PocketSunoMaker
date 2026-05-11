@@ -18,7 +18,7 @@ Construire un editeur video desktop macOS, 100% open source et gratuit, sous Flu
 - [x] Extraction metadonnees reelles via `ffprobe`
 - [x] Sauvegarde/chargement projet `.psm` (JSON)
 - [x] Theme global dark-only cyberpunk neon (rose/violet)
-- [ ] Timeline v1 (pistes + clips + trim/move)
+- [x] Timeline v1 (pistes + clips + trim/move)
 - [ ] Preview synchronisee audio/video
 - [ ] Export FFmpeg reel (pipeline bout en bout)
 - [ ] Effets v1 (rotation, opacity, transforms de base)
@@ -42,7 +42,7 @@ Construire un editeur video desktop macOS, 100% open source et gratuit, sous Flu
 - [x] Ajout/suppression de clips
 - [x] Trim in/out
 - [x] Deplacement drag and drop sur timeline
-- [ ] Snapping basique
+- [x] Snapping basique
 
 ## M3 - Preview et export
 - [ ] Preview temps reel robuste
