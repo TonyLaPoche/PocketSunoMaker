@@ -4,9 +4,14 @@ import 'package:file_selector/file_selector.dart';
 import 'package:path/path.dart' as p;
 
 import '../../domain/entities/media_asset.dart';
+import '../services/ffprobe_metadata_reader.dart';
 
 class LocalMediaImportDataSource {
-  const LocalMediaImportDataSource();
+  const LocalMediaImportDataSource({
+    this.metadataReader = const FfprobeMetadataReader(),
+  });
+
+  final FfprobeMetadataReader metadataReader;
 
   static const List<XTypeGroup> _acceptedTypes = <XTypeGroup>[
     XTypeGroup(
@@ -45,6 +50,7 @@ class LocalMediaImportDataSource {
       }
 
       final FileStat stat = await file.stat();
+      final MediaProbeResult probeResult = await _safeReadMetadata(mediaPath);
       assets.add(
         MediaAsset(
           id: '${stat.modified.millisecondsSinceEpoch}-${p.basename(mediaPath)}',
@@ -53,7 +59,11 @@ class LocalMediaImportDataSource {
           kind: _resolveKind(mediaPath),
           sizeBytes: stat.size,
           createdAt: stat.modified,
-          durationMs: null,
+          durationMs: probeResult.durationMs,
+          videoWidth: probeResult.videoWidth,
+          videoHeight: probeResult.videoHeight,
+          frameRate: probeResult.frameRate,
+          codec: probeResult.codec,
         ),
       );
     }
@@ -62,7 +72,10 @@ class LocalMediaImportDataSource {
   }
 
   MediaKind _resolveKind(String mediaPath) {
-    final String extension = p.extension(mediaPath).replaceFirst('.', '').toLowerCase();
+    final String extension = p
+        .extension(mediaPath)
+        .replaceFirst('.', '')
+        .toLowerCase();
     const Set<String> videoExtensions = <String>{'mp4', 'mov', 'mkv', 'webm'};
     const Set<String> audioExtensions = <String>{'mp3', 'wav', 'aiff', 'flac'};
     const Set<String> imageExtensions = <String>{'png', 'jpg', 'jpeg', 'webp'};
@@ -77,5 +90,13 @@ class LocalMediaImportDataSource {
       return MediaKind.image;
     }
     return MediaKind.unknown;
+  }
+
+  Future<MediaProbeResult> _safeReadMetadata(String mediaPath) async {
+    try {
+      return await metadataReader.read(mediaPath);
+    } catch (_) {
+      return const MediaProbeResult();
+    }
   }
 }

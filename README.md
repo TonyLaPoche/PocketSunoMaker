@@ -1,16 +1,20 @@
-# pocketsunomaker
+# PocketSunoMaker
 
-A new Flutter project.
+Editeur video desktop macOS developpe avec Flutter, open source, local-first.
 
-## Getting Started
+## Documentation
 
-This project is a starting point for a Flutter application.
+- Roadmap: `docs/ROADMAP.md`
+- Architecture: `docs/ARCHITECTURE.md`
+- Features: `docs/FEATURES.md`
+- Stack technique: `docs/TECH_STACK.md`
+- Workflow dev: `docs/DEV_WORKFLOW.md`
 
-A few resources to get you started if this is your first Flutter project:
+## Demarrage rapide
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+```bash
+flutter pub get
+flutter analyze
+flutter test
+flutter run -d macos
+```

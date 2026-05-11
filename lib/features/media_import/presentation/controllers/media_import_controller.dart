@@ -52,9 +52,8 @@ class MediaImportController extends Notifier<MediaImportState> {
 
   Future<void> importDroppedFiles(List<String> paths) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
-    final Result<List<MediaAsset>> result = await _importDroppedMediaAssetsUseCase(
-      paths,
-    );
+    final Result<List<MediaAsset>> result =
+        await _importDroppedMediaAssetsUseCase(paths);
     _mergeResult(result);
   }
 

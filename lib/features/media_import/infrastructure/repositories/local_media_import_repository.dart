@@ -13,7 +13,9 @@ class LocalMediaImportRepository implements MediaImportRepository {
   Future<Result<List<MediaAsset>>> pickMediaAssets() async {
     try {
       final List<String> paths = await _dataSource.pickPaths();
-      final List<MediaAsset> assets = await _dataSource.buildAssetsFromPaths(paths);
+      final List<MediaAsset> assets = await _dataSource.buildAssetsFromPaths(
+        paths,
+      );
       return Success<List<MediaAsset>>(assets);
     } catch (error) {
       return FailureResult<List<MediaAsset>>(
@@ -25,7 +27,9 @@ class LocalMediaImportRepository implements MediaImportRepository {
   @override
   Future<Result<List<MediaAsset>>> importFromPaths(List<String> paths) async {
     try {
-      final List<MediaAsset> assets = await _dataSource.buildAssetsFromPaths(paths);
+      final List<MediaAsset> assets = await _dataSource.buildAssetsFromPaths(
+        paths,
+      );
       return Success<List<MediaAsset>>(assets);
     } catch (error) {
       return FailureResult<List<MediaAsset>>(

@@ -19,9 +19,7 @@ class MediaBinPanel extends StatelessWidget {
     }
 
     if (assets.isEmpty) {
-      return const Center(
-        child: Text('Aucun media importe pour le moment.'),
-      );
+      return const Center(child: Text('Aucun media importe pour le moment.'));
     }
 
     return ListView.separated(
@@ -34,8 +32,9 @@ class MediaBinPanel extends StatelessWidget {
           leading: Icon(_iconForKind(asset.kind)),
           title: Text(asset.fileName),
           subtitle: Text(
-            '${asset.kindLabel} - ${_formatBytes(asset.sizeBytes)}',
+            '${asset.kindLabel} - ${_formatBytes(asset.sizeBytes)}\n${asset.technicalSummary}',
           ),
+          isThreeLine: true,
         );
       },
     );

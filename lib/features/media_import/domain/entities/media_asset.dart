@@ -9,6 +9,10 @@ class MediaAsset {
     required this.sizeBytes,
     required this.createdAt,
     this.durationMs,
+    this.videoWidth,
+    this.videoHeight,
+    this.frameRate,
+    this.codec,
   });
 
   final String id;
@@ -18,6 +22,10 @@ class MediaAsset {
   final int sizeBytes;
   final DateTime createdAt;
   final int? durationMs;
+  final int? videoWidth;
+  final int? videoHeight;
+  final double? frameRate;
+  final String? codec;
 
   String get kindLabel {
     switch (kind) {
@@ -30,5 +38,33 @@ class MediaAsset {
       case MediaKind.unknown:
         return 'Unknown';
     }
+  }
+
+  String get technicalSummary {
+    final List<String> parts = <String>[];
+
+    if (durationMs != null) {
+      final int totalSeconds = durationMs! ~/ 1000;
+      final int minutes = totalSeconds ~/ 60;
+      final int seconds = totalSeconds % 60;
+      parts.add(
+        '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}',
+      );
+    }
+    if (videoWidth != null && videoHeight != null) {
+      parts.add('${videoWidth}x$videoHeight');
+    }
+    if (frameRate != null) {
+      parts.add('${frameRate!.toStringAsFixed(2)} fps');
+    }
+    if (codec != null && codec!.isNotEmpty) {
+      parts.add(codec!);
+    }
+
+    if (parts.isEmpty) {
+      return 'Metadata en attente';
+    }
+
+    return parts.join(' - ');
   }
 }
