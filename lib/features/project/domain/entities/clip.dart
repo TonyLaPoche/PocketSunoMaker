@@ -19,6 +19,8 @@ class Clip {
     this.textItalic = false,
     this.textColorHex = '#FFFFFF',
     this.textBackgroundHex = '#000000',
+    this.textShowBackground = true,
+    this.textShowBorder = true,
   });
 
   final String id;
@@ -40,6 +42,8 @@ class Clip {
   final bool textItalic;
   final String textColorHex;
   final String textBackgroundHex;
+  final bool textShowBackground;
+  final bool textShowBorder;
 
   int get durationMs => sourceOutMs - sourceInMs;
 
@@ -63,6 +67,8 @@ class Clip {
     bool? textItalic,
     String? textColorHex,
     String? textBackgroundHex,
+    bool? textShowBackground,
+    bool? textShowBorder,
   }) {
     return Clip(
       id: id ?? this.id,
@@ -84,6 +90,8 @@ class Clip {
       textItalic: textItalic ?? this.textItalic,
       textColorHex: textColorHex ?? this.textColorHex,
       textBackgroundHex: textBackgroundHex ?? this.textBackgroundHex,
+      textShowBackground: textShowBackground ?? this.textShowBackground,
+      textShowBorder: textShowBorder ?? this.textShowBorder,
     );
   }
 }

@@ -212,7 +212,6 @@ class _PreviewViewportState extends State<PreviewViewport> {
                 ],
               ),
             ),
-            _CornerLabel(label: p.basename(activeVisualClip.clip.assetPath)),
           ],
         ),
       );
@@ -275,7 +274,6 @@ class _PreviewViewportState extends State<PreviewViewport> {
                 ],
               ),
             ),
-            _CornerLabel(label: p.basename(activeVisualClip.clip.assetPath)),
           ],
         ),
       );
@@ -603,6 +601,15 @@ class _TextOverlay extends StatelessWidget {
       fontFamily: clip.textFontFamily,
       height: 1.1,
     );
+    final Color backgroundColor = _colorFromHex(
+      clip.textBackgroundHex,
+      fallback: Colors.black,
+    );
+    final BorderSide? borderSide = isSelected
+        ? BorderSide(color: context.cyberpunk.neonPink)
+        : clip.textShowBorder
+        ? BorderSide(color: context.cyberpunk.neonBlue.withValues(alpha: 0.35))
+        : null;
     return Align(
       alignment: Alignment.center,
       child: Transform.translate(
@@ -616,16 +623,13 @@ class _TextOverlay extends StatelessWidget {
               : null,
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: _colorFromHex(
-                clip.textBackgroundHex,
-                fallback: Colors.black,
-              ).withValues(alpha: 0.62),
+              color: clip.textShowBackground
+                  ? backgroundColor.withValues(alpha: 0.62)
+                  : Colors.transparent,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: isSelected
-                    ? context.cyberpunk.neonPink
-                    : context.cyberpunk.neonBlue.withValues(alpha: 0.35),
-              ),
+              border: borderSide == null
+                  ? null
+                  : Border.fromBorderSide(borderSide),
             ),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -677,37 +681,6 @@ class _FallbackLabel extends StatelessWidget {
             ).textTheme.bodySmall?.copyWith(color: context.cyberpunk.textMuted),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _CornerLabel extends StatelessWidget {
-  const _CornerLabel({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Positioned(
-      left: 8,
-      bottom: 8,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.55),
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          child: Text(
-            label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: context.cyberpunk.textPrimary,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
       ),
     );
   }

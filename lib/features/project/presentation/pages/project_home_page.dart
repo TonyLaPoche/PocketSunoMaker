@@ -223,31 +223,43 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
                                   child: _PanelShell(
                                     title: 'Medias',
                                     comfortModeEnabled: _comfortModeEnabled,
-                                    child: DropTarget(
-                                      onDragEntered: (_) =>
-                                          mediaController.setDraggingOver(true),
-                                      onDragExited: (_) => mediaController
-                                          .setDraggingOver(false),
-                                      onDragDone: (DropDoneDetails details) {
-                                        final List<String> paths = details.files
-                                            .map((file) => file.path)
-                                            .toList();
-                                        mediaController.setDraggingOver(false);
-                                        mediaController.importDroppedFiles(
-                                          paths,
-                                        );
-                                      },
-                                      child: MediaBinPanel(
-                                        assets: mediaState.assets,
-                                        isLoading: mediaState.isLoading,
-                                        canAddToTimeline: project != null,
-                                        onAddToTimeline: projectController
-                                            .addAssetToTimeline,
-                                        onRemoveAsset: (asset) =>
-                                            mediaController.removeAssetById(
-                                              asset.id,
-                                            ),
+                                    child: _MediaToolsTabs(
+                                      mediaChild: DropTarget(
+                                        onDragEntered: (_) => mediaController
+                                            .setDraggingOver(true),
+                                        onDragExited: (_) => mediaController
+                                            .setDraggingOver(false),
+                                        onDragDone: (DropDoneDetails details) {
+                                          final List<String> paths = details
+                                              .files
+                                              .map((file) => file.path)
+                                              .toList();
+                                          mediaController.setDraggingOver(
+                                            false,
+                                          );
+                                          mediaController.importDroppedFiles(
+                                            paths,
+                                          );
+                                        },
+                                        child: MediaBinPanel(
+                                          assets: mediaState.assets,
+                                          isLoading: mediaState.isLoading,
+                                          canAddToTimeline: project != null,
+                                          onAddToTimeline: projectController
+                                              .addAssetToTimeline,
+                                          onRemoveAsset: (asset) =>
+                                              mediaController.removeAssetById(
+                                                asset.id,
+                                              ),
+                                        ),
                                       ),
+                                      onAddTextAtPlayhead: project == null
+                                          ? null
+                                          : () =>
+                                                projectController.addTextClipAt(
+                                                  startMs: previewState
+                                                      .currentPositionMs,
+                                                ),
                                     ),
                                   ),
                                 ),
@@ -363,13 +375,6 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
                                           ? null
                                           : () => exportController
                                                 .enqueueExport(project),
-                                      onAddTextAtPlayhead: project == null
-                                          ? null
-                                          : () =>
-                                                projectController.addTextClipAt(
-                                                  startMs: previewState
-                                                      .currentPositionMs,
-                                                ),
                                       statusLabelBuilder: _statusLabel,
                                       statusColorBuilder: _statusColor,
                                       onInspectorChanged:
@@ -409,6 +414,10 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
                                                       values.textColorHex,
                                                   textBackgroundHex:
                                                       values.textBackgroundHex,
+                                                  textShowBackground:
+                                                      values.textShowBackground,
+                                                  textShowBorder:
+                                                      values.textShowBorder,
                                                 );
                                             final _ClipInspectorValues
                                             activeValues =
@@ -674,6 +683,8 @@ class _ClipInspectorValues {
     required this.textItalic,
     required this.textColorHex,
     required this.textBackgroundHex,
+    required this.textShowBackground,
+    required this.textShowBorder,
   });
 
   static const _ClipInspectorValues defaults = _ClipInspectorValues(
@@ -690,6 +701,8 @@ class _ClipInspectorValues {
     textItalic: false,
     textColorHex: '#FFFFFF',
     textBackgroundHex: '#000000',
+    textShowBackground: true,
+    textShowBorder: true,
   );
 
   factory _ClipInspectorValues.fromClip(Clip clip) {
@@ -707,6 +720,8 @@ class _ClipInspectorValues {
       textItalic: clip.textItalic,
       textColorHex: clip.textColorHex,
       textBackgroundHex: clip.textBackgroundHex,
+      textShowBackground: clip.textShowBackground,
+      textShowBorder: clip.textShowBorder,
     );
   }
 
@@ -723,6 +738,8 @@ class _ClipInspectorValues {
   final bool textItalic;
   final String textColorHex;
   final String textBackgroundHex;
+  final bool textShowBackground;
+  final bool textShowBorder;
 
   _ClipInspectorValues copyWith({
     double? opacity,
@@ -738,6 +755,8 @@ class _ClipInspectorValues {
     bool? textItalic,
     String? textColorHex,
     String? textBackgroundHex,
+    bool? textShowBackground,
+    bool? textShowBorder,
   }) {
     return _ClipInspectorValues(
       opacity: opacity ?? this.opacity,
@@ -753,6 +772,8 @@ class _ClipInspectorValues {
       textItalic: textItalic ?? this.textItalic,
       textColorHex: textColorHex ?? this.textColorHex,
       textBackgroundHex: textBackgroundHex ?? this.textBackgroundHex,
+      textShowBackground: textShowBackground ?? this.textShowBackground,
+      textShowBorder: textShowBorder ?? this.textShowBorder,
     );
   }
 }
@@ -898,6 +919,26 @@ class _ClipInspectorCard extends StatelessWidget {
                   selected: values.textItalic,
                   onSelected: (bool selected) {
                     onChanged(values.copyWith(textItalic: selected));
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: <Widget>[
+                FilterChip(
+                  label: const Text('Fond'),
+                  selected: values.textShowBackground,
+                  onSelected: (bool selected) {
+                    onChanged(values.copyWith(textShowBackground: selected));
+                  },
+                ),
+                const SizedBox(width: 8),
+                FilterChip(
+                  label: const Text('Bordure'),
+                  selected: values.textShowBorder,
+                  onSelected: (bool selected) {
+                    onChanged(values.copyWith(textShowBorder: selected));
                   },
                 ),
               ],
@@ -1134,6 +1175,196 @@ class _ColorChoiceRow extends StatelessWidget {
   }
 }
 
+class _MediaToolsTabs extends StatefulWidget {
+  const _MediaToolsTabs({
+    required this.mediaChild,
+    required this.onAddTextAtPlayhead,
+  });
+
+  final Widget mediaChild;
+  final VoidCallback? onAddTextAtPlayhead;
+
+  @override
+  State<_MediaToolsTabs> createState() => _MediaToolsTabsState();
+}
+
+class _MediaToolsTabsState extends State<_MediaToolsTabs> {
+  String _activeTool = 'text';
+
+  @override
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 2,
+      child: Column(
+        children: <Widget>[
+          TabBar(
+            tabs: const <Tab>[
+              Tab(text: 'Media'),
+              Tab(text: 'Outils'),
+            ],
+            labelColor: context.cyberpunk.neonBlue,
+            unselectedLabelColor: context.cyberpunk.textMuted,
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: TabBarView(
+              children: <Widget>[
+                widget.mediaChild,
+                ListView(
+                  children: <Widget>[
+                    Text(
+                      'Bibliotheque outils',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: <Widget>[
+                        _SquareToolButton(
+                          icon: Icons.text_fields,
+                          label: 'Texte',
+                          isSelected: _activeTool == 'text',
+                          onTap: () => setState(() => _activeTool = 'text'),
+                        ),
+                        _SquareToolButton(
+                          icon: Icons.auto_awesome,
+                          label: 'Effets',
+                          isSelected: _activeTool == 'effects',
+                          onTap: () => setState(() => _activeTool = 'effects'),
+                        ),
+                        _SquareToolButton(
+                          icon: Icons.movie_filter_outlined,
+                          label: 'Transitions',
+                          isSelected: _activeTool == 'transitions',
+                          onTap: () =>
+                              setState(() => _activeTool = 'transitions'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 150),
+                      child: _buildToolPanel(context),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildToolPanel(BuildContext context) {
+    if (_activeTool == 'text') {
+      return Container(
+        key: const ValueKey<String>('tool_text'),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: context.cyberpunk.border),
+          color: context.cyberpunk.bgPrimary.withValues(alpha: 0.35),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text('Texte', style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: 4),
+            Text(
+              'Ajoute un clip texte sur la timeline a la tete de lecture.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: context.cyberpunk.textMuted,
+              ),
+            ),
+            const SizedBox(height: 8),
+            FilledButton.icon(
+              onPressed: widget.onAddTextAtPlayhead,
+              icon: const Icon(Icons.add_comment_outlined),
+              label: const Text('Ajouter texte au playhead'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final String title = _activeTool == 'effects' ? 'Effets' : 'Transitions';
+    return Container(
+      key: ValueKey<String>('tool_$_activeTool'),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: context.cyberpunk.border),
+        color: context.cyberpunk.bgPrimary.withValues(alpha: 0.35),
+      ),
+      child: Text(
+        '$title: bientot disponible (module en preparation).',
+        style: Theme.of(
+          context,
+        ).textTheme.bodySmall?.copyWith(color: context.cyberpunk.textMuted),
+      ),
+    );
+  }
+}
+
+class _SquareToolButton extends StatelessWidget {
+  const _SquareToolButton({
+    required this.icon,
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        width: 82,
+        height: 82,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected
+                ? context.cyberpunk.neonBlue
+                : context.cyberpunk.border,
+          ),
+          color: isSelected
+              ? context.cyberpunk.neonBlue.withValues(alpha: 0.14)
+              : context.cyberpunk.bgPrimary.withValues(alpha: 0.28),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            Icon(
+              icon,
+              size: 20,
+              color: isSelected
+                  ? context.cyberpunk.neonBlue
+                  : context.cyberpunk.textPrimary,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: context.cyberpunk.textPrimary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _InspectorExportTabs extends StatelessWidget {
   const _InspectorExportTabs({
     required this.project,
@@ -1149,7 +1380,6 @@ class _InspectorExportTabs extends StatelessWidget {
     required this.previewGuidesEnabled,
     required this.onSelectPreset,
     required this.onEnqueueExport,
-    required this.onAddTextAtPlayhead,
     required this.statusLabelBuilder,
     required this.statusColorBuilder,
     required this.onInspectorChanged,
@@ -1170,7 +1400,6 @@ class _InspectorExportTabs extends StatelessWidget {
   final bool previewGuidesEnabled;
   final ValueChanged<ExportPreset> onSelectPreset;
   final VoidCallback? onEnqueueExport;
-  final VoidCallback? onAddTextAtPlayhead;
   final String Function(ExportJobStatus status) statusLabelBuilder;
   final Color Function(BuildContext context, ExportJobStatus status)
   statusColorBuilder;
@@ -1294,12 +1523,6 @@ class _InspectorExportTabs extends StatelessWidget {
                             ? 'Export en cours...'
                             : 'Ajouter a la queue',
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    OutlinedButton.icon(
-                      onPressed: onAddTextAtPlayhead,
-                      icon: const Icon(Icons.text_fields),
-                      label: const Text('Ajouter texte au playhead'),
                     ),
                     if (exportState.isProcessing) ...<Widget>[
                       const SizedBox(height: 10),

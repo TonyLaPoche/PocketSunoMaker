@@ -436,6 +436,8 @@ class ProjectController extends Notifier<ProjectState> {
     bool? textItalic,
     String? textColorHex,
     String? textBackgroundHex,
+    bool? textShowBackground,
+    bool? textShowBorder,
   }) {
     _updateClip(
       trackId: trackId,
@@ -455,6 +457,8 @@ class ProjectController extends Notifier<ProjectState> {
           textItalic: textItalic,
           textColorHex: textColorHex,
           textBackgroundHex: textBackgroundHex,
+          textShowBackground: textShowBackground,
+          textShowBorder: textShowBorder,
         );
       },
     );

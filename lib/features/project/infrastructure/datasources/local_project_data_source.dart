@@ -84,6 +84,8 @@ class LocalProjectDataSource {
       'textItalic': clip.textItalic,
       'textColorHex': clip.textColorHex,
       'textBackgroundHex': clip.textBackgroundHex,
+      'textShowBackground': clip.textShowBackground,
+      'textShowBorder': clip.textShowBorder,
     };
   }
 
@@ -145,6 +147,8 @@ class LocalProjectDataSource {
       textItalic: _asBool(json['textItalic'], fallback: false),
       textColorHex: json['textColorHex'] as String? ?? '#FFFFFF',
       textBackgroundHex: json['textBackgroundHex'] as String? ?? '#000000',
+      textShowBackground: _asBool(json['textShowBackground'], fallback: true),
+      textShowBorder: _asBool(json['textShowBorder'], fallback: true),
     );
   }
 
