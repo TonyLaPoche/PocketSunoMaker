@@ -9,7 +9,8 @@
 
 ## macOS permissions (sandbox)
 
-- les entitlements doivent inclure `com.apple.security.files.user-selected.read-write`
+- pour un usage local avec `ffmpeg`, desactiver le sandbox: `com.apple.security.app-sandbox = false`
+- conserver `com.apple.security.files.user-selected.read-write = true`
 - redemarrer completement l'app apres toute modif d'entitlements
 - en cas de doute, tester en relancant `flutter run -d macos`
 

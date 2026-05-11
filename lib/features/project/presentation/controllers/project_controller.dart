@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:path/path.dart' as p;
@@ -136,10 +138,13 @@ class ProjectController extends Notifier<ProjectState> {
     final Result<Project> result = await _loadProjectUseCase(selectedFile.path);
 
     if (result case Success<Project>(:final Project value)) {
+      final int inaccessibleSources = _countInaccessibleClipSources(value);
       state = state.copyWith(
         currentProject: value,
         isLoading: false,
-        errorMessage: null,
+        errorMessage: inaccessibleSources == 0
+            ? null
+            : 'Projet charge, mais $inaccessibleSources media(s) ne sont pas autorises par macOS. Reimporte-les pour les utiliser en preview/export.',
         projectFilePath: selectedFile.path,
       );
       return;
@@ -165,42 +170,23 @@ class ProjectController extends Notifier<ProjectState> {
         : TrackType.video;
 
     final List<Track> tracks = List<Track>.from(project.tracks);
-    final int existingTrackIndex = tracks.indexWhere(
-      (Track track) => track.type == targetType,
-    );
-
-    final Track targetTrack;
-    if (existingTrackIndex == -1) {
-      targetTrack = Track(
-        id: '${targetType.name}-track-${DateTime.now().millisecondsSinceEpoch}',
-        type: targetType,
-        index: tracks.length,
-        clips: const <Clip>[],
-      );
-      tracks.add(targetTrack);
-    } else {
-      targetTrack = tracks[existingTrackIndex];
-    }
-
-    final int timelineStartMs = _computeTrackEndMs(targetTrack);
     final int durationMs = _clipDurationForAsset(asset);
+    final Track targetTrack = Track(
+      id: '${targetType.name}-track-${DateTime.now().millisecondsSinceEpoch}',
+      type: targetType,
+      index: tracks.length,
+      clips: const <Clip>[],
+    );
     final Clip newClip = Clip(
       id: 'clip-${DateTime.now().microsecondsSinceEpoch}',
       assetPath: asset.path,
-      timelineStartMs: timelineStartMs,
+      timelineStartMs: 0,
       sourceInMs: 0,
       sourceOutMs: durationMs,
     );
 
-    final Track updatedTrack = targetTrack.copyWith(
-      clips: <Clip>[...targetTrack.clips, newClip],
-    );
-
-    if (existingTrackIndex == -1) {
-      tracks[tracks.length - 1] = updatedTrack;
-    } else {
-      tracks[existingTrackIndex] = updatedTrack;
-    }
+    final Track updatedTrack = targetTrack.copyWith(clips: <Clip>[newClip]);
+    tracks.add(updatedTrack);
 
     final int projectDurationMs = _computeProjectDurationMs(tracks);
     final Project updatedProject = project.copyWith(
@@ -444,15 +430,6 @@ class ProjectController extends Notifier<ProjectState> {
     return compact;
   }
 
-  int _computeTrackEndMs(Track track) {
-    if (track.clips.isEmpty) {
-      return 0;
-    }
-    return track.clips
-        .map((Clip clip) => clip.timelineStartMs + clip.durationMs)
-        .reduce((int max, int value) => value > max ? value : max);
-  }
-
   int _computeProjectDurationMs(List<Track> tracks) {
     if (tracks.isEmpty) {
       return 0;
@@ -475,6 +452,28 @@ class ProjectController extends Notifier<ProjectState> {
       return 5000;
     }
     return 10000;
+  }
+
+  int _countInaccessibleClipSources(Project project) {
+    final Set<String> uniquePaths = project.tracks
+        .expand((Track track) => track.clips)
+        .map((Clip clip) => clip.assetPath)
+        .toSet();
+    int inaccessible = 0;
+    for (final String path in uniquePaths) {
+      final File file = File(path);
+      if (!file.existsSync()) {
+        inaccessible++;
+        continue;
+      }
+      try {
+        final RandomAccessFile raf = file.openSync(mode: FileMode.read);
+        raf.closeSync();
+      } on FileSystemException {
+        inaccessible++;
+      }
+    }
+    return inaccessible;
   }
 
   void _updateClip({

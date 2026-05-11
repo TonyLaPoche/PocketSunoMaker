@@ -69,6 +69,16 @@ class ProjectHomePage extends ConsumerWidget {
     final exportState = ref.watch(exportQueueControllerProvider);
     final exportController = ref.read(exportQueueControllerProvider.notifier);
     final Project? project = projectState.currentProject;
+    ExportJob? runningExportJob;
+    int queuedExportsCount = 0;
+    for (final ExportJob job in exportState.jobs) {
+      if (job.status == ExportJobStatus.running) {
+        runningExportJob = job;
+      }
+      if (job.status == ExportJobStatus.queued) {
+        queuedExportsCount++;
+      }
+    }
 
     return Scaffold(
       body: Padding(
@@ -190,6 +200,79 @@ class ProjectHomePage extends ConsumerWidget {
                                         : 'Ajouter a la queue',
                                   ),
                                 ),
+                                if (exportState.isProcessing) ...<Widget>[
+                                  const SizedBox(height: 10),
+                                  Container(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      10,
+                                      8,
+                                      10,
+                                      10,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: context.cyberpunk.neonBlue
+                                            .withValues(alpha: 0.55),
+                                      ),
+                                      color: context.cyberpunk.neonBlue
+                                          .withValues(alpha: 0.08),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: <Widget>[
+                                        Row(
+                                          children: <Widget>[
+                                            const SizedBox(
+                                              width: 14,
+                                              height: 14,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                runningExportJob == null
+                                                    ? 'Traitement de la queue export...'
+                                                    : 'Export en cours: ${runningExportJob.presetLabel}',
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .bodySmall
+                                                    ?.copyWith(
+                                                      color: context
+                                                          .cyberpunk
+                                                          .neonBlue,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        const LinearProgressIndicator(
+                                          minHeight: 4,
+                                        ),
+                                        if (queuedExportsCount > 0) ...<Widget>[
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            '$queuedExportsCount export(s) en attente...',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodySmall
+                                                ?.copyWith(
+                                                  color: context
+                                                      .cyberpunk
+                                                      .textMuted,
+                                                ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                ],
                                 if (exportState.errorMessage !=
                                     null) ...<Widget>[
                                   const SizedBox(height: 8),
@@ -215,12 +298,35 @@ class ProjectHomePage extends ConsumerWidget {
                                         padding: const EdgeInsets.only(
                                           bottom: 6,
                                         ),
-                                        child: Text(
-                                          '- ${job.presetLabel}: ${_statusLabel(job.status)}'
-                                          '${job.message != null ? ' (${job.message})' : ''}',
-                                          style: Theme.of(
-                                            context,
-                                          ).textTheme.bodySmall,
+                                        child: Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: <Widget>[
+                                            Container(
+                                              width: 8,
+                                              height: 8,
+                                              margin: const EdgeInsets.only(
+                                                top: 6,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                color: _statusColor(
+                                                  context,
+                                                  job.status,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                '${job.presetLabel}: ${_statusLabel(job.status)}'
+                                                '${job.message != null ? ' (${job.message})' : ''}',
+                                                style: Theme.of(
+                                                  context,
+                                                ).textTheme.bodySmall,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ),
@@ -284,6 +390,8 @@ class ProjectHomePage extends ConsumerWidget {
               currentPositionMs: previewState.currentPositionMs,
               projectName: project?.name,
               exportJobsCount: exportState.jobs.length,
+              isExporting: exportState.isProcessing,
+              activeExportLabel: runningExportJob?.presetLabel,
             ),
           ],
         ),
@@ -301,6 +409,19 @@ class ProjectHomePage extends ConsumerWidget {
         return 'termine';
       case ExportJobStatus.failed:
         return 'echec';
+    }
+  }
+
+  Color _statusColor(BuildContext context, ExportJobStatus status) {
+    switch (status) {
+      case ExportJobStatus.queued:
+        return context.cyberpunk.textMuted;
+      case ExportJobStatus.running:
+        return context.cyberpunk.neonBlue;
+      case ExportJobStatus.succeeded:
+        return Colors.greenAccent.shade400;
+      case ExportJobStatus.failed:
+        return Theme.of(context).colorScheme.error;
     }
   }
 }
@@ -446,18 +567,22 @@ class _StudioStatusBar extends StatelessWidget {
     required this.currentPositionMs,
     required this.projectName,
     required this.exportJobsCount,
+    required this.isExporting,
+    required this.activeExportLabel,
   });
 
   final bool isPlaying;
   final int currentPositionMs;
   final String? projectName;
   final int exportJobsCount;
+  final bool isExporting;
+  final String? activeExportLabel;
 
   @override
   Widget build(BuildContext context) {
     final String positionLabel = (currentPositionMs / 1000).toStringAsFixed(2);
     return Container(
-      height: 30,
+      height: 34,
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
@@ -491,6 +616,17 @@ class _StudioStatusBar extends StatelessWidget {
             ).textTheme.bodySmall?.copyWith(color: context.cyberpunk.textMuted),
           ),
           const Spacer(),
+          if (isExporting)
+            Text(
+              activeExportLabel == null
+                  ? 'Export en cours...'
+                  : 'Export: $activeExportLabel',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: context.cyberpunk.neonBlue,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          if (isExporting) const SizedBox(width: 12),
           Text(
             'Exports: $exportJobsCount',
             style: Theme.of(context).textTheme.bodySmall,

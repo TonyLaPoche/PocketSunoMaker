@@ -110,7 +110,20 @@ class _PreviewViewportState extends State<PreviewViewport> {
         child: Stack(
           fit: StackFit.expand,
           children: <Widget>[
-            Image.file(imageFile, fit: BoxFit.contain),
+            Image.file(
+              imageFile,
+              fit: BoxFit.contain,
+              errorBuilder:
+                  (
+                    BuildContext context,
+                    Object error,
+                    StackTrace? stackTrace,
+                  ) => const _FallbackLabel(
+                    label: 'Image non accessible',
+                    details:
+                        'Reimporte ce fichier pour renouveler la permission.',
+                  ),
+            ),
             _CornerLabel(label: p.basename(activeVisualClip.clip.assetPath)),
           ],
         ),
