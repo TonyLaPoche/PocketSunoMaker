@@ -209,6 +209,47 @@ class ProjectController extends Notifier<ProjectState> {
     state = state.copyWith(currentProject: updatedProject, errorMessage: null);
   }
 
+  void moveClipByDelta({
+    required String trackId,
+    required String clipId,
+    required int deltaMs,
+  }) {
+    final Project? project = state.currentProject;
+    if (project == null) {
+      return;
+    }
+
+    final List<Track> updatedTracks = project.tracks
+        .map((Track track) {
+          if (track.id != trackId) {
+            return track;
+          }
+
+          final List<Clip> updatedClips = track.clips
+              .map((Clip clip) {
+                if (clip.id != clipId) {
+                  return clip;
+                }
+                final int nextStart = clip.timelineStartMs + deltaMs;
+                return clip.copyWith(
+                  timelineStartMs: nextStart < 0 ? 0 : nextStart,
+                );
+              })
+              .toList(growable: false);
+
+          return track.copyWith(clips: updatedClips);
+        })
+        .toList(growable: false);
+
+    final int projectDurationMs = _computeProjectDurationMs(updatedTracks);
+    state = state.copyWith(
+      currentProject: project.copyWith(
+        tracks: updatedTracks,
+        durationMs: projectDurationMs,
+      ),
+    );
+  }
+
   String _sanitizeFileName(String source) {
     final String noExtension = p.basenameWithoutExtension(source.trim());
     final String safe = noExtension.replaceAll(RegExp(r'[^a-zA-Z0-9_\- ]'), '');

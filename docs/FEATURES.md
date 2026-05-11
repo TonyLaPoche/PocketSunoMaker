@@ -70,3 +70,9 @@
 - tests unitaires (domain/application)
 - tests d'integration infrastructure
 - logs d'erreurs et diagnostic export
+
+## 11) Direction visuelle
+
+- theme dark-only
+- design cyberpunk neon rose/violet
+- tokens visuels centralises et reutilisables

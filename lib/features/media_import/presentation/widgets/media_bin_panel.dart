@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../app/theme/cyberpunk_palette.dart';
 import '../../domain/entities/media_asset.dart';
 
 class MediaBinPanel extends StatelessWidget {
@@ -33,10 +34,16 @@ class MediaBinPanel extends StatelessWidget {
         final MediaAsset asset = assets[index];
         return ListTile(
           dense: true,
-          leading: Icon(_iconForKind(asset.kind)),
+          leading: Icon(
+            _iconForKind(asset.kind),
+            color: context.cyberpunk.neonBlue,
+          ),
           title: Text(asset.fileName),
           subtitle: Text(
             '${asset.kindLabel} - ${_formatBytes(asset.sizeBytes)}\n${asset.technicalSummary}',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: context.cyberpunk.textMuted),
           ),
           isThreeLine: true,
           trailing: IconButton(

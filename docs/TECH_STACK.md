@@ -5,6 +5,7 @@
 - Flutter desktop (macOS)
 - Dart
 - Riverpod (state management + DI)
+- Theme system global dark-only (cyberpunk neon rose/violet)
 
 ## Moteur media
 
@@ -35,3 +36,9 @@
 - code app open source
 - pipelines export documentes
 - effets ajoutes progressivement
+
+## UI/UX direction
+
+- dark mode exclusif
+- style cyberpunk neon uniforme dans toutes les vues
+- tokens de styles centralises dans le theme global

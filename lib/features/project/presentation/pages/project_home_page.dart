@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 
+import '../../../../app/theme/cyberpunk_palette.dart';
 import '../../../media_import/presentation/controllers/media_import_controller.dart';
 import '../../../media_import/presentation/widgets/media_bin_panel.dart';
 import '../../domain/entities/export_preset.dart';
 import '../../domain/entities/track.dart';
 import '../controllers/project_controller.dart';
+import '../widgets/timeline_panel.dart';
 
 class ProjectHomePage extends ConsumerWidget {
   const ProjectHomePage({super.key});
@@ -83,7 +85,9 @@ class ProjectHomePage extends ConsumerWidget {
             if (projectState.projectFilePath != null)
               Text(
                 'Fichier projet: ${projectState.projectFilePath!}',
-                style: Theme.of(context).textTheme.bodySmall,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: context.cyberpunk.textMuted,
+                ),
               ),
             if (projectState.errorMessage != null) ...<Widget>[
               const SizedBox(height: 8),
@@ -140,14 +144,19 @@ class ProjectHomePage extends ConsumerWidget {
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(
                                       color: mediaState.isDraggingOver
-                                          ? Theme.of(
-                                              context,
-                                            ).colorScheme.primary
-                                          : Theme.of(
-                                              context,
-                                            ).colorScheme.outlineVariant,
+                                          ? context.cyberpunk.neonPink
+                                          : context.cyberpunk.border,
                                       width: mediaState.isDraggingOver ? 2 : 1,
                                     ),
+                                    boxShadow: mediaState.isDraggingOver
+                                        ? <BoxShadow>[
+                                            BoxShadow(
+                                              color: context.cyberpunk.neonPink
+                                                  .withValues(alpha: 0.18),
+                                              blurRadius: 12,
+                                            ),
+                                          ]
+                                        : null,
                                   ),
                                   child: Padding(
                                     padding: const EdgeInsets.all(12),
@@ -195,6 +204,15 @@ class ProjectHomePage extends ConsumerWidget {
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
                             const SizedBox(height: 8),
+                            SizedBox(
+                              height: 220,
+                              child: TimelinePanel(
+                                project: projectState.currentProject,
+                                onMoveClipByDelta:
+                                    projectController.moveClipByDelta,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
                             if (projectState.currentProject == null)
                               const Text(
                                 '- Cree un projet pour activer la timeline.',
