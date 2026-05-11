@@ -19,6 +19,7 @@
 - `desktop_drop` pour drag and drop
 - `path` pour gestion de chemins
 - `video_player` pour la preview media locale v1
+- `just_audio` pour synchro audio active sur transport preview
 - (a venir) plugin lecture preview (ex: `media_kit`)
 
 ## Persistance

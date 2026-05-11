@@ -6,8 +6,10 @@ import '../../../../app/theme/cyberpunk_palette.dart';
 import '../../../media_import/presentation/controllers/media_import_controller.dart';
 import '../../../media_import/presentation/widgets/media_bin_panel.dart';
 import '../../../preview/presentation/controllers/preview_controller.dart';
+import '../../../preview/presentation/controllers/preview_audio_sync_controller.dart';
 import '../../../preview/presentation/widgets/preview_panel.dart';
 import '../../domain/entities/export_preset.dart';
+import '../../domain/entities/project.dart';
 import '../../domain/entities/track.dart';
 import '../controllers/project_controller.dart';
 import '../widgets/timeline_panel.dart';
@@ -23,6 +25,37 @@ class ProjectHomePage extends ConsumerWidget {
       ),
       (_, int durationMs) {
         ref.read(previewControllerProvider.notifier).setDuration(durationMs);
+      },
+    );
+    ref.listen(
+      previewControllerProvider.select(
+        (previewState) =>
+            (previewState.currentPositionMs, previewState.isPlaying),
+      ),
+      (_, (int, bool) previewTuple) {
+        final Project? project = ref
+            .read(projectControllerProvider)
+            .currentProject;
+        ref
+            .read(previewAudioSyncControllerProvider)
+            .synchronize(
+              project: project,
+              positionMs: previewTuple.$1,
+              shouldPlay: previewTuple.$2,
+            );
+      },
+    );
+    ref.listen(
+      projectControllerProvider.select((state) => state.currentProject),
+      (_, Project? project) {
+        final previewState = ref.read(previewControllerProvider);
+        ref
+            .read(previewAudioSyncControllerProvider)
+            .synchronize(
+              project: project,
+              positionMs: previewState.currentPositionMs,
+              shouldPlay: previewState.isPlaying,
+            );
       },
     );
 

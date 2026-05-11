@@ -49,7 +49,7 @@ Construire un editeur video desktop macOS, 100% open source et gratuit, sous Flu
 - [x] Playhead synchronise avec la timeline
 - [x] Preview media reelle v1 (video/image active)
 - [ ] Preview temps reel robuste
-- [ ] Synchronisation audio/video (lecture media reelle)
+- [x] Synchronisation audio/video v1 (transport + audio actif)
 - [ ] Queue d'export
 - [ ] Exports presets: YouTube, Shorts, Reels
 
