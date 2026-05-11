@@ -210,6 +210,7 @@ class ProjectHomePage extends ConsumerWidget {
                                 project: projectState.currentProject,
                                 onMoveClipByDelta:
                                     projectController.moveClipByDelta,
+                                onRemoveClip: projectController.removeClip,
                               ),
                             ),
                             const SizedBox(height: 10),

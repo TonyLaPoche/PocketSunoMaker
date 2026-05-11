@@ -13,30 +13,10 @@ class LocalMediaImportDataSource {
 
   final FfprobeMetadataReader metadataReader;
 
-  static const List<XTypeGroup> _acceptedTypes = <XTypeGroup>[
-    XTypeGroup(
-      label: 'Media',
-      extensions: <String>[
-        'mp4',
-        'mov',
-        'mkv',
-        'webm',
-        'mp3',
-        'wav',
-        'aiff',
-        'flac',
-        'png',
-        'jpg',
-        'jpeg',
-        'webp',
-      ],
-    ),
-  ];
-
   Future<List<String>> pickPaths() async {
-    final List<XFile> files = await openFiles(
-      acceptedTypeGroups: _acceptedTypes,
-    );
+    // On laisse volontairement le picker sans filtre strict: cela evite les
+    // soucis de compatibilite selon l'OS et laisse l'utilisateur choisir librement.
+    final List<XFile> files = await openFiles();
     return files.map((XFile file) => file.path).toList(growable: false);
   }
 
@@ -76,9 +56,34 @@ class LocalMediaImportDataSource {
         .extension(mediaPath)
         .replaceFirst('.', '')
         .toLowerCase();
-    const Set<String> videoExtensions = <String>{'mp4', 'mov', 'mkv', 'webm'};
-    const Set<String> audioExtensions = <String>{'mp3', 'wav', 'aiff', 'flac'};
-    const Set<String> imageExtensions = <String>{'png', 'jpg', 'jpeg', 'webp'};
+    const Set<String> videoExtensions = <String>{
+      'mp4',
+      'm4v',
+      'mov',
+      'mkv',
+      'avi',
+      'webm',
+    };
+    const Set<String> audioExtensions = <String>{
+      'mp3',
+      'm4a',
+      'aac',
+      'ogg',
+      'opus',
+      'wav',
+      'aiff',
+      'flac',
+    };
+    const Set<String> imageExtensions = <String>{
+      'png',
+      'jpg',
+      'jpeg',
+      'webp',
+      'gif',
+      'bmp',
+      'tif',
+      'tiff',
+    };
 
     if (videoExtensions.contains(extension)) {
       return MediaKind.video;

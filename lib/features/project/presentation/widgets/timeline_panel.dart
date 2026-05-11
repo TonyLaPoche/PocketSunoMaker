@@ -8,10 +8,11 @@ import '../../domain/entities/clip.dart';
 import '../../domain/entities/project.dart';
 import '../../domain/entities/track.dart';
 
-class TimelinePanel extends StatelessWidget {
+class TimelinePanel extends StatefulWidget {
   const TimelinePanel({
     required this.project,
     required this.onMoveClipByDelta,
+    required this.onRemoveClip,
     super.key,
   });
 
@@ -22,13 +23,22 @@ class TimelinePanel extends StatelessWidget {
     required int deltaMs,
   })
   onMoveClipByDelta;
+  final void Function({required String trackId, required String clipId})
+  onRemoveClip;
+
+  @override
+  State<TimelinePanel> createState() => _TimelinePanelState();
+}
+
+class _TimelinePanelState extends State<TimelinePanel> {
+  String? selectedClipId;
 
   static const double _pixelsPerSecond = 100;
   static const double _rowHeight = 64;
 
   @override
   Widget build(BuildContext context) {
-    if (project == null) {
+    if (widget.project == null) {
       return const Center(
         child: Text(
           'Timeline inactive: cree un projet pour commencer le montage.',
@@ -36,7 +46,7 @@ class TimelinePanel extends StatelessWidget {
       );
     }
 
-    final int durationMs = math.max(project!.durationMs, 30000);
+    final int durationMs = math.max(widget.project!.durationMs, 30000);
     final double timelineWidth = (durationMs / 1000) * _pixelsPerSecond + 200;
 
     return Container(
@@ -57,7 +67,7 @@ class TimelinePanel extends StatelessWidget {
                 pixelsPerSecond: _pixelsPerSecond,
               ),
               const Divider(height: 1),
-              if (project!.tracks.isEmpty)
+              if (widget.project!.tracks.isEmpty)
                 const Expanded(
                   child: Center(
                     child: Text(
@@ -68,15 +78,22 @@ class TimelinePanel extends StatelessWidget {
               else
                 Expanded(
                   child: ListView.separated(
-                    itemCount: project!.tracks.length,
+                    itemCount: widget.project!.tracks.length,
                     separatorBuilder: (_, _) => const Divider(height: 1),
                     itemBuilder: (BuildContext context, int index) {
-                      final Track track = project!.tracks[index];
+                      final Track track = widget.project!.tracks[index];
                       return _TimelineTrackRow(
                         track: track,
                         rowHeight: _rowHeight,
                         pixelsPerSecond: _pixelsPerSecond,
-                        onMoveClipByDelta: onMoveClipByDelta,
+                        selectedClipId: selectedClipId,
+                        onSelectClip: (String clipId) {
+                          setState(() {
+                            selectedClipId = clipId;
+                          });
+                        },
+                        onMoveClipByDelta: widget.onMoveClipByDelta,
+                        onRemoveClip: widget.onRemoveClip,
                       );
                     },
                   ),
@@ -138,18 +155,25 @@ class _TimelineTrackRow extends StatelessWidget {
     required this.track,
     required this.rowHeight,
     required this.pixelsPerSecond,
+    required this.selectedClipId,
+    required this.onSelectClip,
     required this.onMoveClipByDelta,
+    required this.onRemoveClip,
   });
 
   final Track track;
   final double rowHeight;
   final double pixelsPerSecond;
+  final String? selectedClipId;
+  final ValueChanged<String> onSelectClip;
   final void Function({
     required String trackId,
     required String clipId,
     required int deltaMs,
   })
   onMoveClipByDelta;
+  final void Function({required String trackId, required String clipId})
+  onRemoveClip;
 
   @override
   Widget build(BuildContext context) {
@@ -198,6 +222,10 @@ class _TimelineTrackRow extends StatelessWidget {
               child: _TimelineClipWidget(
                 clip: clip,
                 width: width,
+                isSelected: selectedClipId == clip.id,
+                onSelect: () => onSelectClip(clip.id),
+                onRemove: () =>
+                    onRemoveClip(trackId: track.id, clipId: clip.id),
                 onMoveByDeltaPx: (double deltaPx) {
                   final int deltaMs = (deltaPx / pixelsPerSecond * 1000)
                       .round();
@@ -223,11 +251,17 @@ class _TimelineClipWidget extends StatelessWidget {
   const _TimelineClipWidget({
     required this.clip,
     required this.width,
+    required this.isSelected,
+    required this.onSelect,
+    required this.onRemove,
     required this.onMoveByDeltaPx,
   });
 
   final Clip clip;
   final double width;
+  final bool isSelected;
+  final VoidCallback onSelect;
+  final VoidCallback onRemove;
   final ValueChanged<double> onMoveByDeltaPx;
 
   @override
@@ -236,6 +270,7 @@ class _TimelineClipWidget extends StatelessWidget {
       onHorizontalDragUpdate: (DragUpdateDetails details) {
         onMoveByDeltaPx(details.delta.dx);
       },
+      onTap: onSelect,
       child: Container(
         width: width,
         height: 42,
@@ -252,19 +287,36 @@ class _TimelineClipWidget extends StatelessWidget {
               color: context.cyberpunk.neonPink.withValues(alpha: 0.24),
               blurRadius: 12,
             ),
+            if (isSelected)
+              BoxShadow(
+                color: context.cyberpunk.neonBlue.withValues(alpha: 0.35),
+                blurRadius: 16,
+                spreadRadius: 1.5,
+              ),
           ],
         ),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: Text(
-            p.basename(clip.assetPath),
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: context.cyberpunk.textPrimary,
-              fontWeight: FontWeight.w600,
+        child: Row(
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                p.basename(clip.assetPath),
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: context.cyberpunk.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
-          ),
+            if (isSelected)
+              InkWell(
+                onTap: onRemove,
+                child: const Padding(
+                  padding: EdgeInsets.only(left: 6),
+                  child: Icon(Icons.close, size: 16, color: Colors.white),
+                ),
+              ),
+          ],
         ),
       ),
     );

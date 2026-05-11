@@ -32,13 +32,14 @@ Construire un editeur video desktop macOS, 100% open source et gratuit, sous Flu
 - [x] Architecture modulaire et scalable
 - [x] Ecran principal avec base UX
 - [x] Import local des medias
+- [x] Flux import robuste (picker permissif + messages d'etat)
 - [x] Metadonnees medias automatiques (duree, fps, resolution, codec)
 - [x] Persistance projet locale
 
 ## M2 - Montage de base
 - [x] Ajout clip depuis Media Bin (prototype)
 - [x] Timeline visuelle multi-pistes (prototype)
-- [ ] Ajout/suppression de clips
+- [x] Ajout/suppression de clips
 - [ ] Trim in/out
 - [ ] Deplacement drag and drop sur timeline
 - [ ] Snapping basique

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/error/failures.dart';
 import '../../../../core/result/result.dart';
 import '../../application/usecases/import_dropped_media_assets_use_case.dart';
 import '../../application/usecases/pick_media_assets_use_case.dart';
@@ -47,22 +48,29 @@ class MediaImportController extends Notifier<MediaImportState> {
   Future<void> pickMediaFiles() async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     final Result<List<MediaAsset>> result = await _pickMediaAssetsUseCase();
-    _mergeResult(result);
+    _mergeResult(result, emptyMessage: 'Aucun media selectionne.');
   }
 
   Future<void> importDroppedFiles(List<String> paths) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     final Result<List<MediaAsset>> result =
         await _importDroppedMediaAssetsUseCase(paths);
-    _mergeResult(result);
+    _mergeResult(result, emptyMessage: 'Aucun fichier exploitable depose.');
   }
 
   void setDraggingOver(bool value) {
     state = state.copyWith(isDraggingOver: value);
   }
 
-  void _mergeResult(Result<List<MediaAsset>> result) {
+  void _mergeResult(
+    Result<List<MediaAsset>> result, {
+    required String emptyMessage,
+  }) {
     if (result case Success<List<MediaAsset>>(:final List<MediaAsset> value)) {
+      if (value.isEmpty) {
+        state = state.copyWith(isLoading: false, errorMessage: emptyMessage);
+        return;
+      }
       final Map<String, MediaAsset> deduplicated = <String, MediaAsset>{
         for (final MediaAsset existing in state.assets) existing.path: existing,
       };
@@ -77,9 +85,12 @@ class MediaImportController extends Notifier<MediaImportState> {
       return;
     }
 
-    state = state.copyWith(
-      isLoading: false,
-      errorMessage: 'Import media impossible.',
-    );
+    final String failureMessage = switch (result) {
+      FailureResult<List<MediaAsset>>(:final Object failure) =>
+        failure is Failure ? failure.message : failure.toString(),
+      _ => 'Import media impossible.',
+    };
+
+    state = state.copyWith(isLoading: false, errorMessage: failureMessage);
   }
 }
