@@ -12,6 +12,8 @@ class PreviewPanel extends StatelessWidget {
     required this.project,
     required this.state,
     required this.onTogglePlayPause,
+    required this.onScrubStart,
+    required this.onScrubEnd,
     required this.onSeekTo,
     super.key,
   });
@@ -19,6 +21,8 @@ class PreviewPanel extends StatelessWidget {
   final Project? project;
   final PreviewState state;
   final VoidCallback onTogglePlayPause;
+  final VoidCallback onScrubStart;
+  final VoidCallback onScrubEnd;
   final ValueChanged<int> onSeekTo;
 
   @override
@@ -62,6 +66,7 @@ class PreviewPanel extends StatelessWidget {
             PreviewViewport(
               project: project!,
               positionMs: state.currentPositionMs,
+              isPlaying: state.isPlaying,
             ),
             const SizedBox(height: 8),
             Row(
@@ -87,6 +92,8 @@ class PreviewPanel extends StatelessWidget {
               value: state.currentPositionMs
                   .clamp(0, state.durationMs <= 0 ? 1 : state.durationMs)
                   .toDouble(),
+              onChangeStart: (_) => onScrubStart(),
+              onChangeEnd: (_) => onScrubEnd(),
               onChanged: (double value) => onSeekTo(value.round()),
             ),
             Text(

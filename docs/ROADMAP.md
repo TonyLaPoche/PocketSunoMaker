@@ -19,7 +19,7 @@ Construire un editeur video desktop macOS, 100% open source et gratuit, sous Flu
 - [x] Sauvegarde/chargement projet `.psm` (JSON)
 - [x] Theme global dark-only cyberpunk neon (rose/violet)
 - [x] Timeline v1 (pistes + clips + trim/move)
-- [ ] Preview synchronisee audio/video
+- [x] Preview synchronisee audio/video
 - [ ] Export FFmpeg reel (pipeline bout en bout)
 - [ ] Effets v1 (rotation, opacity, transforms de base)
 - [ ] Texte et sous-titres v1
@@ -48,7 +48,7 @@ Construire un editeur video desktop macOS, 100% open source et gratuit, sous Flu
 - [x] Transport preview v1 (play/pause/seek)
 - [x] Playhead synchronise avec la timeline
 - [x] Preview media reelle v1 (video/image active)
-- [ ] Preview temps reel robuste
+- [x] Preview temps reel robuste
 - [x] Synchronisation audio/video v1 (transport + audio actif)
 - [ ] Queue d'export
 - [ ] Exports presets: YouTube, Shorts, Reels

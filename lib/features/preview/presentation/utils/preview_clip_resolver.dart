@@ -7,18 +7,33 @@ ActiveClipInfo? findActiveClip({
   required int positionMs,
   required TrackType type,
 }) {
-  final Iterable<Track> typedTracks = project.tracks.where(
-    (Track track) => track.type == type,
-  );
-  for (final Track track in typedTracks) {
+  ActiveClipInfo? best;
+  int bestTrackIndex = -1;
+  int bestStart = -1;
+
+  for (final Track track in project.tracks) {
+    if (track.type != type) {
+      continue;
+    }
     for (final clip in track.clips) {
       final int clipStart = clip.timelineStartMs;
       final int clipEnd = clip.timelineStartMs + clip.durationMs;
-      if (positionMs >= clipStart && positionMs <= clipEnd) {
+      if (positionMs < clipStart || positionMs > clipEnd) {
+        continue;
+      }
+
+      final bool hasHigherTrackPriority = track.index > bestTrackIndex;
+      final bool sameTrackButLaterStart =
+          track.index == bestTrackIndex && clipStart > bestStart;
+
+      if (best == null || hasHigherTrackPriority || sameTrackButLaterStart) {
         final int sourcePositionMs = clip.sourceInMs + (positionMs - clipStart);
-        return ActiveClipInfo(clip: clip, sourcePositionMs: sourcePositionMs);
+        best = ActiveClipInfo(clip: clip, sourcePositionMs: sourcePositionMs);
+        bestTrackIndex = track.index;
+        bestStart = clipStart;
       }
     }
   }
-  return null;
+
+  return best;
 }

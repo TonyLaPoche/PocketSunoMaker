@@ -14,11 +14,13 @@ class PreviewViewport extends StatefulWidget {
   const PreviewViewport({
     required this.project,
     required this.positionMs,
+    required this.isPlaying,
     super.key,
   });
 
   final Project project;
   final int positionMs;
+  final bool isPlaying;
 
   @override
   State<PreviewViewport> createState() => _PreviewViewportState();
@@ -47,6 +49,7 @@ class _PreviewViewportState extends State<PreviewViewport> {
   VideoPlayerController? _videoController;
   String? _boundVideoPath;
   int _lastSeekMs = -1000;
+  int _syncGeneration = 0;
 
   @override
   void initState() {
@@ -173,6 +176,7 @@ class _PreviewViewportState extends State<PreviewViewport> {
 
     final String targetPath = activeVisualClip.clip.assetPath;
     if (_boundVideoPath != targetPath) {
+      final int syncId = ++_syncGeneration;
       _disposeVideoController();
       final VideoPlayerController controller = VideoPlayerController.file(
         File(targetPath),
@@ -181,6 +185,9 @@ class _PreviewViewportState extends State<PreviewViewport> {
       _boundVideoPath = targetPath;
       _lastSeekMs = -1000;
       await controller.initialize();
+      if (!mounted || syncId != _syncGeneration) {
+        return;
+      }
       await controller.setVolume(0);
       await controller.pause();
     }
@@ -199,9 +206,23 @@ class _PreviewViewportState extends State<PreviewViewport> {
       targetMs = 0;
     }
 
-    if ((targetMs - _lastSeekMs).abs() >= 80) {
-      await controller.seekTo(Duration(milliseconds: targetMs));
+    if (widget.isPlaying) {
+      final int currentMs = controller.value.position.inMilliseconds;
+      if ((currentMs - targetMs).abs() > 250) {
+        await controller.seekTo(Duration(milliseconds: targetMs));
+      }
+      if (!controller.value.isPlaying) {
+        await controller.play();
+      }
       _lastSeekMs = targetMs;
+    } else {
+      if (controller.value.isPlaying) {
+        await controller.pause();
+      }
+      if ((targetMs - _lastSeekMs).abs() >= 80) {
+        await controller.seekTo(Duration(milliseconds: targetMs));
+        _lastSeekMs = targetMs;
+      }
     }
 
     if (mounted) {

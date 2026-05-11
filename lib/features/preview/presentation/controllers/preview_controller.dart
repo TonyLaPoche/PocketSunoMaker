@@ -12,6 +12,7 @@ previewControllerProvider = NotifierProvider<PreviewController, PreviewState>(
 class PreviewController extends Notifier<PreviewState> {
   static const int _tickMs = 33;
   Timer? _timer;
+  bool _resumeAfterScrub = false;
 
   @override
   PreviewState build() {
@@ -36,6 +37,7 @@ class PreviewController extends Notifier<PreviewState> {
       _stopTimer();
       state = state.copyWith(
         isPlaying: false,
+        isScrubbing: false,
         durationMs: 0,
         currentPositionMs: 0,
       );
@@ -49,6 +51,9 @@ class PreviewController extends Notifier<PreviewState> {
   }
 
   void togglePlayPause() {
+    if (state.isScrubbing) {
+      return;
+    }
     if (state.durationMs <= 0) {
       return;
     }
@@ -60,7 +65,7 @@ class PreviewController extends Notifier<PreviewState> {
   }
 
   void play() {
-    if (state.durationMs <= 0 || state.isPlaying) {
+    if (state.durationMs <= 0 || state.isPlaying || state.isScrubbing) {
       return;
     }
     state = state.copyWith(isPlaying: true);
@@ -91,6 +96,28 @@ class PreviewController extends Notifier<PreviewState> {
         ? 0
         : (targetMs > state.durationMs ? state.durationMs : targetMs);
     state = state.copyWith(currentPositionMs: clamped);
+  }
+
+  void beginScrub() {
+    if (state.isScrubbing) {
+      return;
+    }
+    _resumeAfterScrub = state.isPlaying;
+    if (state.isPlaying) {
+      pause();
+    }
+    state = state.copyWith(isScrubbing: true);
+  }
+
+  void endScrub() {
+    if (!state.isScrubbing) {
+      return;
+    }
+    state = state.copyWith(isScrubbing: false);
+    if (_resumeAfterScrub) {
+      _resumeAfterScrub = false;
+      play();
+    }
   }
 
   void _stopTimer() {

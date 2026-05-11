@@ -250,6 +250,8 @@ class ProjectHomePage extends ConsumerWidget {
                               state: previewState,
                               onTogglePlayPause:
                                   previewController.togglePlayPause,
+                              onScrubStart: previewController.beginScrub,
+                              onScrubEnd: previewController.endScrub,
                               onSeekTo: previewController.seekTo,
                             ),
                             const SizedBox(height: 12),
