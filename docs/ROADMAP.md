@@ -69,7 +69,7 @@ Construire un editeur video desktop macOS, 100% open source et gratuit, sous Flu
 
 ## M3.5 - Refonte UX/UI "Studio" (en cours)
 - [x] Etape 1 - Shell applicatif "pro montage"
-  - [x] Header compact avec navigation principale (Fichier, Edition, Affichage, Lecture, Export)
+  - [x] Header compact avec actions reelles uniquement (placeholders retires tant qu'ils ne sont pas fonctionnels)
   - [x] Layout stable en 4 zones: Media Bin gauche, Preview haut centre, Timeline bas centre, Inspecteur droite
   - [x] Timeline deplacee en bande basse sur toute la largeur disponible
   - [x] Statut bar basse (etat projet, mode magnetique, feedback actions)

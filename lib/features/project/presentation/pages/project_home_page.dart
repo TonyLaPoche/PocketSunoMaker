@@ -926,24 +926,6 @@ class _StudioTopBar extends StatelessWidget {
                 fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(width: 18),
-            ...<String>[
-              'Fichier',
-              'Edition',
-              'Affichage',
-              'Lecture',
-              'Export',
-            ].map(
-              (String label) => Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: Text(
-                  label,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: context.cyberpunk.textMuted,
-                  ),
-                ),
-              ),
-            ),
             const SizedBox(width: 16),
             FilterChip(
               label: const Text('Confort visuel'),
