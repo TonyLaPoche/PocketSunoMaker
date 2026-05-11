@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../../app/theme/cyberpunk_palette.dart';
@@ -21,6 +22,7 @@ class TimelinePanel extends StatefulWidget {
     required this.onTrimClipEndByDelta,
     required this.onSplitClipAtPlayhead,
     required this.onRemoveClip,
+    this.reducedVisualIntensity = false,
     this.onClipSelectionChanged,
     super.key,
   });
@@ -57,6 +59,7 @@ class TimelinePanel extends StatefulWidget {
   onSplitClipAtPlayhead;
   final void Function({required String trackId, required String clipId})
   onRemoveClip;
+  final bool reducedVisualIntensity;
   final void Function(String? trackId, Clip? clip)? onClipSelectionChanged;
 
   @override
@@ -116,319 +119,431 @@ class _TimelinePanelState extends State<TimelinePanel> {
       _followPlayheadDuringPlayback(playheadLeft);
     });
 
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: context.cyberpunk.border),
-        color: context.cyberpunk.bgSecondary,
-      ),
-      child: Column(
-        children: <Widget>[
-          _TimelineToolbar(
-            activeTool: activeTool,
-            zoomLevel: zoomLevel,
-            minZoom: _minZoom,
-            maxZoom: _maxZoom,
-            zoomDivisions: ((_maxZoom - _minZoom) * 100).round(),
-            snappingEnabled: snappingEnabled,
-            markerCount: markersMs.length,
-            onToolSelected: (TimelineEditTool tool) {
-              setState(() {
-                activeTool = tool;
-              });
-            },
-            onAddMarker: () {
-              setState(() {
-                if (!markersMs.contains(widget.playheadMs)) {
-                  markersMs
-                    ..add(widget.playheadMs)
-                    ..sort();
-                }
-              });
-            },
-            onClearMarkers: () {
-              setState(() {
-                markersMs.clear();
-              });
-            },
-            onZoomChanged: (double value) {
-              setState(() {
-                zoomLevel = value;
-              });
-            },
-            onZoomIn: () {
-              setState(() {
-                zoomLevel = (zoomLevel + 0.02).clamp(_minZoom, _maxZoom);
-              });
-            },
-            onZoomOut: () {
-              setState(() {
-                zoomLevel = (zoomLevel - 0.02).clamp(_minZoom, _maxZoom);
-              });
-            },
-            onToggleSnapping: () {
-              setState(() {
-                snappingEnabled = !snappingEnabled;
-              });
-            },
+    return CallbackShortcuts(
+      bindings: <ShortcutActivator, VoidCallback>{
+        const SingleActivator(LogicalKeyboardKey.keyV): () {
+          _setActiveTool(TimelineEditTool.select);
+        },
+        const SingleActivator(LogicalKeyboardKey.keyB): () {
+          _setActiveTool(TimelineEditTool.blade);
+        },
+        const SingleActivator(LogicalKeyboardKey.keyT): () {
+          _setActiveTool(TimelineEditTool.trim);
+        },
+        const SingleActivator(LogicalKeyboardKey.keyH): () {
+          _setActiveTool(TimelineEditTool.hand);
+        },
+        const SingleActivator(LogicalKeyboardKey.keyM): () {
+          _setActiveTool(TimelineEditTool.marker);
+        },
+        const SingleActivator(LogicalKeyboardKey.keyN): _toggleSnapping,
+        const SingleActivator(LogicalKeyboardKey.keyS): _splitAtPlayhead,
+      },
+      child: Focus(
+        autofocus: true,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: context.cyberpunk.border),
+            color: context.cyberpunk.bgSecondary,
           ),
-          Expanded(
-            child: Listener(
-              onPointerPanZoomStart: (_) {
-                _lastPanZoomScale = 1.0;
-              },
-              onPointerPanZoomUpdate: (PointerPanZoomUpdateEvent event) {
-                final double scaleRatio = event.scale / _lastPanZoomScale;
-                _lastPanZoomScale = event.scale;
-                if ((scaleRatio - 1).abs() > 0.0005) {
+          child: Column(
+            children: <Widget>[
+              _TimelineToolbar(
+                activeTool: activeTool,
+                zoomLevel: zoomLevel,
+                minZoom: _minZoom,
+                maxZoom: _maxZoom,
+                zoomDivisions: ((_maxZoom - _minZoom) * 100).round(),
+                snappingEnabled: snappingEnabled,
+                markerCount: markersMs.length,
+                onToolSelected: _setActiveTool,
+                onAddMarker: () {
                   setState(() {
-                    final double target = (zoomLevel * scaleRatio).clamp(
-                      _minZoom,
-                      _maxZoom,
-                    );
-                    zoomLevel = _smoothZoom(zoomLevel, target);
+                    if (!markersMs.contains(widget.playheadMs)) {
+                      markersMs
+                        ..add(widget.playheadMs)
+                        ..sort();
+                    }
                   });
-                }
-                if (!horizontalScrollController.hasClients) {
-                  return;
-                }
-                final double target =
-                    horizontalScrollController.offset - event.panDelta.dx;
-                final double clamped = target.clamp(
-                  0.0,
-                  horizontalScrollController.position.maxScrollExtent,
-                );
-                horizontalScrollController.jumpTo(clamped);
-              },
-              onPointerPanZoomEnd: (_) {
-                _lastPanZoomScale = 1.0;
-              },
-              onPointerSignal: (PointerSignalEvent event) {
-                if (event is! PointerScrollEvent) {
-                  return;
-                }
-                final double dx = event.scrollDelta.dx;
-                final double dy = event.scrollDelta.dy;
-                if (dx.abs() < 0.01 && dy.abs() < 0.01) {
-                  return;
-                }
-                if (!horizontalScrollController.hasClients) {
-                  return;
-                }
-                final double horizontalDelta = dx.abs() > 0.01 ? dx : dy;
-                final double target =
-                    horizontalScrollController.offset - horizontalDelta;
-                final double clamped = target.clamp(
-                  0.0,
-                  horizontalScrollController.position.maxScrollExtent,
-                );
-                horizontalScrollController.jumpTo(clamped);
-              },
-              child: SingleChildScrollView(
-                controller: horizontalScrollController,
-                scrollDirection: Axis.horizontal,
-                child: SizedBox(
-                  width: timelineWidth,
-                  child: GestureDetector(
-                    onHorizontalDragUpdate: activeTool == TimelineEditTool.hand
-                        ? (DragUpdateDetails details) {
-                            final double target =
-                                horizontalScrollController.offset -
-                                details.delta.dx;
-                            final double clamped = target.clamp(
-                              0.0,
-                              horizontalScrollController
-                                  .position
-                                  .maxScrollExtent,
-                            );
-                            horizontalScrollController.jumpTo(clamped);
-                          }
-                        : null,
-                    child: Stack(
-                      children: <Widget>[
-                        Column(
+                },
+                onClearMarkers: () {
+                  setState(() {
+                    markersMs.clear();
+                  });
+                },
+                onZoomChanged: (double value) {
+                  setState(() {
+                    zoomLevel = value;
+                  });
+                },
+                onZoomIn: () {
+                  setState(() {
+                    zoomLevel = (zoomLevel + 0.02).clamp(_minZoom, _maxZoom);
+                  });
+                },
+                onZoomOut: () {
+                  setState(() {
+                    zoomLevel = (zoomLevel - 0.02).clamp(_minZoom, _maxZoom);
+                  });
+                },
+                onToggleSnapping: _toggleSnapping,
+              ),
+              Expanded(
+                child: Listener(
+                  onPointerPanZoomStart: (_) {
+                    _lastPanZoomScale = 1.0;
+                  },
+                  onPointerPanZoomUpdate: (PointerPanZoomUpdateEvent event) {
+                    final double scaleRatio = event.scale / _lastPanZoomScale;
+                    _lastPanZoomScale = event.scale;
+                    if ((scaleRatio - 1).abs() > 0.0005) {
+                      setState(() {
+                        final double target = (zoomLevel * scaleRatio).clamp(
+                          _minZoom,
+                          _maxZoom,
+                        );
+                        zoomLevel = _smoothZoom(zoomLevel, target);
+                      });
+                    }
+                    if (!horizontalScrollController.hasClients) {
+                      return;
+                    }
+                    final double target =
+                        horizontalScrollController.offset - event.panDelta.dx;
+                    final double clamped = target.clamp(
+                      0.0,
+                      horizontalScrollController.position.maxScrollExtent,
+                    );
+                    horizontalScrollController.jumpTo(clamped);
+                  },
+                  onPointerPanZoomEnd: (_) {
+                    _lastPanZoomScale = 1.0;
+                  },
+                  onPointerSignal: (PointerSignalEvent event) {
+                    if (event is! PointerScrollEvent) {
+                      return;
+                    }
+                    final double dx = event.scrollDelta.dx;
+                    final double dy = event.scrollDelta.dy;
+                    if (dx.abs() < 0.01 && dy.abs() < 0.01) {
+                      return;
+                    }
+                    if (!horizontalScrollController.hasClients) {
+                      return;
+                    }
+                    final double horizontalDelta = dx.abs() > 0.01 ? dx : dy;
+                    final double target =
+                        horizontalScrollController.offset - horizontalDelta;
+                    final double clamped = target.clamp(
+                      0.0,
+                      horizontalScrollController.position.maxScrollExtent,
+                    );
+                    horizontalScrollController.jumpTo(clamped);
+                  },
+                  child: SingleChildScrollView(
+                    controller: horizontalScrollController,
+                    scrollDirection: Axis.horizontal,
+                    child: SizedBox(
+                      width: timelineWidth,
+                      child: GestureDetector(
+                        onHorizontalDragUpdate:
+                            activeTool == TimelineEditTool.hand
+                            ? (DragUpdateDetails details) {
+                                final double target =
+                                    horizontalScrollController.offset -
+                                    details.delta.dx;
+                                final double clamped = target.clamp(
+                                  0.0,
+                                  horizontalScrollController
+                                      .position
+                                      .maxScrollExtent,
+                                );
+                                horizontalScrollController.jumpTo(clamped);
+                              }
+                            : null,
+                        child: Stack(
                           children: <Widget>[
-                            const Divider(height: 1),
-                            if (widget.project!.tracks.isEmpty)
-                              const Expanded(
-                                child: Center(
-                                  child: Text(
-                                    'Ajoute des medias au projet pour creer des clips.',
+                            Column(
+                              children: <Widget>[
+                                const Divider(height: 1),
+                                if (widget.project!.tracks.isEmpty)
+                                  const Expanded(
+                                    child: Center(
+                                      child: Text(
+                                        'Ajoute des medias au projet pour creer des clips.',
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  Expanded(
+                                    child: ListView.separated(
+                                      itemCount: widget.project!.tracks.length,
+                                      separatorBuilder: (_, _) =>
+                                          const Divider(height: 1),
+                                      itemBuilder:
+                                          (BuildContext context, int index) {
+                                            final Track track =
+                                                widget.project!.tracks[index];
+                                            final bool hasSoloTracks =
+                                                soloTrackIds.isNotEmpty;
+                                            final bool isTrackMuted =
+                                                mutedTrackIds.contains(
+                                                  track.id,
+                                                );
+                                            final bool isTrackSolo =
+                                                soloTrackIds.contains(track.id);
+                                            final bool isTrackLocked =
+                                                lockedTrackIds.contains(
+                                                  track.id,
+                                                );
+                                            final bool isTrackDimmed =
+                                                isTrackMuted ||
+                                                (hasSoloTracks && !isTrackSolo);
+                                            return _TimelineTrackRow(
+                                              track: track,
+                                              rowHeight: _rowHeight,
+                                              pixelsPerSecond: pixelsPerSecond,
+                                              playheadMs: widget.playheadMs,
+                                              activeTool: activeTool,
+                                              selectedClipId: selectedClipId,
+                                              snappingEnabled: snappingEnabled,
+                                              isTrackMuted: isTrackMuted,
+                                              isTrackSolo: isTrackSolo,
+                                              isTrackLocked: isTrackLocked,
+                                              dimmed: isTrackDimmed,
+                                              reducedVisualIntensity:
+                                                  widget.reducedVisualIntensity,
+                                              onToggleMute: () {
+                                                setState(() {
+                                                  if (!mutedTrackIds.add(
+                                                    track.id,
+                                                  )) {
+                                                    mutedTrackIds.remove(
+                                                      track.id,
+                                                    );
+                                                  }
+                                                });
+                                              },
+                                              onToggleSolo: () {
+                                                setState(() {
+                                                  if (!soloTrackIds.add(
+                                                    track.id,
+                                                  )) {
+                                                    soloTrackIds.remove(
+                                                      track.id,
+                                                    );
+                                                  }
+                                                });
+                                              },
+                                              onToggleLock: () {
+                                                setState(() {
+                                                  if (!lockedTrackIds.add(
+                                                    track.id,
+                                                  )) {
+                                                    lockedTrackIds.remove(
+                                                      track.id,
+                                                    );
+                                                  }
+                                                });
+                                              },
+                                              onSelectClip:
+                                                  ({
+                                                    required String trackId,
+                                                    required Clip clip,
+                                                  }) {
+                                                    setState(() {
+                                                      selectedClipId = clip.id;
+                                                    });
+                                                    widget
+                                                        .onClipSelectionChanged
+                                                        ?.call(trackId, clip);
+                                                  },
+                                              onMoveClipByDelta:
+                                                  widget.onMoveClipByDelta,
+                                              onTrimClipStartByDelta:
+                                                  widget.onTrimClipStartByDelta,
+                                              onTrimClipEndByDelta:
+                                                  widget.onTrimClipEndByDelta,
+                                              onSplitClipAtPlayhead:
+                                                  widget.onSplitClipAtPlayhead,
+                                              onRemoveClip:
+                                                  ({
+                                                    required String trackId,
+                                                    required String clipId,
+                                                  }) {
+                                                    widget.onRemoveClip(
+                                                      trackId: trackId,
+                                                      clipId: clipId,
+                                                    );
+                                                    if (selectedClipId ==
+                                                        clipId) {
+                                                      setState(() {
+                                                        selectedClipId = null;
+                                                      });
+                                                      widget
+                                                          .onClipSelectionChanged
+                                                          ?.call(null, null);
+                                                    }
+                                                  },
+                                            );
+                                          },
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            ...markersMs.map((int markerMs) {
+                              final double markerLeft =
+                                  (_timelineStartLeft +
+                                          (markerMs / 1000) * pixelsPerSecond)
+                                      .clamp(0, timelineWidth)
+                                      .toDouble();
+                              return Positioned(
+                                left: markerLeft,
+                                top: 0,
+                                bottom: 0,
+                                child: IgnorePointer(
+                                  child: Container(
+                                    width: 1.5,
+                                    color: Colors.amber.withValues(alpha: 0.75),
                                   ),
                                 ),
-                              )
-                            else
-                              Expanded(
-                                child: ListView.separated(
-                                  itemCount: widget.project!.tracks.length,
-                                  separatorBuilder: (_, _) =>
-                                      const Divider(height: 1),
-                                  itemBuilder:
-                                      (BuildContext context, int index) {
-                                        final Track track =
-                                            widget.project!.tracks[index];
-                                        final bool hasSoloTracks =
-                                            soloTrackIds.isNotEmpty;
-                                        final bool isTrackMuted = mutedTrackIds
-                                            .contains(track.id);
-                                        final bool isTrackSolo = soloTrackIds
-                                            .contains(track.id);
-                                        final bool isTrackLocked =
-                                            lockedTrackIds.contains(track.id);
-                                        final bool isTrackDimmed =
-                                            isTrackMuted ||
-                                            (hasSoloTracks && !isTrackSolo);
-                                        return _TimelineTrackRow(
-                                          track: track,
-                                          rowHeight: _rowHeight,
-                                          pixelsPerSecond: pixelsPerSecond,
-                                          playheadMs: widget.playheadMs,
-                                          activeTool: activeTool,
-                                          selectedClipId: selectedClipId,
-                                          snappingEnabled: snappingEnabled,
-                                          isTrackMuted: isTrackMuted,
-                                          isTrackSolo: isTrackSolo,
-                                          isTrackLocked: isTrackLocked,
-                                          dimmed: isTrackDimmed,
-                                          onToggleMute: () {
-                                            setState(() {
-                                              if (!mutedTrackIds.add(
-                                                track.id,
-                                              )) {
-                                                mutedTrackIds.remove(track.id);
-                                              }
-                                            });
-                                          },
-                                          onToggleSolo: () {
-                                            setState(() {
-                                              if (!soloTrackIds.add(track.id)) {
-                                                soloTrackIds.remove(track.id);
-                                              }
-                                            });
-                                          },
-                                          onToggleLock: () {
-                                            setState(() {
-                                              if (!lockedTrackIds.add(
-                                                track.id,
-                                              )) {
-                                                lockedTrackIds.remove(track.id);
-                                              }
-                                            });
-                                          },
-                                          onSelectClip:
-                                              ({
-                                                required String trackId,
-                                                required Clip clip,
-                                              }) {
-                                                setState(() {
-                                                  selectedClipId = clip.id;
-                                                });
-                                                widget.onClipSelectionChanged
-                                                    ?.call(trackId, clip);
-                                              },
-                                          onMoveClipByDelta:
-                                              widget.onMoveClipByDelta,
-                                          onTrimClipStartByDelta:
-                                              widget.onTrimClipStartByDelta,
-                                          onTrimClipEndByDelta:
-                                              widget.onTrimClipEndByDelta,
-                                          onSplitClipAtPlayhead:
-                                              widget.onSplitClipAtPlayhead,
-                                          onRemoveClip:
-                                              ({
-                                                required String trackId,
-                                                required String clipId,
-                                              }) {
-                                                widget.onRemoveClip(
-                                                  trackId: trackId,
-                                                  clipId: clipId,
-                                                );
-                                                if (selectedClipId == clipId) {
-                                                  setState(() {
-                                                    selectedClipId = null;
-                                                  });
-                                                  widget.onClipSelectionChanged
-                                                      ?.call(null, null);
-                                                }
-                                              },
-                                        );
-                                      },
+                              );
+                            }),
+                            Positioned(
+                              left: playheadLabelLeft,
+                              top: 2,
+                              child: IgnorePointer(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(6),
+                                    color: context.cyberpunk.neonBlue
+                                        .withValues(alpha: 0.18),
+                                    border: Border.all(
+                                      color: context.cyberpunk.neonBlue
+                                          .withValues(alpha: 0.65),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    _formatTimelineTime(widget.playheadMs),
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(
+                                          color: context.cyberpunk.neonBlue,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                  ),
                                 ),
                               ),
+                            ),
+                            Positioned(
+                              left: playheadLeft,
+                              top: 0,
+                              bottom: 0,
+                              child: IgnorePointer(
+                                child: Container(
+                                  width: 2,
+                                  color: context.cyberpunk.neonBlue.withValues(
+                                    alpha: 0.85,
+                                  ),
+                                ),
+                              ),
+                            ),
                           ],
                         ),
-                        ...markersMs.map((int markerMs) {
-                          final double markerLeft =
-                              (_timelineStartLeft +
-                                      (markerMs / 1000) * pixelsPerSecond)
-                                  .clamp(0, timelineWidth)
-                                  .toDouble();
-                          return Positioned(
-                            left: markerLeft,
-                            top: 0,
-                            bottom: 0,
-                            child: IgnorePointer(
-                              child: Container(
-                                width: 1.5,
-                                color: Colors.amber.withValues(alpha: 0.75),
-                              ),
-                            ),
-                          );
-                        }),
-                        Positioned(
-                          left: playheadLabelLeft,
-                          top: 2,
-                          child: IgnorePointer(
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(6),
-                                color: context.cyberpunk.neonBlue.withValues(
-                                  alpha: 0.18,
-                                ),
-                                border: Border.all(
-                                  color: context.cyberpunk.neonBlue.withValues(
-                                    alpha: 0.65,
-                                  ),
-                                ),
-                              ),
-                              child: Text(
-                                _formatTimelineTime(widget.playheadMs),
-                                style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(
-                                      color: context.cyberpunk.neonBlue,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          left: playheadLeft,
-                          top: 0,
-                          bottom: 0,
-                          child: IgnorePointer(
-                            child: Container(
-                              width: 2,
-                              color: context.cyberpunk.neonBlue.withValues(
-                                alpha: 0.85,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
+  }
+
+  void _setActiveTool(TimelineEditTool tool) {
+    setState(() {
+      activeTool = tool;
+    });
+  }
+
+  void _toggleSnapping() {
+    setState(() {
+      snappingEnabled = !snappingEnabled;
+    });
+  }
+
+  void _splitAtPlayhead() {
+    final Project? project = widget.project;
+    if (project == null) {
+      return;
+    }
+    final ({String trackId, Clip clip})? selectedRef = _resolveSelectedClipRef(
+      project,
+    );
+    if (selectedRef != null) {
+      widget.onSplitClipAtPlayhead(
+        trackId: selectedRef.trackId,
+        clipId: selectedRef.clip.id,
+        playheadMs: widget.playheadMs,
+      );
+      return;
+    }
+    final ({String trackId, Clip clip})? activeRef = _findClipAtPlayhead(
+      project,
+    );
+    if (activeRef == null) {
+      return;
+    }
+    widget.onSplitClipAtPlayhead(
+      trackId: activeRef.trackId,
+      clipId: activeRef.clip.id,
+      playheadMs: widget.playheadMs,
+    );
+  }
+
+  ({String trackId, Clip clip})? _resolveSelectedClipRef(Project project) {
+    final String? clipId = selectedClipId;
+    if (clipId == null) {
+      return null;
+    }
+    for (final Track track in project.tracks) {
+      for (final Clip clip in track.clips) {
+        if (clip.id == clipId) {
+          return (trackId: track.id, clip: clip);
+        }
+      }
+    }
+    return null;
+  }
+
+  ({String trackId, Clip clip})? _findClipAtPlayhead(Project project) {
+    ({String trackId, Clip clip})? best;
+    int bestTrackIndex = -1;
+    int bestStart = -1;
+    for (final Track track in project.tracks) {
+      for (final Clip clip in track.clips) {
+        final int start = clip.timelineStartMs;
+        final int end = clip.timelineStartMs + clip.durationMs;
+        if (widget.playheadMs < start || widget.playheadMs > end) {
+          continue;
+        }
+        final bool higherTrack = track.index > bestTrackIndex;
+        final bool sameTrackLaterStart =
+            track.index == bestTrackIndex && start > bestStart;
+        if (best == null || higherTrack || sameTrackLaterStart) {
+          best = (trackId: track.id, clip: clip);
+          bestTrackIndex = track.index;
+          bestStart = start;
+        }
+      }
+    }
+    return best;
   }
 
   void _followPlayheadDuringPlayback(double playheadLeft) {
@@ -653,6 +768,7 @@ class _TimelineTrackRow extends StatelessWidget {
     required this.isTrackSolo,
     required this.isTrackLocked,
     required this.dimmed,
+    required this.reducedVisualIntensity,
     required this.onToggleMute,
     required this.onToggleSolo,
     required this.onToggleLock,
@@ -675,6 +791,7 @@ class _TimelineTrackRow extends StatelessWidget {
   final bool isTrackSolo;
   final bool isTrackLocked;
   final bool dimmed;
+  final bool reducedVisualIntensity;
   final VoidCallback onToggleMute;
   final VoidCallback onToggleSolo;
   final VoidCallback onToggleLock;
@@ -820,6 +937,7 @@ class _TimelineTrackRow extends StatelessWidget {
                 canBladeSplit:
                     activeTool == TimelineEditTool.blade && !isTrackLocked,
                 dimmed: dimmed,
+                reducedVisualIntensity: reducedVisualIntensity,
                 onSelect: () => onSelectClip(trackId: track.id, clip: clip),
                 onRemove: () =>
                     onRemoveClip(trackId: track.id, clipId: clip.id),
@@ -931,6 +1049,7 @@ class _TimelineClipWidget extends StatelessWidget {
     required this.canDelete,
     required this.canBladeSplit,
     required this.dimmed,
+    required this.reducedVisualIntensity,
     required this.onSelect,
     required this.onRemove,
     required this.onSplitClipAtPlayhead,
@@ -949,6 +1068,7 @@ class _TimelineClipWidget extends StatelessWidget {
   final bool canDelete;
   final bool canBladeSplit;
   final bool dimmed;
+  final bool reducedVisualIntensity;
   final VoidCallback onSelect;
   final VoidCallback onRemove;
   final void Function({
@@ -963,6 +1083,9 @@ class _TimelineClipWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final double baseAlpha = reducedVisualIntensity ? 0.68 : 0.85;
+    final double glowAlpha = reducedVisualIntensity ? 0.12 : 0.24;
+    final double selectedGlowAlpha = reducedVisualIntensity ? 0.2 : 0.35;
     return Opacity(
       opacity: dimmed ? 0.35 : 1,
       child: Container(
@@ -972,18 +1095,20 @@ class _TimelineClipWidget extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           gradient: LinearGradient(
             colors: <Color>[
-              context.cyberpunk.neonPink.withValues(alpha: 0.85),
-              context.cyberpunk.neonViolet.withValues(alpha: 0.85),
+              context.cyberpunk.neonPink.withValues(alpha: baseAlpha),
+              context.cyberpunk.neonViolet.withValues(alpha: baseAlpha),
             ],
           ),
           boxShadow: <BoxShadow>[
             BoxShadow(
-              color: context.cyberpunk.neonPink.withValues(alpha: 0.24),
+              color: context.cyberpunk.neonPink.withValues(alpha: glowAlpha),
               blurRadius: 12,
             ),
             if (isSelected)
               BoxShadow(
-                color: context.cyberpunk.neonBlue.withValues(alpha: 0.35),
+                color: context.cyberpunk.neonBlue.withValues(
+                  alpha: selectedGlowAlpha,
+                ),
                 blurRadius: 16,
                 spreadRadius: 1.5,
               ),

@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 
@@ -28,6 +31,7 @@ class ProjectHomePage extends ConsumerStatefulWidget {
 class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
   String? _inspectedTrackId;
   Clip? _inspectedClip;
+  bool _comfortModeEnabled = true;
   final Map<String, _ClipInspectorValues> _inspectorByClipId =
       <String, _ClipInspectorValues>{};
 
@@ -114,404 +118,484 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
       }
     }
 
-    return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
-        child: Column(
-          children: <Widget>[
-            _StudioTopBar(
-              isProjectLoading: projectState.isLoading,
-              isMediaLoading: mediaState.isLoading,
-              onCreateProject: projectController.createNewProject,
-              onImportMedia: mediaController.pickMediaFiles,
-              onSaveProject: projectController.saveCurrentProject,
-              onLoadProject: projectController.loadProjectFromDisk,
-            ),
-            const SizedBox(height: 8),
-            if (projectState.errorMessage != null ||
-                mediaState.errorMessage != null)
-              _ErrorBanner(
-                message: projectState.errorMessage ?? mediaState.errorMessage!,
-              ),
-            if (projectState.errorMessage != null ||
-                mediaState.errorMessage != null)
-              const SizedBox(height: 8),
-            Expanded(
-              child: Column(
-                children: <Widget>[
-                  Expanded(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: <Widget>[
-                        SizedBox(
-                          width: 300,
-                          child: _PanelShell(
-                            title: 'Medias',
-                            child: DropTarget(
-                              onDragEntered: (_) =>
-                                  mediaController.setDraggingOver(true),
-                              onDragExited: (_) =>
-                                  mediaController.setDraggingOver(false),
-                              onDragDone: (DropDoneDetails details) {
-                                final List<String> paths = details.files
-                                    .map((file) => file.path)
-                                    .toList();
-                                mediaController.setDraggingOver(false);
-                                mediaController.importDroppedFiles(paths);
-                              },
-                              child: MediaBinPanel(
-                                assets: mediaState.assets,
-                                isLoading: mediaState.isLoading,
-                                canAddToTimeline: project != null,
-                                onAddToTimeline:
-                                    projectController.addAssetToTimeline,
-                                onRemoveAsset: (asset) =>
-                                    mediaController.removeAssetById(asset.id),
+    return CallbackShortcuts(
+      bindings: <ShortcutActivator, VoidCallback>{
+        const SingleActivator(LogicalKeyboardKey.space): () {
+          if (previewState.durationMs > 0) {
+            previewController.togglePlayPause();
+          }
+        },
+        const SingleActivator(LogicalKeyboardKey.keyN, meta: true): () {
+          unawaited(projectController.createNewProject());
+        },
+        const SingleActivator(LogicalKeyboardKey.keyI, meta: true): () {
+          unawaited(mediaController.pickMediaFiles());
+        },
+        const SingleActivator(LogicalKeyboardKey.keyS, meta: true): () {
+          unawaited(projectController.saveCurrentProject());
+        },
+        const SingleActivator(LogicalKeyboardKey.keyO, meta: true): () {
+          unawaited(projectController.loadProjectFromDisk());
+        },
+        const SingleActivator(LogicalKeyboardKey.arrowLeft): () {
+          final int target = (previewState.currentPositionMs - 1000).clamp(
+            0,
+            previewState.durationMs,
+          );
+          previewController.seekTo(target);
+        },
+        const SingleActivator(LogicalKeyboardKey.arrowRight): () {
+          final int target = (previewState.currentPositionMs + 1000).clamp(
+            0,
+            previewState.durationMs,
+          );
+          previewController.seekTo(target);
+        },
+      },
+      child: Focus(
+        autofocus: true,
+        child: Scaffold(
+          body: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+            child: Column(
+              children: <Widget>[
+                _StudioTopBar(
+                  isProjectLoading: projectState.isLoading,
+                  isMediaLoading: mediaState.isLoading,
+                  comfortModeEnabled: _comfortModeEnabled,
+                  onCreateProject: projectController.createNewProject,
+                  onImportMedia: mediaController.pickMediaFiles,
+                  onSaveProject: projectController.saveCurrentProject,
+                  onLoadProject: projectController.loadProjectFromDisk,
+                  onToggleComfortMode: (bool enabled) {
+                    setState(() {
+                      _comfortModeEnabled = enabled;
+                    });
+                  },
+                ),
+                const SizedBox(height: 8),
+                if (projectState.errorMessage != null ||
+                    mediaState.errorMessage != null)
+                  _ErrorBanner(
+                    message:
+                        projectState.errorMessage ?? mediaState.errorMessage!,
+                  ),
+                if (projectState.errorMessage != null ||
+                    mediaState.errorMessage != null)
+                  const SizedBox(height: 8),
+                Expanded(
+                  child: Column(
+                    children: <Widget>[
+                      Expanded(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: <Widget>[
+                            SizedBox(
+                              width: 300,
+                              child: _PanelShell(
+                                title: 'Medias',
+                                comfortModeEnabled: _comfortModeEnabled,
+                                child: DropTarget(
+                                  onDragEntered: (_) =>
+                                      mediaController.setDraggingOver(true),
+                                  onDragExited: (_) =>
+                                      mediaController.setDraggingOver(false),
+                                  onDragDone: (DropDoneDetails details) {
+                                    final List<String> paths = details.files
+                                        .map((file) => file.path)
+                                        .toList();
+                                    mediaController.setDraggingOver(false);
+                                    mediaController.importDroppedFiles(paths);
+                                  },
+                                  child: MediaBinPanel(
+                                    assets: mediaState.assets,
+                                    isLoading: mediaState.isLoading,
+                                    canAddToTimeline: project != null,
+                                    onAddToTimeline:
+                                        projectController.addAssetToTimeline,
+                                    onRemoveAsset: (asset) => mediaController
+                                        .removeAssetById(asset.id),
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _PanelShell(
-                            title: 'Lecteur',
-                            child: PreviewPanel(
-                              project: project,
-                              state: previewState,
-                              onTogglePlayPause:
-                                  previewController.togglePlayPause,
-                              onScrubStart: previewController.beginScrub,
-                              onScrubEnd: previewController.endScrub,
-                              onSeekTo: previewController.seekTo,
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _PanelShell(
+                                title: 'Lecteur',
+                                comfortModeEnabled: _comfortModeEnabled,
+                                child: PreviewPanel(
+                                  project: project,
+                                  state: previewState,
+                                  onTogglePlayPause:
+                                      previewController.togglePlayPause,
+                                  onScrubStart: previewController.beginScrub,
+                                  onScrubEnd: previewController.endScrub,
+                                  onSeekTo: previewController.seekTo,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        SizedBox(
-                          width: 280,
-                          child: _PanelShell(
-                            title: 'Inspecteur / Export',
-                            child: ListView(
-                              children: <Widget>[
-                                Text(
-                                  'Preset export',
-                                  style: Theme.of(context).textTheme.titleSmall,
-                                ),
-                                const SizedBox(height: 8),
-                                DropdownButtonFormField<ExportPreset>(
-                                  initialValue: exportState.selectedPreset,
-                                  isExpanded: true,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Preset',
-                                    border: OutlineInputBorder(),
-                                    isDense: true,
-                                  ),
-                                  items: ExportPreset.defaults
-                                      .map(
-                                        (ExportPreset preset) =>
-                                            DropdownMenuItem(
-                                              value: preset,
-                                              child: Text(preset.label),
-                                            ),
-                                      )
-                                      .toList(growable: false),
-                                  onChanged: (ExportPreset? preset) {
-                                    if (preset == null) {
-                                      return;
-                                    }
-                                    exportController.selectPreset(preset);
-                                  },
-                                ),
-                                const SizedBox(height: 8),
-                                FilledButton.icon(
-                                  onPressed: project == null
-                                      ? null
-                                      : () => exportController.enqueueExport(
-                                          project,
-                                        ),
-                                  icon: const Icon(Icons.upload_file_outlined),
-                                  label: Text(
-                                    exportState.isProcessing
-                                        ? 'Export en cours...'
-                                        : 'Ajouter a la queue',
-                                  ),
-                                ),
-                                if (exportState.isProcessing) ...<Widget>[
-                                  const SizedBox(height: 10),
-                                  Container(
-                                    padding: const EdgeInsets.fromLTRB(
-                                      10,
-                                      8,
-                                      10,
-                                      10,
+                            const SizedBox(width: 12),
+                            SizedBox(
+                              width: 280,
+                              child: _PanelShell(
+                                title: 'Inspecteur / Export',
+                                comfortModeEnabled: _comfortModeEnabled,
+                                child: ListView(
+                                  children: <Widget>[
+                                    Text(
+                                      'Preset export',
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.titleSmall,
                                     ),
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(
-                                        color: context.cyberpunk.neonBlue
-                                            .withValues(alpha: 0.55),
+                                    const SizedBox(height: 8),
+                                    DropdownButtonFormField<ExportPreset>(
+                                      initialValue: exportState.selectedPreset,
+                                      isExpanded: true,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Preset',
+                                        border: OutlineInputBorder(),
+                                        isDense: true,
                                       ),
-                                      color: context.cyberpunk.neonBlue
-                                          .withValues(alpha: 0.08),
+                                      items: ExportPreset.defaults
+                                          .map(
+                                            (ExportPreset preset) =>
+                                                DropdownMenuItem(
+                                                  value: preset,
+                                                  child: Text(preset.label),
+                                                ),
+                                          )
+                                          .toList(growable: false),
+                                      onChanged: (ExportPreset? preset) {
+                                        if (preset == null) {
+                                          return;
+                                        }
+                                        exportController.selectPreset(preset);
+                                      },
                                     ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: <Widget>[
-                                        Row(
+                                    const SizedBox(height: 8),
+                                    FilledButton.icon(
+                                      onPressed: project == null
+                                          ? null
+                                          : () => exportController
+                                                .enqueueExport(project),
+                                      icon: const Icon(
+                                        Icons.upload_file_outlined,
+                                      ),
+                                      label: Text(
+                                        exportState.isProcessing
+                                            ? 'Export en cours...'
+                                            : 'Ajouter a la queue',
+                                      ),
+                                    ),
+                                    if (exportState.isProcessing) ...<Widget>[
+                                      const SizedBox(height: 10),
+                                      Container(
+                                        padding: const EdgeInsets.fromLTRB(
+                                          10,
+                                          8,
+                                          10,
+                                          10,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                          border: Border.all(
+                                            color: context.cyberpunk.neonBlue
+                                                .withValues(alpha: 0.55),
+                                          ),
+                                          color: context.cyberpunk.neonBlue
+                                              .withValues(alpha: 0.08),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: <Widget>[
-                                            const SizedBox(
-                                              width: 14,
-                                              height: 14,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                              ),
+                                            Row(
+                                              children: <Widget>[
+                                                const SizedBox(
+                                                  width: 14,
+                                                  height: 14,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                      ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Expanded(
+                                                  child: Text(
+                                                    runningExportJob == null
+                                                        ? 'Traitement de la queue export...'
+                                                        : 'Export en cours: ${runningExportJob.presetLabel}',
+                                                    style: Theme.of(context)
+                                                        .textTheme
+                                                        .bodySmall
+                                                        ?.copyWith(
+                                                          color: context
+                                                              .cyberpunk
+                                                              .neonBlue,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                        ),
+                                                  ),
+                                                ),
+                                              ],
                                             ),
-                                            const SizedBox(width: 8),
-                                            Expanded(
-                                              child: Text(
-                                                runningExportJob == null
-                                                    ? 'Traitement de la queue export...'
-                                                    : 'Export en cours: ${runningExportJob.presetLabel}',
+                                            const SizedBox(height: 8),
+                                            const LinearProgressIndicator(
+                                              minHeight: 4,
+                                            ),
+                                            if (queuedExportsCount >
+                                                0) ...<Widget>[
+                                              const SizedBox(height: 6),
+                                              Text(
+                                                '$queuedExportsCount export(s) en attente...',
                                                 style: Theme.of(context)
                                                     .textTheme
                                                     .bodySmall
                                                     ?.copyWith(
                                                       color: context
                                                           .cyberpunk
-                                                          .neonBlue,
-                                                      fontWeight:
-                                                          FontWeight.w600,
+                                                          .textMuted,
                                                     ),
                                               ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 8),
-                                        const LinearProgressIndicator(
-                                          minHeight: 4,
-                                        ),
-                                        if (queuedExportsCount > 0) ...<Widget>[
-                                          const SizedBox(height: 6),
-                                          Text(
-                                            '$queuedExportsCount export(s) en attente...',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodySmall
-                                                ?.copyWith(
-                                                  color: context
-                                                      .cyberpunk
-                                                      .textMuted,
-                                                ),
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                                if (exportState.errorMessage !=
-                                    null) ...<Widget>[
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    exportState.errorMessage!,
-                                    style: TextStyle(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.error,
-                                    ),
-                                  ),
-                                ],
-                                const SizedBox(height: 12),
-                                Text(
-                                  'Jobs export',
-                                  style: Theme.of(context).textTheme.titleSmall,
-                                ),
-                                const SizedBox(height: 6),
-                                ...exportState.jobs
-                                    .take(6)
-                                    .map(
-                                      (ExportJob job) => Padding(
-                                        padding: const EdgeInsets.only(
-                                          bottom: 6,
-                                        ),
-                                        child: Row(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: <Widget>[
-                                            Container(
-                                              width: 8,
-                                              height: 8,
-                                              margin: const EdgeInsets.only(
-                                                top: 6,
-                                              ),
-                                              decoration: BoxDecoration(
-                                                shape: BoxShape.circle,
-                                                color: _statusColor(
-                                                  context,
-                                                  job.status,
-                                                ),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Expanded(
-                                              child: Text(
-                                                '${job.presetLabel}: ${_statusLabel(job.status)}'
-                                                '${job.message != null ? ' (${job.message})' : ''}',
-                                                style: Theme.of(
-                                                  context,
-                                                ).textTheme.bodySmall,
-                                              ),
-                                            ),
+                                            ],
                                           ],
                                         ),
                                       ),
+                                    ],
+                                    if (exportState.errorMessage !=
+                                        null) ...<Widget>[
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        exportState.errorMessage!,
+                                        style: TextStyle(
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.error,
+                                        ),
+                                      ),
+                                    ],
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      'Jobs export',
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.titleSmall,
                                     ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  'Inspecteur clip',
-                                  style: Theme.of(context).textTheme.titleSmall,
-                                ),
-                                const SizedBox(height: 6),
-                                if (_inspectedClip == null)
-                                  Text(
-                                    'Selectionne un clip dans la timeline.',
-                                    style: Theme.of(context).textTheme.bodySmall
-                                        ?.copyWith(
-                                          color: context.cyberpunk.textMuted,
+                                    const SizedBox(height: 6),
+                                    ...exportState.jobs
+                                        .take(6)
+                                        .map(
+                                          (ExportJob job) => Padding(
+                                            padding: const EdgeInsets.only(
+                                              bottom: 6,
+                                            ),
+                                            child: Row(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: <Widget>[
+                                                Container(
+                                                  width: 8,
+                                                  height: 8,
+                                                  margin: const EdgeInsets.only(
+                                                    top: 6,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    shape: BoxShape.circle,
+                                                    color: _statusColor(
+                                                      context,
+                                                      job.status,
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Expanded(
+                                                  child: Text(
+                                                    '${job.presetLabel}: ${_statusLabel(job.status)}'
+                                                    '${job.message != null ? ' (${job.message})' : ''}',
+                                                    style: Theme.of(
+                                                      context,
+                                                    ).textTheme.bodySmall,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
                                         ),
-                                  )
-                                else
-                                  _ClipInspectorCard(
-                                    trackId: _inspectedTrackId ?? '-',
-                                    clip: _inspectedClip!,
-                                    values:
-                                        _inspectorByClipId[_inspectedClip!
-                                            .id] ??
-                                        _ClipInspectorValues.fromClip(
-                                          _inspectedClip!,
-                                        ),
-                                    onChanged: (_ClipInspectorValues values) {
-                                      final String? trackId = _inspectedTrackId;
-                                      final Clip? inspectedClip =
-                                          _inspectedClip;
-                                      if (trackId == null ||
-                                          inspectedClip == null) {
-                                        return;
-                                      }
-                                      setState(() {
-                                        _inspectorByClipId[inspectedClip.id] =
-                                            values;
-                                      });
-                                      projectController
-                                          .updateClipInspectorValues(
-                                            trackId: trackId,
-                                            clipId: inspectedClip.id,
-                                            opacity: values.opacity,
-                                            speed: values.speed,
-                                            volume: values.volume,
-                                            scale: values.scale,
-                                            rotationDeg: values.rotationDeg,
-                                          );
-                                      final _ClipInspectorValues activeValues =
-                                          _activeInspectorValues(
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      'Inspecteur clip',
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.titleSmall,
+                                    ),
+                                    const SizedBox(height: 6),
+                                    if (_inspectedClip == null)
+                                      Text(
+                                        'Selectionne un clip dans la timeline.',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              color:
+                                                  context.cyberpunk.textMuted,
+                                            ),
+                                      )
+                                    else
+                                      _ClipInspectorCard(
+                                        trackId: _inspectedTrackId ?? '-',
+                                        clip: _inspectedClip!,
+                                        values:
+                                            _inspectorByClipId[_inspectedClip!
+                                                .id] ??
+                                            _ClipInspectorValues.fromClip(
+                                              _inspectedClip!,
+                                            ),
+                                        onChanged: (_ClipInspectorValues values) {
+                                          final String? trackId =
+                                              _inspectedTrackId;
+                                          final Clip? inspectedClip =
+                                              _inspectedClip;
+                                          if (trackId == null ||
+                                              inspectedClip == null) {
+                                            return;
+                                          }
+                                          setState(() {
+                                            _inspectorByClipId[inspectedClip
+                                                    .id] =
+                                                values;
+                                          });
+                                          projectController
+                                              .updateClipInspectorValues(
+                                                trackId: trackId,
+                                                clipId: inspectedClip.id,
+                                                opacity: values.opacity,
+                                                speed: values.speed,
+                                                volume: values.volume,
+                                                scale: values.scale,
+                                                rotationDeg: values.rotationDeg,
+                                              );
+                                          final _ClipInspectorValues
+                                          activeValues = _activeInspectorValues(
                                             project,
                                             previewState.currentPositionMs,
                                           );
-                                      ref
-                                          .read(
-                                            previewControllerProvider.notifier,
-                                          )
-                                          .setPlaybackSpeed(activeValues.speed);
-                                      ref
-                                          .read(
-                                            previewAudioSyncControllerProvider,
-                                          )
-                                          .synchronize(
-                                            project: project,
-                                            positionMs:
-                                                previewState.currentPositionMs,
-                                            shouldPlay: previewState.isPlaying,
-                                            volume: activeValues.volume,
-                                            speed: activeValues.speed,
-                                          );
-                                    },
-                                  ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  'Projet',
-                                  style: Theme.of(context).textTheme.titleSmall,
+                                          ref
+                                              .read(
+                                                previewControllerProvider
+                                                    .notifier,
+                                              )
+                                              .setPlaybackSpeed(
+                                                activeValues.speed,
+                                              );
+                                          ref
+                                              .read(
+                                                previewAudioSyncControllerProvider,
+                                              )
+                                              .synchronize(
+                                                project: project,
+                                                positionMs: previewState
+                                                    .currentPositionMs,
+                                                shouldPlay:
+                                                    previewState.isPlaying,
+                                                volume: activeValues.volume,
+                                                speed: activeValues.speed,
+                                              );
+                                        },
+                                      ),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      'Projet',
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.titleSmall,
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      project == null
+                                          ? 'Aucun projet actif'
+                                          : '${project.name}\n${project.canvasWidth}x${project.canvasHeight} - ${project.fps} fps',
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.bodySmall,
+                                    ),
+                                    if (projectState.projectFilePath !=
+                                        null) ...<Widget>[
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        projectState.projectFilePath!,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              color:
+                                                  context.cyberpunk.textMuted,
+                                            ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  project == null
-                                      ? 'Aucun projet actif'
-                                      : '${project.name}\n${project.canvasWidth}x${project.canvasHeight} - ${project.fps} fps',
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                                if (projectState.projectFilePath !=
-                                    null) ...<Widget>[
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    projectState.projectFilePath!,
-                                    style: Theme.of(context).textTheme.bodySmall
-                                        ?.copyWith(
-                                          color: context.cyberpunk.textMuted,
-                                        ),
-                                  ),
-                                ],
-                              ],
+                              ),
                             ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 300,
+                        width: double.infinity,
+                        child: _PanelShell(
+                          title: 'Timeline',
+                          comfortModeEnabled: _comfortModeEnabled,
+                          child: TimelinePanel(
+                            project: project,
+                            playheadMs: previewState.currentPositionMs,
+                            isPlaying: previewState.isPlaying,
+                            reducedVisualIntensity: _comfortModeEnabled,
+                            onClipSelectionChanged:
+                                (String? trackId, Clip? clip) {
+                                  setState(() {
+                                    _inspectedTrackId = trackId;
+                                    _inspectedClip = clip;
+                                    if (clip != null) {
+                                      _inspectorByClipId.putIfAbsent(
+                                        clip.id,
+                                        () =>
+                                            _ClipInspectorValues.fromClip(clip),
+                                      );
+                                    }
+                                  });
+                                },
+                            onMoveClipByDelta:
+                                projectController.moveClipByDelta,
+                            onTrimClipStartByDelta:
+                                projectController.trimClipStartByDelta,
+                            onTrimClipEndByDelta:
+                                projectController.trimClipEndByDelta,
+                            onSplitClipAtPlayhead:
+                                projectController.splitClipAtPlayhead,
+                            onRemoveClip: projectController.removeClip,
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    height: 300,
-                    width: double.infinity,
-                    child: _PanelShell(
-                      title: 'Timeline',
-                      child: TimelinePanel(
-                        project: project,
-                        playheadMs: previewState.currentPositionMs,
-                        isPlaying: previewState.isPlaying,
-                        onClipSelectionChanged: (String? trackId, Clip? clip) {
-                          setState(() {
-                            _inspectedTrackId = trackId;
-                            _inspectedClip = clip;
-                            if (clip != null) {
-                              _inspectorByClipId.putIfAbsent(
-                                clip.id,
-                                () => _ClipInspectorValues.fromClip(clip),
-                              );
-                            }
-                          });
-                        },
-                        onMoveClipByDelta: projectController.moveClipByDelta,
-                        onTrimClipStartByDelta:
-                            projectController.trimClipStartByDelta,
-                        onTrimClipEndByDelta:
-                            projectController.trimClipEndByDelta,
-                        onSplitClipAtPlayhead:
-                            projectController.splitClipAtPlayhead,
-                        onRemoveClip: projectController.removeClip,
                       ),
-                    ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 8),
+                _StudioStatusBar(
+                  isPlaying: previewState.isPlaying,
+                  currentPositionMs: previewState.currentPositionMs,
+                  projectName: project?.name,
+                  exportJobsCount: exportState.jobs.length,
+                  isExporting: exportState.isProcessing,
+                  activeExportLabel: runningExportJob?.presetLabel,
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            _StudioStatusBar(
-              isPlaying: previewState.isPlaying,
-              currentPositionMs: previewState.currentPositionMs,
-              projectName: project?.name,
-              exportJobsCount: exportState.jobs.length,
-              isExporting: exportState.isProcessing,
-              activeExportLabel: runningExportJob?.presetLabel,
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -794,21 +878,36 @@ class _StudioTopBar extends StatelessWidget {
   const _StudioTopBar({
     required this.isProjectLoading,
     required this.isMediaLoading,
+    required this.comfortModeEnabled,
     required this.onCreateProject,
     required this.onImportMedia,
     required this.onSaveProject,
     required this.onLoadProject,
+    required this.onToggleComfortMode,
   });
 
   final bool isProjectLoading;
   final bool isMediaLoading;
+  final bool comfortModeEnabled;
   final VoidCallback onCreateProject;
   final VoidCallback onImportMedia;
   final VoidCallback onSaveProject;
   final VoidCallback onLoadProject;
+  final ValueChanged<bool> onToggleComfortMode;
+
+  ButtonStyle _desktopActionButtonStyle() {
+    return ButtonStyle(
+      minimumSize: WidgetStateProperty.all(const Size(132, 40)),
+      visualDensity: VisualDensity.standard,
+      textStyle: WidgetStateProperty.all(
+        const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final ButtonStyle actionStyle = _desktopActionButtonStyle();
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
@@ -846,26 +945,36 @@ class _StudioTopBar extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 16),
+            FilterChip(
+              label: const Text('Confort visuel'),
+              selected: comfortModeEnabled,
+              onSelected: onToggleComfortMode,
+            ),
+            const SizedBox(width: 8),
             FilledButton.icon(
               onPressed: isProjectLoading ? null : onCreateProject,
+              style: actionStyle,
               icon: const Icon(Icons.add),
               label: Text(isProjectLoading ? 'Creation...' : 'Nouveau'),
             ),
             const SizedBox(width: 8),
             OutlinedButton.icon(
               onPressed: isMediaLoading ? null : onImportMedia,
+              style: actionStyle,
               icon: const Icon(Icons.file_open_outlined),
               label: const Text('Importer'),
             ),
             const SizedBox(width: 8),
             OutlinedButton.icon(
               onPressed: isProjectLoading ? null : onSaveProject,
+              style: actionStyle,
               icon: const Icon(Icons.save_outlined),
               label: const Text('Sauvegarder'),
             ),
             const SizedBox(width: 8),
             OutlinedButton.icon(
               onPressed: isProjectLoading ? null : onLoadProject,
+              style: actionStyle,
               icon: const Icon(Icons.folder_open_outlined),
               label: const Text('Charger'),
             ),
@@ -877,10 +986,15 @@ class _StudioTopBar extends StatelessWidget {
 }
 
 class _PanelShell extends StatefulWidget {
-  const _PanelShell({required this.title, required this.child});
+  const _PanelShell({
+    required this.title,
+    required this.child,
+    required this.comfortModeEnabled,
+  });
 
   final String title;
   final Widget child;
+  final bool comfortModeEnabled;
 
   @override
   State<_PanelShell> createState() => _PanelShellState();
@@ -902,10 +1016,12 @@ class _PanelShellState extends State<_PanelShell> {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: _isHovered
-                ? context.cyberpunk.neonBlue.withValues(alpha: 0.45)
+                ? context.cyberpunk.neonBlue.withValues(
+                    alpha: widget.comfortModeEnabled ? 0.22 : 0.45,
+                  )
                 : context.cyberpunk.border,
           ),
-          boxShadow: _isHovered
+          boxShadow: _isHovered && !widget.comfortModeEnabled
               ? <BoxShadow>[
                   BoxShadow(
                     color: context.cyberpunk.neonBlue.withValues(alpha: 0.12),

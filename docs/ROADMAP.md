@@ -69,25 +69,25 @@ Construire un editeur video desktop macOS, 100% open source et gratuit, sous Flu
 
 ## M3.5 - Refonte UX/UI "Studio" (en cours)
 - [x] Etape 1 - Shell applicatif "pro montage"
-  - Header compact avec navigation principale (Fichier, Edition, Affichage, Lecture, Export)
-  - Layout stable en 4 zones: Media Bin gauche, Preview haut centre, Timeline bas centre, Inspecteur droite
-  - Timeline deplacee en bande basse sur toute la largeur disponible
-  - Statut bar basse (etat projet, mode magnetique, feedback actions)
+  - [x] Header compact avec navigation principale (Fichier, Edition, Affichage, Lecture, Export)
+  - [x] Layout stable en 4 zones: Media Bin gauche, Preview haut centre, Timeline bas centre, Inspecteur droite
+  - [x] Timeline deplacee en bande basse sur toute la largeur disponible
+  - [x] Statut bar basse (etat projet, mode magnetique, feedback actions)
 - [x] Etape 2 - Timeline orientee production
-  - Barre d'outils timeline complete et fixe (selection, lame, trim, split, zoom, snapping, marqueurs)
-  - Pistes mieux structurees (headers piste, etats mute/solo/lock, labels plus lisibles)
-  - Playhead et selection clips avec hierarchie visuelle forte (accent actif uniquement)
-  - Progression: headers piste enrichis (mute/solo/lock), toggle snapping global, badge playhead renforce
+  - [x] Barre d'outils timeline complete et fixe (selection, lame, trim, split, zoom, snapping, marqueurs)
+  - [x] Pistes mieux structurees (headers piste, etats mute/solo/lock, labels plus lisibles)
+  - [x] Playhead et selection clips avec hierarchie visuelle forte (accent actif uniquement)
+  - [x] Progression: headers piste enrichis (mute/solo/lock), toggle snapping global, badge playhead renforce
 - [x] Etape 3 - Inspecteur et coherence visuelle cyberpunk
-  - Panneau inspecteur contextuel (transform, opacite, vitesse, audio de base)
-  - Systeme de densite/contraste: neon reserve aux elements actifs, texte secondaire adouci
-  - Harmonisation composants (cards, boutons, sliders, separateurs) pour un rendu coherent non "gadget"
-  - Progression: inspecteur clip contextuel (transform, opacite, vitesse, volume), persistance `.psm` et application preview (scale/rotation/opacite + vitesse/volume)
-- [ ] Etape 4 - Finition interaction et ergonomie
-  - Micro-interactions fluides (hover, focus, selection, transitions courtes)
-  - Accessibilite desktop (tailles minimales de cibles, lisibilite, raccourcis de base)
-  - Validation UX sur sessions montage longues (fatigue visuelle, rapidite d'execution)
-  - Progression en cours: micro-interactions hover sur panneaux studio (animation courte + accent visuel)
+  - [x] Panneau inspecteur contextuel (transform, opacite, vitesse, audio de base)
+  - [x] Systeme de densite/contraste: neon reserve aux elements actifs, texte secondaire adouci
+  - [x] Harmonisation composants (cards, boutons, sliders, separateurs) pour un rendu coherent non "gadget"
+  - [x] Progression: inspecteur clip contextuel (transform, opacite, vitesse, volume), persistance `.psm` et application preview (scale/rotation/opacite + vitesse/volume)
+- [x] Etape 4 - Finition interaction et ergonomie
+  - [x] Micro-interactions fluides (hover, focus, selection, transitions courtes)
+  - [x] Accessibilite desktop (tailles minimales de cibles, lisibilite, raccourcis de base)
+  - [x] Validation UX sur sessions montage longues (fatigue visuelle, rapidite d'execution)
+  - [x] Progression: micro-interactions hover sur panneaux studio + raccourcis clavier de base (Play/Pause, Nouveau, Importer, Sauvegarder, Charger) + cibles boutons principales agrandies + raccourcis timeline (V/B/T/H/M, N snapping, S split) + seek clavier rapide (fleches gauche/droite) + mode confort visuel (intensite neon reduite)
 
 ## M4 - Enrichissements
 - [ ] Sous-titres et texte anime
