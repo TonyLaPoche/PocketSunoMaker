@@ -8,6 +8,7 @@ class MediaBinPanel extends StatelessWidget {
     required this.assets,
     required this.isLoading,
     required this.onAddToTimeline,
+    required this.onRemoveAsset,
     required this.canAddToTimeline,
     super.key,
   });
@@ -15,6 +16,7 @@ class MediaBinPanel extends StatelessWidget {
   final List<MediaAsset> assets;
   final bool isLoading;
   final ValueChanged<MediaAsset> onAddToTimeline;
+  final ValueChanged<MediaAsset> onRemoveAsset;
   final bool canAddToTimeline;
 
   @override
@@ -46,12 +48,24 @@ class MediaBinPanel extends StatelessWidget {
             ).textTheme.bodySmall?.copyWith(color: context.cyberpunk.textMuted),
           ),
           isThreeLine: true,
-          trailing: IconButton(
-            onPressed: canAddToTimeline ? () => onAddToTimeline(asset) : null,
-            tooltip: canAddToTimeline
-                ? 'Ajouter a la timeline'
-                : 'Cree d abord un projet',
-            icon: const Icon(Icons.add_circle_outline),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              IconButton(
+                onPressed: canAddToTimeline
+                    ? () => onAddToTimeline(asset)
+                    : null,
+                tooltip: canAddToTimeline
+                    ? 'Ajouter a la timeline'
+                    : 'Cree d abord un projet',
+                icon: const Icon(Icons.add_circle_outline),
+              ),
+              IconButton(
+                onPressed: () => onRemoveAsset(asset),
+                tooltip: 'Supprimer du Media Bin',
+                icon: const Icon(Icons.delete_outline),
+              ),
+            ],
           ),
         );
       },

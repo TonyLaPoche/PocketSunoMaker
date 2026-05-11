@@ -92,6 +92,13 @@ class MediaImportController extends Notifier<MediaImportState> {
     state = state.copyWith(isDraggingOver: value);
   }
 
+  void removeAssetById(String assetId) {
+    final List<MediaAsset> filtered = state.assets
+        .where((MediaAsset asset) => asset.id != assetId)
+        .toList(growable: false);
+    state = state.copyWith(assets: filtered, errorMessage: null);
+  }
+
   void _mergeResult(
     Result<List<MediaAsset>> result, {
     required String emptyMessage,

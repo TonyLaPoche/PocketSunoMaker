@@ -131,6 +131,8 @@ class ProjectHomePage extends ConsumerWidget {
                                 canAddToTimeline: project != null,
                                 onAddToTimeline:
                                     projectController.addAssetToTimeline,
+                                onRemoveAsset: (asset) =>
+                                    mediaController.removeAssetById(asset.id),
                               ),
                             ),
                           ),
