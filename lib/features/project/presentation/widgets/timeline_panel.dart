@@ -17,6 +17,7 @@ class TimelinePanel extends StatefulWidget {
     required this.project,
     required this.playheadMs,
     required this.isPlaying,
+    required this.onSeekTo,
     required this.onMoveClipByDelta,
     required this.onTrimClipStartByDelta,
     required this.onTrimClipEndByDelta,
@@ -30,6 +31,7 @@ class TimelinePanel extends StatefulWidget {
   final Project? project;
   final int playheadMs;
   final bool isPlaying;
+  final ValueChanged<int> onSeekTo;
   final void Function({
     required String trackId,
     required String clipId,
@@ -77,12 +79,15 @@ class _TimelinePanelState extends State<TimelinePanel> {
   final Set<String> soloTrackIds = <String>{};
   final Set<String> lockedTrackIds = <String>{};
   final ScrollController horizontalScrollController = ScrollController();
+  double _playheadDragAccumulatedDx = 0;
+  int? _playheadDragStartMs;
 
   static const double _basePixelsPerSecond = 100;
   static const double _minZoom = 0.05;
   static const double _maxZoom = 3.0;
   static const double _rowHeight = 64;
   static const double _timelineStartLeft = 148;
+  static const double _timelineTopPadding = 40;
   static const double _followViewportRatio = 0.35;
   static const double _followSafetyMarginPx = 160;
 
@@ -109,8 +114,11 @@ class _TimelinePanelState extends State<TimelinePanel> {
         (_timelineStartLeft + (widget.playheadMs / 1000) * pixelsPerSecond)
             .clamp(0, timelineWidth)
             .toDouble();
-    final double playheadLabelLeft = (playheadLeft - 26)
-        .clamp(0.0, math.max(0.0, timelineWidth - 56))
+    const double playheadLabelWidth = 72;
+    const double playheadLabelHalf = playheadLabelWidth / 2;
+    const double playheadLineTop = 34;
+    final double playheadLabelLeft = (playheadLeft - playheadLabelHalf)
+        .clamp(0.0, math.max(0.0, timelineWidth - playheadLabelWidth))
         .toDouble();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
@@ -266,6 +274,7 @@ class _TimelinePanelState extends State<TimelinePanel> {
                           children: <Widget>[
                             Column(
                               children: <Widget>[
+                                const SizedBox(height: _timelineTopPadding),
                                 const Divider(height: 1),
                                 if (widget.project!.tracks.isEmpty)
                                   const Expanded(
@@ -412,21 +421,31 @@ class _TimelinePanelState extends State<TimelinePanel> {
                             }),
                             Positioned(
                               left: playheadLabelLeft,
-                              top: 2,
+                              top: 4,
                               child: IgnorePointer(
                                 child: Container(
+                                  width: playheadLabelWidth,
+                                  alignment: Alignment.center,
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                    vertical: 2,
+                                    horizontal: 8,
+                                    vertical: 4,
                                   ),
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(6),
                                     color: context.cyberpunk.neonBlue
-                                        .withValues(alpha: 0.18),
+                                        .withValues(alpha: 0.28),
                                     border: Border.all(
                                       color: context.cyberpunk.neonBlue
-                                          .withValues(alpha: 0.65),
+                                          .withValues(alpha: 0.9),
                                     ),
+                                    boxShadow: <BoxShadow>[
+                                      BoxShadow(
+                                        color: context.cyberpunk.neonBlue
+                                            .withValues(alpha: 0.18),
+                                        blurRadius: 8,
+                                        spreadRadius: 1,
+                                      ),
+                                    ],
                                   ),
                                   child: Text(
                                     _formatTimelineTime(widget.playheadMs),
@@ -434,14 +453,77 @@ class _TimelinePanelState extends State<TimelinePanel> {
                                         ?.copyWith(
                                           color: context.cyberpunk.neonBlue,
                                           fontWeight: FontWeight.w700,
+                                          fontSize: 11,
+                                          letterSpacing: 0.2,
                                         ),
                                   ),
                                 ),
                               ),
                             ),
                             Positioned(
-                              left: playheadLeft,
-                              top: 0,
+                              left: playheadLeft - 11,
+                              top: playheadLineTop - 8,
+                              child: MouseRegion(
+                                cursor: widget.isPlaying
+                                    ? SystemMouseCursors.basic
+                                    : SystemMouseCursors.resizeLeftRight,
+                                child: GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onPanStart: widget.isPlaying
+                                      ? null
+                                      : (_) {
+                                          _playheadDragStartMs =
+                                              widget.playheadMs;
+                                          _playheadDragAccumulatedDx = 0;
+                                        },
+                                  onPanUpdate: widget.isPlaying
+                                      ? null
+                                      : (DragUpdateDetails details) {
+                                          _seekPlayheadFromDrag(
+                                            deltaDx: details.delta.dx,
+                                            pixelsPerSecond: pixelsPerSecond,
+                                            durationMs: durationMs,
+                                          );
+                                        },
+                                  onPanEnd: widget.isPlaying
+                                      ? null
+                                      : (_) {
+                                          _playheadDragStartMs = null;
+                                          _playheadDragAccumulatedDx = 0;
+                                        },
+                                  onPanCancel: widget.isPlaying
+                                      ? null
+                                      : () {
+                                          _playheadDragStartMs = null;
+                                          _playheadDragAccumulatedDx = 0;
+                                        },
+                                  child: Container(
+                                    width: 22,
+                                    height: 22,
+                                    alignment: Alignment.center,
+                                    child: Container(
+                                      width: 10,
+                                      height: 10,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: context.cyberpunk.neonBlue,
+                                        boxShadow: <BoxShadow>[
+                                          BoxShadow(
+                                            color: context.cyberpunk.neonBlue
+                                                .withValues(alpha: 0.45),
+                                            blurRadius: 8,
+                                            spreadRadius: 1,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              left: playheadLeft - 1,
+                              top: playheadLineTop,
                               bottom: 0,
                               child: IgnorePointer(
                                 child: Container(
@@ -476,6 +558,19 @@ class _TimelinePanelState extends State<TimelinePanel> {
     setState(() {
       snappingEnabled = !snappingEnabled;
     });
+  }
+
+  void _seekPlayheadFromDrag({
+    required double deltaDx,
+    required double pixelsPerSecond,
+    required int durationMs,
+  }) {
+    final int startMs = _playheadDragStartMs ?? widget.playheadMs;
+    _playheadDragAccumulatedDx += deltaDx;
+    final int deltaMs = ((_playheadDragAccumulatedDx / pixelsPerSecond) * 1000)
+        .round();
+    final int targetMs = (startMs + deltaMs).clamp(0, durationMs);
+    widget.onSeekTo(targetMs);
   }
 
   void _splitAtPlayhead() {

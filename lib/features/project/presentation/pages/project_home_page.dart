@@ -495,10 +495,18 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
                             child: _PanelShell(
                               title: 'Timeline',
                               comfortModeEnabled: _comfortModeEnabled,
+                              headerTrailing: IconButton(
+                                tooltip: 'Aide outils timeline',
+                                icon: const Icon(Icons.help_outline, size: 18),
+                                onPressed: () {
+                                  _showTimelineToolsHelpDialog(context);
+                                },
+                              ),
                               child: TimelinePanel(
                                 project: project,
                                 playheadMs: previewState.currentPositionMs,
                                 isPlaying: previewState.isPlaying,
+                                onSeekTo: previewController.seekTo,
                                 reducedVisualIntensity: _comfortModeEnabled,
                                 onClipSelectionChanged:
                                     (String? trackId, Clip? clip) {
@@ -615,6 +623,76 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
       }
     }
     return null;
+  }
+
+  Future<void> _showTimelineToolsHelpDialog(BuildContext context) async {
+    await showDialog<void>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Aide outils Timeline'),
+          content: SizedBox(
+            width: 440,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: const <Widget>[
+                  _TimelineToolHelpRow(
+                    shortcut: 'V',
+                    title: 'Selection',
+                    description:
+                        'Selectionne un clip pour le deplacer, le redimensionner ou l inspecter.',
+                  ),
+                  _TimelineToolHelpRow(
+                    shortcut: 'B',
+                    title: 'Lame (Blade)',
+                    description:
+                        'Active la coupe pour decouper un clip a la position du playhead.',
+                  ),
+                  _TimelineToolHelpRow(
+                    shortcut: 'T',
+                    title: 'Trim',
+                    description:
+                        'Ajuste precisement les points d entree/sortie d un clip.',
+                  ),
+                  _TimelineToolHelpRow(
+                    shortcut: 'H',
+                    title: 'Main (Pan)',
+                    description:
+                        'Deplace la vue de la timeline horizontalement.',
+                  ),
+                  _TimelineToolHelpRow(
+                    shortcut: 'M',
+                    title: 'Marqueur',
+                    description:
+                        'Place des reperes temporels pour organiser le montage.',
+                  ),
+                  _TimelineToolHelpRow(
+                    shortcut: 'N',
+                    title: 'Snap',
+                    description:
+                        'Active/desactive l aimantation des clips sur les bords et reperes.',
+                  ),
+                  _TimelineToolHelpRow(
+                    shortcut: 'S',
+                    title: 'Split',
+                    description:
+                        'Coupe le clip selectionne au niveau du playhead.',
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: <Widget>[
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Fermer'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _showEditTextDialog({
@@ -1740,11 +1818,13 @@ class _PanelShell extends StatefulWidget {
     required this.title,
     required this.child,
     required this.comfortModeEnabled,
+    this.headerTrailing,
   });
 
   final String title;
   final Widget child;
   final bool comfortModeEnabled;
+  final Widget? headerTrailing;
 
   @override
   State<_PanelShell> createState() => _PanelShellState();
@@ -1788,9 +1868,16 @@ class _PanelShellState extends State<_PanelShell> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text(
-                  widget.title,
-                  style: Theme.of(context).textTheme.titleSmall,
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        widget.title,
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                    ),
+                    if (widget.headerTrailing != null) widget.headerTrailing!,
+                  ],
                 ),
                 const SizedBox(height: 8),
                 Expanded(child: widget.child),
@@ -1798,6 +1885,69 @@ class _PanelShellState extends State<_PanelShell> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _TimelineToolHelpRow extends StatelessWidget {
+  const _TimelineToolHelpRow({
+    required this.shortcut,
+    required this.title,
+    required this.description,
+  });
+
+  final String shortcut;
+  final String title;
+  final String description;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Container(
+            width: 28,
+            height: 22,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(6),
+              color: context.cyberpunk.bgSecondary,
+              border: Border.all(color: context.cyberpunk.border),
+            ),
+            child: Text(
+              shortcut,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: context.cyberpunk.neonBlue,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: context.cyberpunk.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  description,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: context.cyberpunk.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
