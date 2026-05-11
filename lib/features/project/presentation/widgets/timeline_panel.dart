@@ -21,6 +21,7 @@ class TimelinePanel extends StatefulWidget {
     required this.onTrimClipEndByDelta,
     required this.onSplitClipAtPlayhead,
     required this.onRemoveClip,
+    this.onClipSelectionChanged,
     super.key,
   });
 
@@ -56,6 +57,7 @@ class TimelinePanel extends StatefulWidget {
   onSplitClipAtPlayhead;
   final void Function({required String trackId, required String clipId})
   onRemoveClip;
+  final void Function(String? trackId, Clip? clip)? onClipSelectionChanged;
 
   @override
   State<TimelinePanel> createState() => _TimelinePanelState();
@@ -316,11 +318,13 @@ class _TimelinePanelState extends State<TimelinePanel> {
                                           onSelectClip:
                                               ({
                                                 required String trackId,
-                                                required String clipId,
+                                                required Clip clip,
                                               }) {
                                                 setState(() {
-                                                  selectedClipId = clipId;
+                                                  selectedClipId = clip.id;
                                                 });
+                                                widget.onClipSelectionChanged
+                                                    ?.call(trackId, clip);
                                               },
                                           onMoveClipByDelta:
                                               widget.onMoveClipByDelta,
@@ -343,6 +347,8 @@ class _TimelinePanelState extends State<TimelinePanel> {
                                                   setState(() {
                                                     selectedClipId = null;
                                                   });
+                                                  widget.onClipSelectionChanged
+                                                      ?.call(null, null);
                                                 }
                                               },
                                         );
@@ -672,7 +678,7 @@ class _TimelineTrackRow extends StatelessWidget {
   final VoidCallback onToggleMute;
   final VoidCallback onToggleSolo;
   final VoidCallback onToggleLock;
-  final void Function({required String trackId, required String clipId})
+  final void Function({required String trackId, required Clip clip})
   onSelectClip;
   final void Function({
     required String trackId,
@@ -814,8 +820,7 @@ class _TimelineTrackRow extends StatelessWidget {
                 canBladeSplit:
                     activeTool == TimelineEditTool.blade && !isTrackLocked,
                 dimmed: dimmed,
-                onSelect: () =>
-                    onSelectClip(trackId: track.id, clipId: clip.id),
+                onSelect: () => onSelectClip(trackId: track.id, clip: clip),
                 onRemove: () =>
                     onRemoveClip(trackId: track.id, clipId: clip.id),
                 onSplitClipAtPlayhead: onSplitClipAtPlayhead,

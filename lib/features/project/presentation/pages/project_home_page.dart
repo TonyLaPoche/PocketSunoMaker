@@ -10,16 +10,27 @@ import '../../../media_import/presentation/widgets/media_bin_panel.dart';
 import '../../../preview/presentation/controllers/preview_controller.dart';
 import '../../../preview/presentation/controllers/preview_audio_sync_controller.dart';
 import '../../../preview/presentation/widgets/preview_panel.dart';
+import '../../domain/entities/clip.dart';
 import '../../domain/entities/export_preset.dart';
 import '../../domain/entities/project.dart';
 import '../controllers/project_controller.dart';
 import '../widgets/timeline_panel.dart';
 
-class ProjectHomePage extends ConsumerWidget {
+class ProjectHomePage extends ConsumerStatefulWidget {
   const ProjectHomePage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProjectHomePage> createState() => _ProjectHomePageState();
+}
+
+class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
+  String? _inspectedTrackId;
+  Clip? _inspectedClip;
+  final Map<String, _ClipInspectorValues> _inspectorByClipId =
+      <String, _ClipInspectorValues>{};
+
+  @override
+  Widget build(BuildContext context) {
     ref.listen<int>(
       projectControllerProvider.select(
         (state) => state.currentProject?.durationMs ?? 0,
@@ -337,6 +348,35 @@ class ProjectHomePage extends ConsumerWidget {
                                     ),
                                 const SizedBox(height: 12),
                                 Text(
+                                  'Inspecteur clip',
+                                  style: Theme.of(context).textTheme.titleSmall,
+                                ),
+                                const SizedBox(height: 6),
+                                if (_inspectedClip == null)
+                                  Text(
+                                    'Selectionne un clip dans la timeline.',
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(
+                                          color: context.cyberpunk.textMuted,
+                                        ),
+                                  )
+                                else
+                                  _ClipInspectorCard(
+                                    trackId: _inspectedTrackId ?? '-',
+                                    clip: _inspectedClip!,
+                                    values:
+                                        _inspectorByClipId[_inspectedClip!
+                                            .id] ??
+                                        _ClipInspectorValues.defaults,
+                                    onChanged: (_ClipInspectorValues values) {
+                                      setState(() {
+                                        _inspectorByClipId[_inspectedClip!.id] =
+                                            values;
+                                      });
+                                    },
+                                  ),
+                                const SizedBox(height: 12),
+                                Text(
                                   'Projet',
                                   style: Theme.of(context).textTheme.titleSmall,
                                 ),
@@ -375,6 +415,18 @@ class ProjectHomePage extends ConsumerWidget {
                         project: project,
                         playheadMs: previewState.currentPositionMs,
                         isPlaying: previewState.isPlaying,
+                        onClipSelectionChanged: (String? trackId, Clip? clip) {
+                          setState(() {
+                            _inspectedTrackId = trackId;
+                            _inspectedClip = clip;
+                            if (clip != null) {
+                              _inspectorByClipId.putIfAbsent(
+                                clip.id,
+                                () => _ClipInspectorValues.defaults,
+                              );
+                            }
+                          });
+                        },
                         onMoveClipByDelta: projectController.moveClipByDelta,
                         onTrimClipStartByDelta:
                             projectController.trimClipStartByDelta,
@@ -428,6 +480,148 @@ class ProjectHomePage extends ConsumerWidget {
       case ExportJobStatus.failed:
         return Theme.of(context).colorScheme.error;
     }
+  }
+}
+
+class _ClipInspectorValues {
+  const _ClipInspectorValues({
+    required this.opacity,
+    required this.speed,
+    required this.volume,
+  });
+
+  static const _ClipInspectorValues defaults = _ClipInspectorValues(
+    opacity: 1.0,
+    speed: 1.0,
+    volume: 1.0,
+  );
+
+  final double opacity;
+  final double speed;
+  final double volume;
+
+  _ClipInspectorValues copyWith({
+    double? opacity,
+    double? speed,
+    double? volume,
+  }) {
+    return _ClipInspectorValues(
+      opacity: opacity ?? this.opacity,
+      speed: speed ?? this.speed,
+      volume: volume ?? this.volume,
+    );
+  }
+}
+
+class _ClipInspectorCard extends StatelessWidget {
+  const _ClipInspectorCard({
+    required this.trackId,
+    required this.clip,
+    required this.values,
+    required this.onChanged,
+  });
+
+  final String trackId;
+  final Clip clip;
+  final _ClipInspectorValues values;
+  final ValueChanged<_ClipInspectorValues> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: context.cyberpunk.border),
+        color: context.cyberpunk.bgPrimary.withValues(alpha: 0.35),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            clip.assetPath.split('/').last,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: context.cyberpunk.textPrimary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Track: $trackId',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: context.cyberpunk.textMuted),
+          ),
+          const SizedBox(height: 6),
+          _InspectorSlider(
+            label: 'Opacite ${(values.opacity * 100).round()}%',
+            min: 0,
+            max: 1,
+            value: values.opacity,
+            onChanged: (double value) {
+              onChanged(values.copyWith(opacity: value));
+            },
+          ),
+          _InspectorSlider(
+            label: 'Vitesse ${values.speed.toStringAsFixed(2)}x',
+            min: 0.25,
+            max: 2.0,
+            value: values.speed,
+            onChanged: (double value) {
+              onChanged(values.copyWith(speed: value));
+            },
+          ),
+          _InspectorSlider(
+            label: 'Volume ${(values.volume * 100).round()}%',
+            min: 0,
+            max: 2.0,
+            value: values.volume,
+            onChanged: (double value) {
+              onChanged(values.copyWith(volume: value));
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InspectorSlider extends StatelessWidget {
+  const _InspectorSlider({
+    required this.label,
+    required this.min,
+    required this.max,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String label;
+  final double min;
+  final double max;
+  final double value;
+  final ValueChanged<double> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          label,
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: context.cyberpunk.textMuted),
+        ),
+        Slider(
+          min: min,
+          max: max,
+          value: value.clamp(min, max),
+          onChanged: onChanged,
+        ),
+      ],
+    );
   }
 }
 
