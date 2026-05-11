@@ -387,12 +387,31 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
                                     values:
                                         _inspectorByClipId[_inspectedClip!
                                             .id] ??
-                                        _ClipInspectorValues.defaults,
+                                        _ClipInspectorValues.fromClip(
+                                          _inspectedClip!,
+                                        ),
                                     onChanged: (_ClipInspectorValues values) {
+                                      final String? trackId = _inspectedTrackId;
+                                      final Clip? inspectedClip =
+                                          _inspectedClip;
+                                      if (trackId == null ||
+                                          inspectedClip == null) {
+                                        return;
+                                      }
                                       setState(() {
-                                        _inspectorByClipId[_inspectedClip!.id] =
+                                        _inspectorByClipId[inspectedClip.id] =
                                             values;
                                       });
+                                      projectController
+                                          .updateClipInspectorValues(
+                                            trackId: trackId,
+                                            clipId: inspectedClip.id,
+                                            opacity: values.opacity,
+                                            speed: values.speed,
+                                            volume: values.volume,
+                                            scale: values.scale,
+                                            rotationDeg: values.rotationDeg,
+                                          );
                                       final _ClipInspectorValues activeValues =
                                           _activeInspectorValues(
                                             project,
@@ -464,7 +483,7 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
                             if (clip != null) {
                               _inspectorByClipId.putIfAbsent(
                                 clip.id,
-                                () => _ClipInspectorValues.defaults,
+                                () => _ClipInspectorValues.fromClip(clip),
                               );
                             }
                           });
@@ -549,7 +568,8 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
     if (!isActive) {
       return _ClipInspectorValues.defaults;
     }
-    return _inspectorByClipId[inspectedClipId] ?? _ClipInspectorValues.defaults;
+    return _inspectorByClipId[inspectedClipId] ??
+        _ClipInspectorValues.fromClip(inspectedClip);
   }
 }
 
@@ -558,27 +578,47 @@ class _ClipInspectorValues {
     required this.opacity,
     required this.speed,
     required this.volume,
+    required this.scale,
+    required this.rotationDeg,
   });
 
   static const _ClipInspectorValues defaults = _ClipInspectorValues(
     opacity: 1.0,
     speed: 1.0,
     volume: 1.0,
+    scale: 1.0,
+    rotationDeg: 0.0,
   );
+
+  factory _ClipInspectorValues.fromClip(Clip clip) {
+    return _ClipInspectorValues(
+      opacity: clip.opacity,
+      speed: clip.speed,
+      volume: clip.volume,
+      scale: clip.scale,
+      rotationDeg: clip.rotationDeg,
+    );
+  }
 
   final double opacity;
   final double speed;
   final double volume;
+  final double scale;
+  final double rotationDeg;
 
   _ClipInspectorValues copyWith({
     double? opacity,
     double? speed,
     double? volume,
+    double? scale,
+    double? rotationDeg,
   }) {
     return _ClipInspectorValues(
       opacity: opacity ?? this.opacity,
       speed: speed ?? this.speed,
       volume: volume ?? this.volume,
+      scale: scale ?? this.scale,
+      rotationDeg: rotationDeg ?? this.rotationDeg,
     );
   }
 }
@@ -625,20 +665,65 @@ class _ClipInspectorCard extends StatelessWidget {
             ).textTheme.bodySmall?.copyWith(color: context.cyberpunk.textMuted),
           ),
           const SizedBox(height: 6),
+          Text(
+            'Transform',
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: context.cyberpunk.textMuted,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          _InspectorSlider(
+            label: 'Scale ${values.scale.toStringAsFixed(2)}x',
+            min: 0.5,
+            max: 2.0,
+            value: values.scale,
+            activeColor: context.cyberpunk.neonBlue,
+            onChanged: (double value) {
+              onChanged(values.copyWith(scale: value));
+            },
+          ),
+          _InspectorSlider(
+            label: 'Rotation ${values.rotationDeg.toStringAsFixed(0)}deg',
+            min: -180,
+            max: 180,
+            value: values.rotationDeg,
+            activeColor: context.cyberpunk.neonBlue,
+            onChanged: (double value) {
+              onChanged(values.copyWith(rotationDeg: value));
+            },
+          ),
+          Divider(color: context.cyberpunk.border.withValues(alpha: 0.7)),
+          Text(
+            'Image / Video',
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: context.cyberpunk.textMuted,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           _InspectorSlider(
             label: 'Opacite ${(values.opacity * 100).round()}%',
             min: 0,
             max: 1,
             value: values.opacity,
+            activeColor: context.cyberpunk.neonBlue,
             onChanged: (double value) {
               onChanged(values.copyWith(opacity: value));
             },
+          ),
+          Divider(color: context.cyberpunk.border.withValues(alpha: 0.7)),
+          Text(
+            'Audio / Tempo',
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: context.cyberpunk.textMuted,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           _InspectorSlider(
             label: 'Vitesse ${values.speed.toStringAsFixed(2)}x',
             min: 0.25,
             max: 2.0,
             value: values.speed,
+            activeColor: context.cyberpunk.neonPink,
             onChanged: (double value) {
               onChanged(values.copyWith(speed: value));
             },
@@ -648,6 +733,7 @@ class _ClipInspectorCard extends StatelessWidget {
             min: 0,
             max: 2.0,
             value: values.volume,
+            activeColor: context.cyberpunk.neonPink,
             onChanged: (double value) {
               onChanged(values.copyWith(volume: value));
             },
@@ -665,6 +751,7 @@ class _InspectorSlider extends StatelessWidget {
     required this.max,
     required this.value,
     required this.onChanged,
+    this.activeColor,
   });
 
   final String label;
@@ -672,6 +759,7 @@ class _InspectorSlider extends StatelessWidget {
   final double max;
   final double value;
   final ValueChanged<double> onChanged;
+  final Color? activeColor;
 
   @override
   Widget build(BuildContext context) {
@@ -684,11 +772,18 @@ class _InspectorSlider extends StatelessWidget {
             context,
           ).textTheme.bodySmall?.copyWith(color: context.cyberpunk.textMuted),
         ),
-        Slider(
-          min: min,
-          max: max,
-          value: value.clamp(min, max),
-          onChanged: onChanged,
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            activeTrackColor:
+                activeColor ?? Theme.of(context).colorScheme.primary,
+            thumbColor: activeColor ?? Theme.of(context).colorScheme.primary,
+          ),
+          child: Slider(
+            min: min,
+            max: max,
+            value: value.clamp(min, max),
+            onChanged: onChanged,
+          ),
         ),
       ],
     );
@@ -781,24 +876,61 @@ class _StudioTopBar extends StatelessWidget {
   }
 }
 
-class _PanelShell extends StatelessWidget {
+class _PanelShell extends StatefulWidget {
   const _PanelShell({required this.title, required this.child});
 
   final String title;
   final Widget child;
 
   @override
+  State<_PanelShell> createState() => _PanelShellState();
+}
+
+class _PanelShellState extends State<_PanelShell> {
+  static const Duration _hoverDuration = Duration(milliseconds: 140);
+  bool _isHovered = false;
+
+  @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text(title, style: Theme.of(context).textTheme.titleSmall),
-            const SizedBox(height: 8),
-            Expanded(child: child),
-          ],
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: AnimatedContainer(
+        duration: _hoverDuration,
+        curve: Curves.easeOutCubic,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: _isHovered
+                ? context.cyberpunk.neonBlue.withValues(alpha: 0.45)
+                : context.cyberpunk.border,
+          ),
+          boxShadow: _isHovered
+              ? <BoxShadow>[
+                  BoxShadow(
+                    color: context.cyberpunk.neonBlue.withValues(alpha: 0.12),
+                    blurRadius: 12,
+                    spreadRadius: 1,
+                  ),
+                ]
+              : const <BoxShadow>[],
+        ),
+        child: Card(
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  widget.title,
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 8),
+                Expanded(child: widget.child),
+              ],
+            ),
+          ),
         ),
       ),
     );

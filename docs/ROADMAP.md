@@ -78,15 +78,16 @@ Construire un editeur video desktop macOS, 100% open source et gratuit, sous Flu
   - Pistes mieux structurees (headers piste, etats mute/solo/lock, labels plus lisibles)
   - Playhead et selection clips avec hierarchie visuelle forte (accent actif uniquement)
   - Progression: headers piste enrichis (mute/solo/lock), toggle snapping global, badge playhead renforce
-- [ ] Etape 3 - Inspecteur et coherence visuelle cyberpunk
+- [x] Etape 3 - Inspecteur et coherence visuelle cyberpunk
   - Panneau inspecteur contextuel (transform, opacite, vitesse, audio de base)
   - Systeme de densite/contraste: neon reserve aux elements actifs, texte secondaire adouci
   - Harmonisation composants (cards, boutons, sliders, separateurs) pour un rendu coherent non "gadget"
-  - Progression en cours: inspecteur clip branche a la selection timeline + vitesse/volume appliques en preview quand le clip inspecte est actif
+  - Progression: inspecteur clip contextuel (transform, opacite, vitesse, volume), persistance `.psm` et application preview (scale/rotation/opacite + vitesse/volume)
 - [ ] Etape 4 - Finition interaction et ergonomie
   - Micro-interactions fluides (hover, focus, selection, transitions courtes)
   - Accessibilite desktop (tailles minimales de cibles, lisibilite, raccourcis de base)
   - Validation UX sur sessions montage longues (fatigue visuelle, rapidite d'execution)
+  - Progression en cours: micro-interactions hover sur panneaux studio (animation courte + accent visuel)
 
 ## M4 - Enrichissements
 - [ ] Sous-titres et texte anime

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
@@ -93,6 +94,11 @@ class _PreviewViewportState extends State<PreviewViewport> {
         .extension(activeVisualClip.clip.assetPath)
         .replaceFirst('.', '')
         .toLowerCase();
+    final double visualOpacity = _safeOpacity(activeVisualClip.clip.opacity);
+    final double visualScale = _safeScale(activeVisualClip.clip.scale);
+    final double visualRotationRad = _degToRad(
+      activeVisualClip.clip.rotationDeg,
+    );
 
     if (_imageExtensions.contains(extension)) {
       final File imageFile = File(activeVisualClip.clip.assetPath);
@@ -110,19 +116,24 @@ class _PreviewViewportState extends State<PreviewViewport> {
         child: Stack(
           fit: StackFit.expand,
           children: <Widget>[
-            Image.file(
-              imageFile,
-              fit: BoxFit.contain,
-              errorBuilder:
-                  (
-                    BuildContext context,
-                    Object error,
-                    StackTrace? stackTrace,
-                  ) => const _FallbackLabel(
-                    label: 'Image non accessible',
-                    details:
-                        'Reimporte ce fichier pour renouveler la permission.',
-                  ),
+            _VisualTransform(
+              opacity: visualOpacity,
+              scale: visualScale,
+              rotationRad: visualRotationRad,
+              child: Image.file(
+                imageFile,
+                fit: BoxFit.contain,
+                errorBuilder:
+                    (
+                      BuildContext context,
+                      Object error,
+                      StackTrace? stackTrace,
+                    ) => const _FallbackLabel(
+                      label: 'Image non accessible',
+                      details:
+                          'Reimporte ce fichier pour renouveler la permission.',
+                    ),
+              ),
             ),
             _CornerLabel(label: p.basename(activeVisualClip.clip.assetPath)),
           ],
@@ -146,12 +157,17 @@ class _PreviewViewportState extends State<PreviewViewport> {
         child: Stack(
           fit: StackFit.expand,
           children: <Widget>[
-            FittedBox(
-              fit: BoxFit.contain,
-              child: SizedBox(
-                width: controller.value.size.width,
-                height: controller.value.size.height,
-                child: VideoPlayer(controller),
+            _VisualTransform(
+              opacity: visualOpacity,
+              scale: visualScale,
+              rotationRad: visualRotationRad,
+              child: FittedBox(
+                fit: BoxFit.contain,
+                child: SizedBox(
+                  width: controller.value.size.width,
+                  height: controller.value.size.height,
+                  child: VideoPlayer(controller),
+                ),
               ),
             ),
             _CornerLabel(label: p.basename(activeVisualClip.clip.assetPath)),
@@ -256,6 +272,43 @@ class _PreviewViewportState extends State<PreviewViewport> {
     _videoController = null;
     _boundVideoPath = null;
     _lastSeekMs = -1000;
+  }
+
+  double _safeOpacity(double value) {
+    return value.clamp(0.0, 1.0);
+  }
+
+  double _safeScale(double value) {
+    return value.clamp(0.5, 2.0);
+  }
+
+  double _degToRad(double deg) {
+    return deg * math.pi / 180.0;
+  }
+}
+
+class _VisualTransform extends StatelessWidget {
+  const _VisualTransform({
+    required this.opacity,
+    required this.scale,
+    required this.rotationRad,
+    required this.child,
+  });
+
+  final double opacity;
+  final double scale;
+  final double rotationRad;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: opacity,
+      child: Transform.rotate(
+        angle: rotationRad,
+        child: Transform.scale(scale: scale, child: child),
+      ),
+    );
   }
 }
 

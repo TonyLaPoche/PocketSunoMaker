@@ -70,6 +70,11 @@ class LocalProjectDataSource {
       'timelineStartMs': clip.timelineStartMs,
       'sourceInMs': clip.sourceInMs,
       'sourceOutMs': clip.sourceOutMs,
+      'opacity': clip.opacity,
+      'speed': clip.speed,
+      'volume': clip.volume,
+      'scale': clip.scale,
+      'rotationDeg': clip.rotationDeg,
     };
   }
 
@@ -117,6 +122,11 @@ class LocalProjectDataSource {
       timelineStartMs: _asInt(json['timelineStartMs'], fallback: 0),
       sourceInMs: _asInt(json['sourceInMs'], fallback: 0),
       sourceOutMs: _asInt(json['sourceOutMs'], fallback: 0),
+      opacity: _asDouble(json['opacity'], fallback: 1.0),
+      speed: _asDouble(json['speed'], fallback: 1.0),
+      volume: _asDouble(json['volume'], fallback: 1.0),
+      scale: _asDouble(json['scale'], fallback: 1.0),
+      rotationDeg: _asDouble(json['rotationDeg'], fallback: 0.0),
     );
   }
 
@@ -126,6 +136,16 @@ class LocalProjectDataSource {
     }
     if (value is String) {
       return int.tryParse(value) ?? fallback;
+    }
+    return fallback;
+  }
+
+  double _asDouble(Object? value, {required double fallback}) {
+    if (value is num) {
+      return value.toDouble();
+    }
+    if (value is String) {
+      return double.tryParse(value) ?? fallback;
     }
     return fallback;
   }

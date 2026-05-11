@@ -420,6 +420,30 @@ class ProjectController extends Notifier<ProjectState> {
     );
   }
 
+  void updateClipInspectorValues({
+    required String trackId,
+    required String clipId,
+    required double opacity,
+    required double speed,
+    required double volume,
+    required double scale,
+    required double rotationDeg,
+  }) {
+    _updateClip(
+      trackId: trackId,
+      clipId: clipId,
+      update: (Clip clip) {
+        return clip.copyWith(
+          opacity: opacity.clamp(0.0, 1.0),
+          speed: speed.clamp(0.25, 2.0),
+          volume: volume.clamp(0.0, 2.0),
+          scale: scale.clamp(0.5, 2.0),
+          rotationDeg: rotationDeg.clamp(-180.0, 180.0),
+        );
+      },
+    );
+  }
+
   String _sanitizeFileName(String source) {
     final String noExtension = p.basenameWithoutExtension(source.trim());
     final String safe = noExtension.replaceAll(RegExp(r'[^a-zA-Z0-9_\- ]'), '');
