@@ -15,6 +15,7 @@ class TimelinePanel extends StatefulWidget {
   const TimelinePanel({
     required this.project,
     required this.playheadMs,
+    required this.isPlaying,
     required this.onMoveClipByDelta,
     required this.onTrimClipStartByDelta,
     required this.onTrimClipEndByDelta,
@@ -25,6 +26,7 @@ class TimelinePanel extends StatefulWidget {
 
   final Project? project;
   final int playheadMs;
+  final bool isPlaying;
   final void Function({
     required String trackId,
     required String clipId,
@@ -66,10 +68,12 @@ class _TimelinePanelState extends State<TimelinePanel> {
   final ScrollController horizontalScrollController = ScrollController();
 
   static const double _basePixelsPerSecond = 100;
-  static const double _minZoom = 0.01;
+  static const double _minZoom = 0.05;
   static const double _maxZoom = 3.0;
   static const double _rowHeight = 64;
   static const double _timelineStartLeft = 88;
+  static const double _followViewportRatio = 0.35;
+  static const double _followSafetyMarginPx = 160;
 
   @override
   void dispose() {
@@ -97,6 +101,12 @@ class _TimelinePanelState extends State<TimelinePanel> {
     final ({String trackId, Clip clip})? selectedClipRef = _resolveSelectedClip(
       widget.project!,
     );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      _followPlayheadDuringPlayback(playheadLeft);
+    });
 
     return Container(
       decoration: BoxDecoration(
@@ -109,6 +119,9 @@ class _TimelinePanelState extends State<TimelinePanel> {
           _TimelineToolbar(
             activeTool: activeTool,
             zoomLevel: zoomLevel,
+            minZoom: _minZoom,
+            maxZoom: _maxZoom,
+            zoomDivisions: ((_maxZoom - _minZoom) * 100).round(),
             markerCount: markersMs.length,
             onToolSelected: (TimelineEditTool tool) {
               setState(() {
@@ -185,12 +198,15 @@ class _TimelinePanelState extends State<TimelinePanel> {
                 _lastPanZoomScale = 1.0;
               },
               onPointerPanZoomUpdate: (PointerPanZoomUpdateEvent event) {
-                final double scaleDelta = event.scale - _lastPanZoomScale;
+                final double scaleRatio = event.scale / _lastPanZoomScale;
                 _lastPanZoomScale = event.scale;
-                if (scaleDelta.abs() > 0.001) {
+                if ((scaleRatio - 1).abs() > 0.0005) {
                   setState(() {
-                    final double next = zoomLevel + (scaleDelta * 1.2);
-                    zoomLevel = next.clamp(_minZoom, _maxZoom);
+                    final double target = (zoomLevel * scaleRatio).clamp(
+                      _minZoom,
+                      _maxZoom,
+                    );
+                    zoomLevel = _smoothZoom(zoomLevel, target);
                   });
                 }
                 if (!horizontalScrollController.hasClients) {
@@ -382,12 +398,50 @@ class _TimelinePanelState extends State<TimelinePanel> {
     }
     return null;
   }
+
+  void _followPlayheadDuringPlayback(double playheadLeft) {
+    if (!widget.isPlaying || !horizontalScrollController.hasClients) {
+      return;
+    }
+    final ScrollPosition position = horizontalScrollController.position;
+    final double currentOffset = horizontalScrollController.offset;
+    final double viewportWidth = position.viewportDimension;
+    final double visibleStart = currentOffset + _followSafetyMarginPx;
+    final double visibleEnd =
+        currentOffset + viewportWidth - _followSafetyMarginPx;
+    if (playheadLeft >= visibleStart && playheadLeft <= visibleEnd) {
+      return;
+    }
+    final double target = (playheadLeft - viewportWidth * _followViewportRatio)
+        .clamp(0.0, position.maxScrollExtent)
+        .toDouble();
+    if ((target - currentOffset).abs() < 1) {
+      return;
+    }
+    horizontalScrollController.animateTo(
+      target,
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  double _smoothZoom(double current, double target) {
+    const double alpha = 0.3;
+    final double next = current + (target - current) * alpha;
+    if ((next - target).abs() < 0.0005) {
+      return target;
+    }
+    return next;
+  }
 }
 
 class _TimelineToolbar extends StatelessWidget {
   const _TimelineToolbar({
     required this.activeTool,
     required this.zoomLevel,
+    required this.minZoom,
+    required this.maxZoom,
+    required this.zoomDivisions,
     required this.markerCount,
     required this.onToolSelected,
     required this.onAddMarker,
@@ -399,6 +453,9 @@ class _TimelineToolbar extends StatelessWidget {
 
   final TimelineEditTool activeTool;
   final double zoomLevel;
+  final double minZoom;
+  final double maxZoom;
+  final int zoomDivisions;
   final int markerCount;
   final ValueChanged<TimelineEditTool> onToolSelected;
   final VoidCallback onAddMarker;
@@ -466,9 +523,9 @@ class _TimelineToolbar extends StatelessWidget {
           SizedBox(
             width: 140,
             child: Slider(
-              min: 0.01,
-              max: 3.0,
-              divisions: 299,
+              min: minZoom,
+              max: maxZoom,
+              divisions: zoomDivisions,
               value: zoomLevel,
               onChanged: onZoomChanged,
             ),

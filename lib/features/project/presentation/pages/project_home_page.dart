@@ -336,6 +336,7 @@ class ProjectHomePage extends ConsumerWidget {
                               child: TimelinePanel(
                                 project: projectState.currentProject,
                                 playheadMs: previewState.currentPositionMs,
+                                isPlaying: previewState.isPlaying,
                                 onMoveClipByDelta:
                                     projectController.moveClipByDelta,
                                 onTrimClipStartByDelta:
