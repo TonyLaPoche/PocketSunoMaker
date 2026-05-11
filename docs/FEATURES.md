@@ -26,6 +26,10 @@
 
 - lecture/pause/seek
 - synchro audio/video
+- zone preview agrandissable/reductible
+- cadre preview neon (rose/violet) aligne sur le format de sortie
+- adaptation automatique du ratio selon preset export (YouTube/Shorts/Reels)
+- grille de reperes activable pour positionnement precis
 - rendu preview progressif (qualite adaptable)
 - rendu proxy pour medias lourds
 

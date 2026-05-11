@@ -21,6 +21,9 @@ class PreviewViewport extends StatefulWidget {
     this.selectedTextClipId,
     this.onTextClipSelected,
     this.onMoveSelectedTextByDelta,
+    this.showGuides = false,
+    this.outputWidth,
+    this.outputHeight,
     super.key,
   });
 
@@ -32,6 +35,9 @@ class PreviewViewport extends StatefulWidget {
   final void Function(String trackId, project_clip.Clip clip)?
   onTextClipSelected;
   final ValueChanged<Offset>? onMoveSelectedTextByDelta;
+  final bool showGuides;
+  final int? outputWidth;
+  final int? outputHeight;
 
   @override
   State<PreviewViewport> createState() => _PreviewViewportState();
@@ -92,31 +98,43 @@ class _PreviewViewportState extends State<PreviewViewport> {
       positionMs: widget.positionMs,
       type: TrackType.text,
     );
+    final int stageWidth = widget.outputWidth ?? widget.project.canvasWidth;
+    final int stageHeight = widget.outputHeight ?? widget.project.canvasHeight;
 
     if (activeVisualClip == null) {
       return _ViewportFrame(
         height: widget.viewportHeight,
-        child: Stack(
-          fit: StackFit.expand,
-          children: <Widget>[
-            _FallbackLabel(
-              label: 'Aucun clip visuel actif',
-              details: 'Place le playhead sur un clip video/image.',
-            ),
-            if (activeTextClip != null)
-              _TextOverlay(
-                clip: activeTextClip.clip,
-                text: _resolveText(activeTextClip),
-                isSelected: widget.selectedTextClipId == activeTextClip.clip.id,
-                onTap: widget.onTextClipSelected == null
-                    ? null
-                    : () => widget.onTextClipSelected!(
-                        activeTextClip.trackId,
-                        activeTextClip.clip,
-                      ),
-                onPanUpdate: widget.onMoveSelectedTextByDelta,
+        child: _CanvasStage(
+          canvasWidth: stageWidth,
+          canvasHeight: stageHeight,
+          child: Stack(
+            fit: StackFit.expand,
+            children: <Widget>[
+              const _FallbackLabel(
+                label: 'Aucun clip visuel actif',
+                details: 'Place le playhead sur un clip video/image.',
               ),
-          ],
+              if (widget.showGuides) const _GuidesOverlay(),
+              if (activeTextClip != null)
+                _TextOverlay(
+                  clip: activeTextClip.clip,
+                  text: _resolveText(activeTextClip),
+                  projectCanvasWidth: widget.project.canvasWidth,
+                  projectCanvasHeight: widget.project.canvasHeight,
+                  stageWidth: stageWidth,
+                  stageHeight: stageHeight,
+                  isSelected:
+                      widget.selectedTextClipId == activeTextClip.clip.id,
+                  onTap: widget.onTextClipSelected == null
+                      ? null
+                      : () => widget.onTextClipSelected!(
+                          activeTextClip.trackId,
+                          activeTextClip.clip,
+                        ),
+                  onPanUpdate: widget.onMoveSelectedTextByDelta,
+                ),
+            ],
+          ),
         ),
       );
     }
@@ -147,39 +165,54 @@ class _PreviewViewportState extends State<PreviewViewport> {
         child: Stack(
           fit: StackFit.expand,
           children: <Widget>[
-            _VisualTransform(
-              opacity: visualOpacity,
-              scale: visualScale,
-              rotationRad: visualRotationRad,
-              child: Image.file(
-                imageFile,
-                fit: BoxFit.contain,
-                errorBuilder:
-                    (
-                      BuildContext context,
-                      Object error,
-                      StackTrace? stackTrace,
-                    ) => const _FallbackLabel(
-                      label: 'Image non accessible',
-                      details:
-                          'Reimporte ce fichier pour renouveler la permission.',
+            _CanvasStage(
+              canvasWidth: stageWidth,
+              canvasHeight: stageHeight,
+              child: Stack(
+                fit: StackFit.expand,
+                children: <Widget>[
+                  _VisualTransform(
+                    opacity: visualOpacity,
+                    scale: visualScale,
+                    rotationRad: visualRotationRad,
+                    child: Image.file(
+                      imageFile,
+                      fit: BoxFit.contain,
+                      errorBuilder:
+                          (
+                            BuildContext context,
+                            Object error,
+                            StackTrace? stackTrace,
+                          ) => const _FallbackLabel(
+                            label: 'Image non accessible',
+                            details:
+                                'Reimporte ce fichier pour renouveler la permission.',
+                          ),
                     ),
+                  ),
+                  if (widget.showGuides) const _GuidesOverlay(),
+                  if (activeTextClip != null)
+                    _TextOverlay(
+                      clip: activeTextClip.clip,
+                      text: _resolveText(activeTextClip),
+                      projectCanvasWidth: widget.project.canvasWidth,
+                      projectCanvasHeight: widget.project.canvasHeight,
+                      stageWidth: stageWidth,
+                      stageHeight: stageHeight,
+                      isSelected:
+                          widget.selectedTextClipId == activeTextClip.clip.id,
+                      onTap: widget.onTextClipSelected == null
+                          ? null
+                          : () => widget.onTextClipSelected!(
+                              activeTextClip.trackId,
+                              activeTextClip.clip,
+                            ),
+                      onPanUpdate: widget.onMoveSelectedTextByDelta,
+                    ),
+                ],
               ),
             ),
             _CornerLabel(label: p.basename(activeVisualClip.clip.assetPath)),
-            if (activeTextClip != null)
-              _TextOverlay(
-                clip: activeTextClip.clip,
-                text: _resolveText(activeTextClip),
-                isSelected: widget.selectedTextClipId == activeTextClip.clip.id,
-                onTap: widget.onTextClipSelected == null
-                    ? null
-                    : () => widget.onTextClipSelected!(
-                        activeTextClip.trackId,
-                        activeTextClip.clip,
-                      ),
-                onPanUpdate: widget.onMoveSelectedTextByDelta,
-              ),
           ],
         ),
       );
@@ -201,33 +234,48 @@ class _PreviewViewportState extends State<PreviewViewport> {
         child: Stack(
           fit: StackFit.expand,
           children: <Widget>[
-            _VisualTransform(
-              opacity: visualOpacity,
-              scale: visualScale,
-              rotationRad: visualRotationRad,
-              child: FittedBox(
-                fit: BoxFit.contain,
-                child: SizedBox(
-                  width: controller.value.size.width,
-                  height: controller.value.size.height,
-                  child: VideoPlayer(controller),
-                ),
+            _CanvasStage(
+              canvasWidth: stageWidth,
+              canvasHeight: stageHeight,
+              child: Stack(
+                fit: StackFit.expand,
+                children: <Widget>[
+                  _VisualTransform(
+                    opacity: visualOpacity,
+                    scale: visualScale,
+                    rotationRad: visualRotationRad,
+                    child: FittedBox(
+                      fit: BoxFit.contain,
+                      child: SizedBox(
+                        width: controller.value.size.width,
+                        height: controller.value.size.height,
+                        child: VideoPlayer(controller),
+                      ),
+                    ),
+                  ),
+                  if (widget.showGuides) const _GuidesOverlay(),
+                  if (activeTextClip != null)
+                    _TextOverlay(
+                      clip: activeTextClip.clip,
+                      text: _resolveText(activeTextClip),
+                      projectCanvasWidth: widget.project.canvasWidth,
+                      projectCanvasHeight: widget.project.canvasHeight,
+                      stageWidth: stageWidth,
+                      stageHeight: stageHeight,
+                      isSelected:
+                          widget.selectedTextClipId == activeTextClip.clip.id,
+                      onTap: widget.onTextClipSelected == null
+                          ? null
+                          : () => widget.onTextClipSelected!(
+                              activeTextClip.trackId,
+                              activeTextClip.clip,
+                            ),
+                      onPanUpdate: widget.onMoveSelectedTextByDelta,
+                    ),
+                ],
               ),
             ),
             _CornerLabel(label: p.basename(activeVisualClip.clip.assetPath)),
-            if (activeTextClip != null)
-              _TextOverlay(
-                clip: activeTextClip.clip,
-                text: _resolveText(activeTextClip),
-                isSelected: widget.selectedTextClipId == activeTextClip.clip.id,
-                onTap: widget.onTextClipSelected == null
-                    ? null
-                    : () => widget.onTextClipSelected!(
-                        activeTextClip.trackId,
-                        activeTextClip.clip,
-                      ),
-                onPanUpdate: widget.onMoveSelectedTextByDelta,
-              ),
           ],
         ),
       );
@@ -398,10 +446,132 @@ class _ViewportFrame extends StatelessWidget {
   }
 }
 
+class _CanvasStage extends StatelessWidget {
+  const _CanvasStage({
+    required this.canvasWidth,
+    required this.canvasHeight,
+    required this.child,
+  });
+
+  final int canvasWidth;
+  final int canvasHeight;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        if (constraints.maxWidth <= 0 || constraints.maxHeight <= 0) {
+          return const SizedBox.shrink();
+        }
+        return Center(
+          child: FittedBox(
+            fit: BoxFit.contain,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  width: 1.6,
+                  color: context.cyberpunk.neonBlue.withValues(alpha: 0.9),
+                ),
+                boxShadow: <BoxShadow>[
+                  BoxShadow(
+                    color: context.cyberpunk.neonPink.withValues(alpha: 0.30),
+                    blurRadius: 18,
+                    spreadRadius: 2,
+                  ),
+                  BoxShadow(
+                    color: context.cyberpunk.neonBlue.withValues(alpha: 0.22),
+                    blurRadius: 26,
+                    spreadRadius: 4,
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: SizedBox(
+                  width: canvasWidth.toDouble(),
+                  height: canvasHeight.toDouble(),
+                  child: child,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _GuidesOverlay extends StatelessWidget {
+  const _GuidesOverlay();
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: CustomPaint(
+        size: Size.infinite,
+        painter: _GuidesPainter(color: context.cyberpunk.neonBlue),
+      ),
+    );
+  }
+}
+
+class _GuidesPainter extends CustomPainter {
+  const _GuidesPainter({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.width <= 0 || size.height <= 0) {
+      return;
+    }
+    final Paint major = Paint()
+      ..color = color.withValues(alpha: 0.26)
+      ..strokeWidth = 1;
+    final Paint minor = Paint()
+      ..color = color.withValues(alpha: 0.1)
+      ..strokeWidth = 1;
+    final List<double> vxMinor = <double>[0.25, 0.5, 0.75];
+    final List<double> hyMinor = <double>[0.25, 0.5, 0.75];
+    for (final double ratio in vxMinor) {
+      final double x = size.width * ratio;
+      canvas.drawLine(
+        Offset(x, 0),
+        Offset(x, size.height),
+        ratio == 0.5 ? major : minor,
+      );
+    }
+    for (final double ratio in hyMinor) {
+      final double y = size.height * ratio;
+      canvas.drawLine(
+        Offset(0, y),
+        Offset(size.width, y),
+        ratio == 0.5 ? major : minor,
+      );
+    }
+    final Paint border = Paint()
+      ..color = color.withValues(alpha: 0.2)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    canvas.drawRect(Offset.zero & size, border);
+  }
+
+  @override
+  bool shouldRepaint(covariant _GuidesPainter oldDelegate) {
+    return oldDelegate.color != color;
+  }
+}
+
 class _TextOverlay extends StatelessWidget {
   const _TextOverlay({
     required this.clip,
     required this.text,
+    required this.projectCanvasWidth,
+    required this.projectCanvasHeight,
+    required this.stageWidth,
+    required this.stageHeight,
     required this.isSelected,
     this.onTap,
     this.onPanUpdate,
@@ -409,12 +579,19 @@ class _TextOverlay extends StatelessWidget {
 
   final project_clip.Clip clip;
   final String text;
+  final int projectCanvasWidth;
+  final int projectCanvasHeight;
+  final int stageWidth;
+  final int stageHeight;
   final bool isSelected;
   final VoidCallback? onTap;
   final ValueChanged<Offset>? onPanUpdate;
 
   @override
   Widget build(BuildContext context) {
+    final double sx = stageWidth / math.max(1, projectCanvasWidth);
+    final double sy = stageHeight / math.max(1, projectCanvasHeight);
+    final double textScale = math.min(sx, sy);
     final TextStyle textStyle = TextStyle(
       color: _colorFromHex(
         clip.textColorHex,
@@ -422,18 +599,20 @@ class _TextOverlay extends StatelessWidget {
       ),
       fontWeight: clip.textBold ? FontWeight.w700 : FontWeight.w500,
       fontStyle: clip.textItalic ? FontStyle.italic : FontStyle.normal,
-      fontSize: clip.textFontSizePx.clamp(12.0, 220.0),
+      fontSize: (clip.textFontSizePx * textScale).clamp(12.0, 240.0),
       fontFamily: clip.textFontFamily,
       height: 1.1,
     );
     return Align(
       alignment: Alignment.center,
       child: Transform.translate(
-        offset: Offset(clip.textPosXPx, clip.textPosYPx),
+        offset: Offset(clip.textPosXPx * sx, clip.textPosYPx * sy),
         child: GestureDetector(
           onTap: onTap,
           onPanUpdate: isSelected && onPanUpdate != null
-              ? (DragUpdateDetails details) => onPanUpdate!(details.delta)
+              ? (DragUpdateDetails details) => onPanUpdate!(
+                  Offset(details.delta.dx / sx, details.delta.dy / sy),
+                )
               : null,
           child: DecoratedBox(
             decoration: BoxDecoration(
@@ -524,6 +703,8 @@ class _CornerLabel extends StatelessWidget {
             label,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: context.cyberpunk.textPrimary,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ),

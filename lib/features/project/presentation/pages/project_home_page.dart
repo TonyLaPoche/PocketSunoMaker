@@ -36,6 +36,7 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
   String? _inspectedTrackId;
   Clip? _inspectedClip;
   bool _comfortModeEnabled = true;
+  bool _previewGuidesEnabled = false;
   double _timelineHeightPx = 300;
   final Map<String, _ClipInspectorValues> _inspectorByClipId =
       <String, _ClipInspectorValues>{};
@@ -327,6 +328,11 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
                                           deltaYPx: delta.dy,
                                         );
                                       },
+                                      showGuides: _previewGuidesEnabled,
+                                      outputWidth:
+                                          exportState.selectedPreset.width,
+                                      outputHeight:
+                                          exportState.selectedPreset.height,
                                     ),
                                   ),
                                 ),
@@ -349,6 +355,8 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
                                       ),
                                       inspectedClip: _inspectedClip,
                                       inspectorByClipId: _inspectorByClipId,
+                                      previewGuidesEnabled:
+                                          _previewGuidesEnabled,
                                       onSelectPreset:
                                           exportController.selectPreset,
                                       onEnqueueExport: project == null
@@ -446,6 +454,11 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
                                               );
                                             }
                                           : null,
+                                      onTogglePreviewGuides: (bool enabled) {
+                                        setState(() {
+                                          _previewGuidesEnabled = enabled;
+                                        });
+                                      },
                                     ),
                                   ),
                                 ),
@@ -1133,6 +1146,7 @@ class _InspectorExportTabs extends StatelessWidget {
     required this.inspectedTrackType,
     required this.inspectedClip,
     required this.inspectorByClipId,
+    required this.previewGuidesEnabled,
     required this.onSelectPreset,
     required this.onEnqueueExport,
     required this.onAddTextAtPlayhead,
@@ -1140,6 +1154,7 @@ class _InspectorExportTabs extends StatelessWidget {
     required this.statusColorBuilder,
     required this.onInspectorChanged,
     required this.onEditText,
+    required this.onTogglePreviewGuides,
   });
 
   final Project? project;
@@ -1152,6 +1167,7 @@ class _InspectorExportTabs extends StatelessWidget {
   final TrackType? inspectedTrackType;
   final Clip? inspectedClip;
   final Map<String, _ClipInspectorValues> inspectorByClipId;
+  final bool previewGuidesEnabled;
   final ValueChanged<ExportPreset> onSelectPreset;
   final VoidCallback? onEnqueueExport;
   final VoidCallback? onAddTextAtPlayhead;
@@ -1160,6 +1176,7 @@ class _InspectorExportTabs extends StatelessWidget {
   statusColorBuilder;
   final ValueChanged<_ClipInspectorValues> onInspectorChanged;
   final VoidCallback? onEditText;
+  final ValueChanged<bool> onTogglePreviewGuides;
 
   @override
   Widget build(BuildContext context) {
@@ -1204,6 +1221,17 @@ class _InspectorExportTabs extends StatelessWidget {
                         onChanged: onInspectorChanged,
                         onEditText: onEditText,
                       ),
+                    const SizedBox(height: 10),
+                    SwitchListTile(
+                      value: previewGuidesEnabled,
+                      onChanged: onTogglePreviewGuides,
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Grille de reperes preview'),
+                      subtitle: const Text(
+                        'Repere visuel 3x3 pour le placement',
+                      ),
+                    ),
                     const SizedBox(height: 12),
                     Text(
                       'Projet',

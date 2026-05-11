@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import '../../../project/domain/entities/clip.dart';
 import '../../../project/domain/entities/export_preset.dart';
@@ -55,8 +56,7 @@ class FfmpegExportService {
 
     args.addAll(<String>[
       '-vf',
-      'scale=${preset.width}:${preset.height}:force_original_aspect_ratio=decrease,'
-          'pad=${preset.width}:${preset.height}:(ow-iw)/2:(oh-ih)/2',
+      _buildVideoFilter(project: project, preset: preset),
       '-r',
       preset.frameRate.toString(),
       '-c:v',
@@ -135,6 +135,68 @@ class FfmpegExportService {
       args.addAll(<String>['-loop', '1']);
     }
     args.addAll(<String>['-i', clip.assetPath]);
+  }
+
+  String _buildVideoFilter({
+    required Project project,
+    required ExportPreset preset,
+  }) {
+    final String baseScalePad =
+        'scale=${preset.width}:${preset.height}:force_original_aspect_ratio=decrease,'
+        'pad=${preset.width}:${preset.height}:(ow-iw)/2:(oh-ih)/2';
+    final List<Clip> textClips =
+        project.tracks
+            .where((Track track) => track.type == TrackType.text)
+            .expand((Track track) => track.clips)
+            .toList(growable: false)
+          ..sort(
+            (Clip a, Clip b) => a.timelineStartMs.compareTo(b.timelineStartMs),
+          );
+    if (textClips.isEmpty) {
+      return baseScalePad;
+    }
+    final double sx = preset.width / project.canvasWidth;
+    final double sy = preset.height / project.canvasHeight;
+    final double fontScale = math.min(sx, sy);
+    final List<String> drawTextFilters = <String>[];
+    for (final Clip clip in textClips) {
+      final String? rawText = clip.textContent?.trim();
+      if (rawText == null || rawText.isEmpty) {
+        continue;
+      }
+      final String text = _escapeDrawText(rawText);
+      final String font = _escapeDrawText(clip.textFontFamily);
+      final int fontSize = (clip.textFontSizePx * fontScale)
+          .round()
+          .clamp(10, 420)
+          .toInt();
+      final double xOffset = clip.textPosXPx * sx;
+      final double yOffset = clip.textPosYPx * sy;
+      final double start = clip.timelineStartMs / 1000;
+      final double end = (clip.timelineStartMs + clip.durationMs) / 1000;
+      final String fontColor = clip.textColorHex.replaceAll('#', '');
+      final String boxColor = clip.textBackgroundHex.replaceAll('#', '');
+      drawTextFilters.add(
+        "drawtext=text='$text':font='$font':fontsize=$fontSize:"
+        "fontcolor=$fontColor:box=1:boxcolor=$boxColor@0.62:"
+        "x=(w-text_w)/2+${xOffset.toStringAsFixed(2)}:"
+        "y=(h-text_h)/2+${yOffset.toStringAsFixed(2)}:"
+        "enable='between(t\\,${start.toStringAsFixed(3)}\\,${end.toStringAsFixed(3)})'",
+      );
+    }
+    if (drawTextFilters.isEmpty) {
+      return baseScalePad;
+    }
+    return <String>[baseScalePad, ...drawTextFilters].join(',');
+  }
+
+  String _escapeDrawText(String text) {
+    return text
+        .replaceAll(r'\', r'\\')
+        .replaceAll(':', r'\:')
+        .replaceAll(',', r'\,')
+        .replaceAll("'", r"\'")
+        .replaceAll('%', r'\%');
   }
 
   Clip? _firstClip(Project project, TrackType type) {

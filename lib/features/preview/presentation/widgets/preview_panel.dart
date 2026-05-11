@@ -8,7 +8,7 @@ import '../controllers/preview_state.dart';
 import '../utils/preview_clip_resolver.dart';
 import 'preview_viewport.dart';
 
-class PreviewPanel extends StatelessWidget {
+class PreviewPanel extends StatefulWidget {
   const PreviewPanel({
     required this.project,
     required this.state,
@@ -19,6 +19,9 @@ class PreviewPanel extends StatelessWidget {
     this.selectedTextClipId,
     this.onTextClipSelected,
     this.onMoveSelectedTextByDelta,
+    this.showGuides = false,
+    this.outputWidth,
+    this.outputHeight,
     super.key,
   });
 
@@ -31,10 +34,20 @@ class PreviewPanel extends StatelessWidget {
   final String? selectedTextClipId;
   final void Function(String trackId, Clip clip)? onTextClipSelected;
   final ValueChanged<Offset>? onMoveSelectedTextByDelta;
+  final bool showGuides;
+  final int? outputWidth;
+  final int? outputHeight;
+
+  @override
+  State<PreviewPanel> createState() => _PreviewPanelState();
+}
+
+class _PreviewPanelState extends State<PreviewPanel> {
+  double _viewportFactor = 0.55;
 
   @override
   Widget build(BuildContext context) {
-    if (project == null) {
+    if (widget.project == null) {
       return _PanelCard(
         child: const Center(
           child: Text(
@@ -46,15 +59,15 @@ class PreviewPanel extends StatelessWidget {
 
     final String activeVideoClip =
         findActiveClip(
-          project: project!,
-          positionMs: state.currentPositionMs,
+          project: widget.project!,
+          positionMs: widget.state.currentPositionMs,
           type: TrackType.video,
         )?.clip.assetPath.split('/').last ??
         'Aucun';
     final String activeAudioClip =
         findActiveClip(
-          project: project!,
-          positionMs: state.currentPositionMs,
+          project: widget.project!,
+          positionMs: widget.state.currentPositionMs,
           type: TrackType.audio,
         )?.clip.assetPath.split('/').last ??
         'Aucun';
@@ -62,46 +75,79 @@ class PreviewPanel extends StatelessWidget {
     return _PanelCard(
       child: LayoutBuilder(
         builder: (BuildContext context, BoxConstraints constraints) {
-          final double viewportHeight = (constraints.maxHeight * 0.4).clamp(
-            96.0,
-            190.0,
-          );
+          final double viewportHeight =
+              (constraints.maxHeight * _viewportFactor)
+                  .clamp(120.0, constraints.maxHeight * 0.9)
+                  .toDouble();
           return Padding(
             padding: const EdgeInsets.all(12),
             child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text(
-                    'Preview transport',
-                    style: Theme.of(context).textTheme.titleMedium,
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Text(
+                          'Preview transport',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Reduire preview',
+                        onPressed: () {
+                          setState(() {
+                            _viewportFactor = (_viewportFactor - 0.05)
+                                .clamp(0.35, 0.9)
+                                .toDouble();
+                          });
+                        },
+                        icon: const Icon(Icons.zoom_out),
+                      ),
+                      IconButton(
+                        tooltip: 'Agrandir preview',
+                        onPressed: () {
+                          setState(() {
+                            _viewportFactor = (_viewportFactor + 0.05)
+                                .clamp(0.35, 0.9)
+                                .toDouble();
+                          });
+                        },
+                        icon: const Icon(Icons.zoom_in),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                   PreviewViewport(
-                    project: project!,
-                    positionMs: state.currentPositionMs,
-                    isPlaying: state.isPlaying,
+                    project: widget.project!,
+                    positionMs: widget.state.currentPositionMs,
+                    isPlaying: widget.state.isPlaying,
                     viewportHeight: viewportHeight,
-                    selectedTextClipId: selectedTextClipId,
-                    onTextClipSelected: onTextClipSelected,
-                    onMoveSelectedTextByDelta: onMoveSelectedTextByDelta,
+                    selectedTextClipId: widget.selectedTextClipId,
+                    onTextClipSelected: widget.onTextClipSelected,
+                    onMoveSelectedTextByDelta: widget.onMoveSelectedTextByDelta,
+                    showGuides: widget.showGuides,
+                    outputWidth: widget.outputWidth,
+                    outputHeight: widget.outputHeight,
                   ),
                   const SizedBox(height: 8),
                   Row(
                     children: <Widget>[
                       FilledButton.icon(
-                        onPressed: state.durationMs <= 0
+                        onPressed: widget.state.durationMs <= 0
                             ? null
-                            : onTogglePlayPause,
+                            : widget.onTogglePlayPause,
                         icon: Icon(
-                          state.isPlaying ? Icons.pause : Icons.play_arrow,
+                          widget.state.isPlaying
+                              ? Icons.pause
+                              : Icons.play_arrow,
                         ),
-                        label: Text(state.isPlaying ? 'Pause' : 'Play'),
+                        label: Text(widget.state.isPlaying ? 'Pause' : 'Play'),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          '${_formatTime(state.currentPositionMs)} / ${_formatTime(state.durationMs)}',
+                          '${_formatTime(widget.state.currentPositionMs)} / ${_formatTime(widget.state.durationMs)}',
                           overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.bodyMedium
                               ?.copyWith(color: context.cyberpunk.textMuted),
@@ -112,15 +158,20 @@ class PreviewPanel extends StatelessWidget {
                   const SizedBox(height: 6),
                   Slider(
                     min: 0,
-                    max: state.durationMs <= 0
+                    max: widget.state.durationMs <= 0
                         ? 1
-                        : state.durationMs.toDouble(),
-                    value: state.currentPositionMs
-                        .clamp(0, state.durationMs <= 0 ? 1 : state.durationMs)
+                        : widget.state.durationMs.toDouble(),
+                    value: widget.state.currentPositionMs
+                        .clamp(
+                          0,
+                          widget.state.durationMs <= 0
+                              ? 1
+                              : widget.state.durationMs,
+                        )
                         .toDouble(),
-                    onChangeStart: (_) => onScrubStart(),
-                    onChangeEnd: (_) => onScrubEnd(),
-                    onChanged: (double value) => onSeekTo(value.round()),
+                    onChangeStart: (_) => widget.onScrubStart(),
+                    onChangeEnd: (_) => widget.onScrubEnd(),
+                    onChanged: (double value) => widget.onSeekTo(value.round()),
                   ),
                   Text(
                     'Video active: $activeVideoClip',

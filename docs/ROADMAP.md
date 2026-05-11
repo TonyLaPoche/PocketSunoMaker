@@ -91,8 +91,9 @@ Construire un editeur video desktop macOS, 100% open source et gratuit, sous Flu
 
 ## M4 - Enrichissements
 - [x] Section Timeline étirable (réduction des trois sections "Media", "Lecteur" et Inspecteur/Export)
+- [x] Preview adaptable et orientee export (agrandissement manuel, ratio auto sur preset, cadre neon rose/violet)
 - [ ] Sous-titres et texte anime
-  - Progression en cours: texte overlay v1 (clip texte dedie, edition depuis inspecteur, style typographique de base: police/taille px/gras/italique/couleurs, positionnement drag dans preview, rendu timeline specifique, persistance `.psm`)
+  - Progression en cours: texte overlay v1 (clip texte dedie, edition depuis inspecteur, style typographique de base: police/taille px/gras/italique/couleurs, positionnement drag dans preview, rendu timeline specifique, persistance `.psm`, projection preview en coordonnees canvas + export drawtext pour coherence taille/position, lisibilite renforcee en preview avec adaptation a l'echelle du preset de sortie)
 - [ ] Effets (glitch, rotation, etc.) pluginables
 - [ ] Visualizer lie au son
 - [ ] UX avancee (raccourcis, undo/redo, marqueurs)
