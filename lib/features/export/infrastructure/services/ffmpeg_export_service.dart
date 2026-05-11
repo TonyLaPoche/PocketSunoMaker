@@ -21,6 +21,7 @@ class FfmpegExportService {
 
     final List<String> args = <String>['-y'];
     if (videoClip != null) {
+      _assertClipAccessible(videoClip);
       _appendInputArgs(
         args,
         videoClip,
@@ -28,6 +29,7 @@ class FfmpegExportService {
       );
     }
     if (audioClip != null) {
+      _assertClipAccessible(audioClip);
       _appendInputArgs(args, audioClip, loopStillImage: false);
     }
 
@@ -73,18 +75,53 @@ class FfmpegExportService {
       outputPath,
     ]);
 
-    final ProcessResult result = await Process.run('ffmpeg', args).timeout(
-      const Duration(minutes: 12),
-      onTimeout: () => ProcessResult(0, -1, '', 'ffmpeg timeout'),
-    );
+    final ProcessResult result;
+    try {
+      result = await Process.run('ffmpeg', args).timeout(
+        const Duration(minutes: 12),
+        onTimeout: () => ProcessResult(0, -1, '', 'ffmpeg timeout'),
+      );
+    } on ProcessException catch (error) {
+      throw Exception(
+        'Impossible de lancer ffmpeg (${error.message}). Verifie que ffmpeg est installe et accessible dans le PATH.',
+      );
+    }
 
     if (result.exitCode != 0) {
       final String stderr = (result.stderr ?? '').toString();
+      if (_looksLikePermissionIssue(stderr)) {
+        throw Exception(
+          'Export impossible: un media source n est pas autorise par macOS. Reimporte les fichiers utilises dans ce projet puis relance l export.',
+        );
+      }
       final String shortError = stderr.length > 400
           ? '${stderr.substring(0, 400)}...'
           : stderr;
       throw Exception('Export FFmpeg echoue: $shortError');
     }
+  }
+
+  void _assertClipAccessible(Clip clip) {
+    final File file = File(clip.assetPath);
+    if (!file.existsSync()) {
+      throw Exception('Media introuvable pour export: ${clip.assetPath}');
+    }
+    try {
+      final RandomAccessFile raf = file.openSync(mode: FileMode.read);
+      raf.closeSync();
+    } on FileSystemException {
+      throw Exception(
+        'Media non accessible (permission macOS): ${clip.assetPath}. Reimporte ce media depuis PocketSunoMaker.',
+      );
+    }
+  }
+
+  bool _looksLikePermissionIssue(String stderr) {
+    final String lower = stderr.toLowerCase();
+    return lower.contains('operation not permitted') ||
+        lower.contains('permission denied') ||
+        lower.contains('not authorized') ||
+        lower.contains('errno = 1');
   }
 
   void _appendInputArgs(

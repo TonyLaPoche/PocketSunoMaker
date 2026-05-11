@@ -15,6 +15,7 @@ class PreviewAudioEngine {
   String? _boundClipId;
   String? _boundPath;
   bool _isDisposed = false;
+  final Set<String> _blockedPaths = <String>{};
 
   Future<void> synchronize({
     required Project? project,
@@ -47,39 +48,52 @@ class PreviewAudioEngine {
       await _stopAndReset();
       return;
     }
-
-    final bool isNewClip = _boundClipId != clipId || _boundPath != sourcePath;
-    if (isNewClip) {
-      await _player.setFilePath(sourcePath);
-      _boundClipId = clipId;
-      _boundPath = sourcePath;
-      await _player.seek(
-        Duration(milliseconds: activeAudioClip.sourcePositionMs),
-      );
-    } else {
-      final int currentMs = _player.position.inMilliseconds;
-      final int desiredMs = activeAudioClip.sourcePositionMs;
-      if ((currentMs - desiredMs).abs() > 120) {
-        await _player.seek(Duration(milliseconds: desiredMs));
-      }
+    if (_blockedPaths.contains(sourcePath)) {
+      await _stopAndReset();
+      return;
     }
 
-    if (shouldPlay) {
-      if (!_player.playing) {
-        await _player.play();
+    final bool isNewClip = _boundClipId != clipId || _boundPath != sourcePath;
+    try {
+      if (isNewClip) {
+        await _player.setFilePath(sourcePath);
+        _boundClipId = clipId;
+        _boundPath = sourcePath;
+        await _player.seek(
+          Duration(milliseconds: activeAudioClip.sourcePositionMs),
+        );
+      } else {
+        final int currentMs = _player.position.inMilliseconds;
+        final int desiredMs = activeAudioClip.sourcePositionMs;
+        if ((currentMs - desiredMs).abs() > 120) {
+          await _player.seek(Duration(milliseconds: desiredMs));
+        }
       }
-    } else {
-      if (_player.playing) {
-        await _player.pause();
+
+      if (shouldPlay) {
+        if (!_player.playing) {
+          await _player.play();
+        }
+      } else {
+        if (_player.playing) {
+          await _player.pause();
+        }
       }
+    } catch (_) {
+      _blockedPaths.add(sourcePath);
+      await _stopAndReset();
     }
   }
 
   Future<void> _stopAndReset() async {
     _boundClipId = null;
     _boundPath = null;
-    if (_player.playing) {
-      await _player.pause();
+    try {
+      if (_player.playing) {
+        await _player.pause();
+      }
+    } catch (_) {
+      // Ignore failures when backend can no longer access the file.
     }
   }
 

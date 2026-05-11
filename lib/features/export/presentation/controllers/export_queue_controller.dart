@@ -101,13 +101,10 @@ class ExportQueueController extends Notifier<ExportQueueState> {
         message: 'Export termine.',
       );
     } catch (error) {
-      _updateJobStatus(
-        request.id,
-        ExportJobStatus.failed,
-        message: error.toString(),
-      );
+      final String details = _humanizeError(error);
+      _updateJobStatus(request.id, ExportJobStatus.failed, message: details);
       state = state.copyWith(
-        errorMessage: 'Export echoue: ${request.preset.label}',
+        errorMessage: 'Export echoue (${request.preset.label}): $details',
       );
     }
 
@@ -133,6 +130,14 @@ class ExportQueueController extends Notifier<ExportQueueState> {
         .toList(growable: false);
 
     state = state.copyWith(jobs: updated);
+  }
+
+  String _humanizeError(Object error) {
+    final String raw = error.toString().trim();
+    if (raw.startsWith('Exception: ')) {
+      return raw.substring('Exception: '.length);
+    }
+    return raw;
   }
 }
 
