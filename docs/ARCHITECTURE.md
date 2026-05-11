@@ -30,6 +30,7 @@ Cette architecture suit une logique Clean Architecture pour garder une base main
   - creation/chargement/sauvegarde de projet local `.psm`
   - edition timeline (move/trim/split/snap)
   - orchestration etat projet (controllers Riverpod)
+  - inspecteur contextuel clip (transform, opacite, audio, texte)
 - `features/media_import`
   - import fichiers via picker
   - import drag and drop
@@ -38,10 +39,12 @@ Cette architecture suit une logique Clean Architecture pour garder une base main
   - transport lecture/pause/seek
   - synchronisation audio/video en preview
   - rendu media actif (video/image)
+  - canvas ratio export, grille de reperes, overlays texte (position/angle/opacite)
 - `features/export`
   - file de jobs export
   - presets cibles (YouTube, Shorts, Reels)
-  - service export FFmpeg (base)
+  - service export FFmpeg (progression temps reel, annulation, erreurs actionnables)
+  - parite preview/export des outils pris en charge (ex: texte)
 
 ## Modules planifies
 
@@ -54,7 +57,7 @@ Cette architecture suit une logique Clean Architecture pour garder une base main
   - automation courbes/keyframes
   - gestion avancee des pistes (mute/solo/lock, routing)
 - `features/export_advanced`
-  - progression fine, annulation, retries
+  - retries et reprise apres echec
   - presets utilisateurs et profils personnalises
 
 ## Donnees projet (cible)
@@ -69,8 +72,8 @@ Format `*.psm` (JSON):
 
 - base fonctionnelle de montage local: OK
 - preview synchronisee: OK
-- export v1: present, a renforcer vers pipeline complet
-- refonte UX/UI Studio (M3.5): prochaine priorite
+- export v1: operationnel (queue, progression 0-100, annulation, ouverture Finder)
+- refonte UX/UI Studio (M3.5): implementee sur le socle principal
 
 ## Principes qualite
 

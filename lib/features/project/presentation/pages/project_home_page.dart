@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -375,6 +376,8 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
                                           ? null
                                           : () => exportController
                                                 .enqueueExport(project),
+                                      onCancelRunningExport:
+                                          exportController.cancelRunningExport,
                                       statusLabelBuilder: _statusLabel,
                                       statusColorBuilder: _statusColor,
                                       onInspectorChanged:
@@ -569,6 +572,8 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
         return 'termine';
       case ExportJobStatus.failed:
         return 'echec';
+      case ExportJobStatus.canceled:
+        return 'annule';
     }
   }
 
@@ -582,6 +587,8 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
         return Colors.greenAccent.shade400;
       case ExportJobStatus.failed:
         return Theme.of(context).colorScheme.error;
+      case ExportJobStatus.canceled:
+        return Colors.orangeAccent.shade200;
     }
   }
 
@@ -1473,6 +1480,7 @@ class _InspectorExportTabs extends StatelessWidget {
     required this.previewGuidesEnabled,
     required this.onSelectPreset,
     required this.onEnqueueExport,
+    required this.onCancelRunningExport,
     required this.statusLabelBuilder,
     required this.statusColorBuilder,
     required this.onInspectorChanged,
@@ -1493,12 +1501,31 @@ class _InspectorExportTabs extends StatelessWidget {
   final bool previewGuidesEnabled;
   final ValueChanged<ExportPreset> onSelectPreset;
   final VoidCallback? onEnqueueExport;
+  final VoidCallback onCancelRunningExport;
   final String Function(ExportJobStatus status) statusLabelBuilder;
   final Color Function(BuildContext context, ExportJobStatus status)
   statusColorBuilder;
   final ValueChanged<_ClipInspectorValues> onInspectorChanged;
   final VoidCallback? onEditText;
   final ValueChanged<bool> onTogglePreviewGuides;
+
+  void _copyToClipboard(BuildContext context, String text) {
+    final String trimmed = text.trim();
+    if (trimmed.isEmpty) {
+      return;
+    }
+    Clipboard.setData(ClipboardData(text: trimmed));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Message d erreur copie')));
+  }
+
+  void _openExportInFinder(String outputPath) {
+    final List<String> args = Platform.isMacOS
+        ? <String>['-R', outputPath]
+        : <String>[outputPath];
+    unawaited(Process.run('open', args));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1660,7 +1687,21 @@ class _InspectorExportTabs extends StatelessWidget {
                               ],
                             ),
                             const SizedBox(height: 8),
-                            const LinearProgressIndicator(minHeight: 4),
+                            LinearProgressIndicator(
+                              value: (runningExportJob?.progress ?? 0).clamp(
+                                0.0,
+                                1.0,
+                              ),
+                              minHeight: 4,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Progression: ${(((runningExportJob?.progress ?? 0).clamp(0.0, 1.0)) * 100).toStringAsFixed(1)}%',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: context.cyberpunk.textMuted,
+                                  ),
+                            ),
                             if (queuedExportsCount > 0) ...<Widget>[
                               const SizedBox(height: 6),
                               Text(
@@ -1677,10 +1718,46 @@ class _InspectorExportTabs extends StatelessWidget {
                     ],
                     if (exportState.errorMessage != null) ...<Widget>[
                       const SizedBox(height: 8),
-                      Text(
-                        exportState.errorMessage!,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.error.withValues(alpha: 0.6),
+                          ),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.error.withValues(alpha: 0.08),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Expanded(
+                              child: SelectableText(
+                                exportState.errorMessage!,
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.error,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'Copier l erreur',
+                              icon: const Icon(Icons.copy_rounded, size: 16),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(
+                                minWidth: 24,
+                                minHeight: 24,
+                              ),
+                              onPressed: () {
+                                _copyToClipboard(
+                                  context,
+                                  exportState.errorMessage!,
+                                );
+                              },
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -1690,40 +1767,70 @@ class _InspectorExportTabs extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleSmall,
                     ),
                     const SizedBox(height: 6),
-                    ...exportState.jobs
-                        .take(6)
-                        .map(
-                          (ExportJob job) => Padding(
-                            padding: const EdgeInsets.only(bottom: 6),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: <Widget>[
-                                Container(
-                                  width: 8,
-                                  height: 8,
-                                  margin: const EdgeInsets.only(top: 6),
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: statusColorBuilder(
-                                      context,
-                                      job.status,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    '${job.presetLabel}: ${statusLabelBuilder(job.status)}'
-                                    '${job.message != null ? ' (${job.message})' : ''}',
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.bodySmall,
-                                  ),
-                                ),
-                              ],
+                    ...exportState.jobs.take(6).map((ExportJob job) {
+                      final String jobMessage =
+                          '${job.presetLabel}: ${statusLabelBuilder(job.status)}'
+                          '${job.message != null ? ' (${job.message})' : ''}';
+                      final bool isSucceeded =
+                          job.status == ExportJobStatus.succeeded;
+                      final bool isRunning =
+                          job.status == ExportJobStatus.running;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Container(
+                              width: 8,
+                              height: 8,
+                              margin: const EdgeInsets.only(top: 6),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: statusColorBuilder(context, job.status),
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: SelectableText(
+                                jobMessage,
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: isRunning
+                                  ? 'Annuler cet export'
+                                  : isSucceeded
+                                  ? 'Ouvrir le fichier exporte dans Finder'
+                                  : 'Copier ce message',
+                              icon: Icon(
+                                isRunning
+                                    ? Icons.close_rounded
+                                    : isSucceeded
+                                    ? Icons.insert_drive_file_outlined
+                                    : Icons.copy_rounded,
+                                size: 16,
+                              ),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(
+                                minWidth: 24,
+                                minHeight: 24,
+                              ),
+                              onPressed: () {
+                                if (isRunning) {
+                                  onCancelRunningExport();
+                                  return;
+                                }
+                                if (isSucceeded) {
+                                  _openExportInFinder(job.outputPath);
+                                  return;
+                                }
+                                _copyToClipboard(context, jobMessage);
+                              },
+                            ),
+                          ],
                         ),
+                      );
+                    }),
                   ],
                 ),
               ],

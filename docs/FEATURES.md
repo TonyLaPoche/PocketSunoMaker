@@ -43,7 +43,10 @@
   - YouTube Shorts
   - Instagram Reels
 - H.264/H.265 avec acceleration materielle macOS (VideoToolbox)
-- progression export et annulation
+- progression export temps reel (0-100%)
+- annulation manuelle de l export en cours
+- jobs export actionnables: copie du message d erreur, ouverture Finder du fichier termine
+- parite stricte outils->export: les elements appliques dans l'editeur (ex: texte) doivent etre rendus dans le fichier final
 
 ## 6) Effets et animation
 
@@ -58,7 +61,7 @@
 - templates de style
 - import sous-titres (phase suivante: SRT)
 - timeline dediee texte
-- style texte editable: couleur, fond, bordure (avec toggles fond/bordure)
+- style texte editable: couleur, fond, bordure, angle (avec toggles fond/bordure)
 
 ## 8) Audio
 

@@ -12,6 +12,7 @@
 - FFmpeg (rendu/export)
 - ffprobe (analyse metadata)
 - VideoToolbox (acceleration materielle Apple)
+- ffmpeg-full (Homebrew) requis pour les filtres texte (`drawtext`) et la parite preview/export
 
 ## Plugins Flutter
 

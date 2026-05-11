@@ -2,6 +2,8 @@
 
 Editeur video desktop macOS developpe avec Flutter, open source, local-first.
 
+Pour garantir l export des overlays texte, utiliser un FFmpeg avec `drawtext` (recommande: `ffmpeg-full` via Homebrew).
+
 ## Documentation
 
 - Roadmap: `docs/ROADMAP.md`

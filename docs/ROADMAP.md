@@ -62,10 +62,11 @@ Construire un editeur video desktop macOS, 100% open source et gratuit, sous Flu
 - [x] Synchronisation audio/video v1 (transport + audio actif)
 - [x] Queue d'export
 - [x] Exports presets: YouTube, Shorts, Reels
-- [x] Feedback visuel d'export en cours (spinner + barre indeterminee + job actif)
+- [x] Feedback visuel d'export en cours (progression temps reel 0-100, job actif, annulation manuelle)
 - [x] Hardening permissions macOS sur medias references (fallback preview + erreurs explicites)
 - [x] Synchronisation Media Bin depuis un projet `.psm` charge
 - [x] Suppression unitaire des medias depuis le Media Bin
+- [x] Contrat de parite preview/export: un outil applique dans l'editeur doit etre rendu a l'export (sinon export bloque avec erreur explicite)
 
 ## M3.5 - Refonte UX/UI "Studio" (en cours)
 - [x] Etape 1 - Shell applicatif "pro montage"
@@ -87,13 +88,13 @@ Construire un editeur video desktop macOS, 100% open source et gratuit, sous Flu
   - [x] Micro-interactions fluides (hover, focus, selection, transitions courtes)
   - [x] Accessibilite desktop (tailles minimales de cibles, lisibilite, raccourcis de base)
   - [x] Validation UX sur sessions montage longues (fatigue visuelle, rapidite d'execution)
-  - [x] Progression: micro-interactions hover sur panneaux studio + raccourcis clavier de base (Play/Pause, Nouveau, Importer, Sauvegarder, Charger) + cibles boutons principales agrandies + raccourcis timeline (V/B/T/H/M, N snapping, S split) + seek clavier rapide (fleches gauche/droite) + mode confort visuel (intensite neon reduite) + transport preview compacte (play/temps/seek sur une ligne) + nettoyages visuels preview (infos media actives retirees)
+  - [x] Progression: micro-interactions hover sur panneaux studio + raccourcis clavier de base (Play/Pause, Nouveau, Importer, Sauvegarder, Charger) + cibles boutons principales agrandies + raccourcis timeline (V/B/T/H/M, N snapping, S split) + seek clavier rapide (fleches gauche/droite) + mode confort visuel (intensite neon reduite) + transport preview compacte (play/temps/seek sur une ligne) + nettoyages visuels preview (infos media actives retirees) + jobs export actionnables (copie erreur, annuler en cours, ouvrir fichier termine)
 
 ## M4 - Enrichissements
 - [x] Section Timeline étirable (réduction des trois sections "Media", "Lecteur" et Inspecteur/Export)
 - [x] Preview adaptable et orientee export (agrandissement manuel, ratio auto sur preset, cadre neon rose/violet)
 - [ ] Sous-titres et texte anime
-  - Progression en cours: texte overlay v1 (clip texte dedie, edition depuis inspecteur, style typographique de base: police/taille px/gras/italique/couleurs, positionnement drag dans preview, rendu timeline specifique, persistance `.psm`, projection preview en coordonnees canvas + export drawtext pour coherence taille/position, lisibilite renforcee en preview avec adaptation a l'echelle du preset de sortie, toggles fond/bordure dans inspecteur avec application preview+export)
+  - Progression en cours: texte overlay v1 (clip texte dedie, edition depuis inspecteur, style typographique de base: police/taille px/gras/italique/couleurs, positionnement drag dans preview, angle, rendu timeline specifique, persistance `.psm`, projection preview en coordonnees canvas + export drawtext pour coherence taille/position, lisibilite renforcee en preview avec adaptation a l'echelle du preset de sortie, toggles fond/bordure dans inspecteur avec application preview+export)
 - [ ] Effets (glitch, rotation, etc.) pluginables
 - [ ] Visualizer lie au son
 - [ ] UX avancee (raccourcis, undo/redo, marqueurs)

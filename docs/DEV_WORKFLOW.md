@@ -5,7 +5,8 @@
 - Flutter stable installe
 - Xcode CLI tools
 - macOS recent
-- ffmpeg/ffprobe disponibles dans le `PATH` (a confirmer/installer)
+- ffprobe disponible dans le `PATH`
+- ffmpeg avec support `drawtext` (recommande: `ffmpeg-full` Homebrew)
 
 ## macOS permissions (sandbox)
 
@@ -21,6 +22,7 @@
 - `flutter test`
 - `flutter run -d macos`
 - `flutter build macos --debug`
+- `ffmpeg -hide_banner -filters | rg drawtext` (verifier le support texte export)
 
 ## Regles projet
 

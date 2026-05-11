@@ -9,7 +9,7 @@ import 'export_queue_state.dart';
 
 final Provider<FfmpegExportService> ffmpegExportServiceProvider =
     Provider<FfmpegExportService>((Ref ref) {
-      return const FfmpegExportService();
+      return FfmpegExportService();
     });
 
 final NotifierProvider<ExportQueueController, ExportQueueState>
@@ -21,6 +21,7 @@ exportQueueControllerProvider =
 class ExportQueueController extends Notifier<ExportQueueState> {
   late final FfmpegExportService _ffmpegExportService;
   final List<_QueuedExportRequest> _requests = <_QueuedExportRequest>[];
+  String? _runningJobId;
 
   static const XTypeGroup _outputTypeGroup = XTypeGroup(
     label: 'MP4 Video',
@@ -58,6 +59,7 @@ class ExportQueueController extends Notifier<ExportQueueState> {
       presetLabel: preset.label,
       outputPath: destination.path,
       status: ExportJobStatus.queued,
+      progress: 0,
     );
 
     _requests.add(
@@ -87,26 +89,46 @@ class ExportQueueController extends Notifier<ExportQueueState> {
 
     state = state.copyWith(isProcessing: true);
     final _QueuedExportRequest request = _requests.removeAt(0);
-    _updateJobStatus(request.id, ExportJobStatus.running);
+    _runningJobId = request.id;
+    _updateJobStatus(request.id, ExportJobStatus.running, progress: 0);
 
     try {
       await _ffmpegExportService.exportProject(
         project: request.project,
         preset: request.preset,
         outputPath: request.outputPath,
+        onProgress: (double progress) {
+          _updateJobProgress(request.id, progress);
+        },
       );
       _updateJobStatus(
         request.id,
         ExportJobStatus.succeeded,
         message: 'Export termine.',
+        progress: 1,
       );
     } catch (error) {
       final String details = _humanizeError(error);
-      _updateJobStatus(request.id, ExportJobStatus.failed, message: details);
-      state = state.copyWith(
-        errorMessage: 'Export echoue (${request.preset.label}): $details',
-      );
+      if (_isCancellation(details)) {
+        _updateJobStatus(
+          request.id,
+          ExportJobStatus.canceled,
+          message: 'Export annule par utilisateur.',
+          progress: null,
+        );
+      } else {
+        _updateJobStatus(
+          request.id,
+          ExportJobStatus.failed,
+          message: details,
+          progress: null,
+        );
+        state = state.copyWith(
+          errorMessage: 'Export echoue (${request.preset.label}): $details',
+        );
+      }
     }
+    _runningJobId = null;
 
     if (_requests.isEmpty) {
       state = state.copyWith(isProcessing: false);
@@ -115,20 +137,50 @@ class ExportQueueController extends Notifier<ExportQueueState> {
     await _processQueue();
   }
 
+  void cancelRunningExport() {
+    final String? runningJobId = _runningJobId;
+    if (runningJobId == null) {
+      return;
+    }
+    _ffmpegExportService.cancelCurrentExport();
+  }
+
   void _updateJobStatus(
     String jobId,
     ExportJobStatus status, {
     String? message,
+    double? progress,
   }) {
     final List<ExportJob> updated = state.jobs
         .map((ExportJob job) {
           if (job.id != jobId) {
             return job;
           }
-          return job.copyWith(status: status, message: message);
+          return job.copyWith(
+            status: status,
+            message: message,
+            progress: progress,
+          );
         })
         .toList(growable: false);
 
+    state = state.copyWith(jobs: updated);
+  }
+
+  void _updateJobProgress(String jobId, double progress) {
+    final double normalized = progress.clamp(0.0, 1.0);
+    final List<ExportJob> updated = state.jobs
+        .map((ExportJob job) {
+          if (job.id != jobId) {
+            return job;
+          }
+          final double previous = job.progress ?? 0;
+          if ((normalized - previous).abs() < 0.002) {
+            return job;
+          }
+          return job.copyWith(progress: normalized);
+        })
+        .toList(growable: false);
     state = state.copyWith(jobs: updated);
   }
 
@@ -138,6 +190,11 @@ class ExportQueueController extends Notifier<ExportQueueState> {
       return raw.substring('Exception: '.length);
     }
     return raw;
+  }
+
+  bool _isCancellation(String message) {
+    final String lower = message.toLowerCase();
+    return lower.contains('annule') || lower.contains('canceled');
   }
 }
 

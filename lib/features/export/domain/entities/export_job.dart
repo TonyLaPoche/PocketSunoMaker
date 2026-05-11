@@ -1,4 +1,4 @@
-enum ExportJobStatus { queued, running, succeeded, failed }
+enum ExportJobStatus { queued, running, succeeded, failed, canceled }
 
 class ExportJob {
   const ExportJob({
@@ -7,6 +7,7 @@ class ExportJob {
     required this.outputPath,
     required this.status,
     this.message,
+    this.progress,
   });
 
   final String id;
@@ -14,6 +15,7 @@ class ExportJob {
   final String outputPath;
   final ExportJobStatus status;
   final String? message;
+  final double? progress;
 
   ExportJob copyWith({
     String? id,
@@ -21,6 +23,7 @@ class ExportJob {
     String? outputPath,
     ExportJobStatus? status,
     String? message,
+    double? progress,
   }) {
     return ExportJob(
       id: id ?? this.id,
@@ -28,6 +31,7 @@ class ExportJob {
       outputPath: outputPath ?? this.outputPath,
       status: status ?? this.status,
       message: message,
+      progress: progress ?? this.progress,
     );
   }
 }
