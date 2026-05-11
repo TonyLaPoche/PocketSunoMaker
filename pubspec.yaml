@@ -38,6 +38,7 @@ dependencies:
   file_selector: ^1.1.0
   desktop_drop: ^0.7.1
   path: ^1.9.1
+  video_player: ^2.10.1
 
 dev_dependencies:
   flutter_test:

@@ -18,6 +18,7 @@
 - `file_selector` pour selection fichiers
 - `desktop_drop` pour drag and drop
 - `path` pour gestion de chemins
+- `video_player` pour la preview media locale v1
 - (a venir) plugin lecture preview (ex: `media_kit`)
 
 ## Persistance

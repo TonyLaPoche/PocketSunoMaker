@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/theme/cyberpunk_palette.dart';
-import '../../../project/domain/entities/clip.dart';
 import '../../../project/domain/entities/project.dart';
 import '../../../project/domain/entities/track.dart';
 import '../controllers/preview_state.dart';
+import '../utils/preview_clip_resolver.dart';
+import 'preview_viewport.dart';
 
 class PreviewPanel extends StatelessWidget {
   const PreviewPanel({
@@ -32,16 +33,20 @@ class PreviewPanel extends StatelessWidget {
       );
     }
 
-    final String activeVideoClip = _findActiveClipLabel(
-      project: project!,
-      positionMs: state.currentPositionMs,
-      type: TrackType.video,
-    );
-    final String activeAudioClip = _findActiveClipLabel(
-      project: project!,
-      positionMs: state.currentPositionMs,
-      type: TrackType.audio,
-    );
+    final String activeVideoClip =
+        findActiveClip(
+          project: project!,
+          positionMs: state.currentPositionMs,
+          type: TrackType.video,
+        )?.clip.assetPath.split('/').last ??
+        'Aucun';
+    final String activeAudioClip =
+        findActiveClip(
+          project: project!,
+          positionMs: state.currentPositionMs,
+          type: TrackType.audio,
+        )?.clip.assetPath.split('/').last ??
+        'Aucun';
 
     return _PanelCard(
       child: Padding(
@@ -52,6 +57,11 @@ class PreviewPanel extends StatelessWidget {
             Text(
               'Preview transport',
               style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            PreviewViewport(
+              project: project!,
+              positionMs: state.currentPositionMs,
             ),
             const SizedBox(height: 8),
             Row(
@@ -96,26 +106,6 @@ class PreviewPanel extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _findActiveClipLabel({
-    required Project project,
-    required int positionMs,
-    required TrackType type,
-  }) {
-    final Iterable<Track> typedTracks = project.tracks.where(
-      (Track track) => track.type == type,
-    );
-    for (final Track track in typedTracks) {
-      for (final Clip clip in track.clips) {
-        final int clipStart = clip.timelineStartMs;
-        final int clipEnd = clip.timelineStartMs + clip.durationMs;
-        if (positionMs >= clipStart && positionMs <= clipEnd) {
-          return clip.assetPath.split('/').last;
-        }
-      }
-    }
-    return 'Aucun';
   }
 
   String _formatTime(int ms) {
