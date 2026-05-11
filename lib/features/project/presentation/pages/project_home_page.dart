@@ -497,6 +497,8 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
                               comfortModeEnabled: _comfortModeEnabled,
                               headerTrailing: IconButton(
                                 tooltip: 'Aide outils timeline',
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
                                 icon: const Icon(Icons.help_outline, size: 18),
                                 onPressed: () {
                                   _showTimelineToolsHelpDialog(context);
@@ -701,20 +703,21 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
     required String trackId,
     required Clip clip,
   }) async {
-    final TextEditingController controller = TextEditingController(
-      text: clip.textContent?.trim().isNotEmpty == true
-          ? clip.textContent!
-          : 'Nouveau texte',
-    );
+    String draftText = clip.textContent?.trim().isNotEmpty == true
+        ? clip.textContent!
+        : 'Nouveau texte';
     final String? edited = await showDialog<String>(
       context: context,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
           title: const Text('Editer texte'),
-          content: TextField(
-            controller: controller,
+          content: TextFormField(
+            initialValue: draftText,
             autofocus: true,
             maxLines: 3,
+            onChanged: (String value) {
+              draftText = value;
+            },
             decoration: const InputDecoration(
               labelText: 'Texte affiche en preview',
             ),
@@ -726,7 +729,7 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
             ),
             FilledButton(
               onPressed: () {
-                Navigator.of(dialogContext).pop(controller.text.trim());
+                Navigator.of(dialogContext).pop(draftText.trim());
               },
               child: const Text('Appliquer'),
             ),
@@ -734,7 +737,6 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
         );
       },
     );
-    controller.dispose();
     if (edited == null || edited.isEmpty) {
       return;
     }
@@ -761,9 +763,10 @@ class _ClipInspectorValues {
     required this.textItalic,
     required this.textColorHex,
     required this.textBackgroundHex,
-    required this.textShowBackground,
-    required this.textShowBorder,
-  });
+    bool? textShowBackground,
+    bool? textShowBorder,
+  }) : _textShowBackground = textShowBackground,
+       _textShowBorder = textShowBorder;
 
   static const _ClipInspectorValues defaults = _ClipInspectorValues(
     opacity: 1.0,
@@ -816,8 +819,10 @@ class _ClipInspectorValues {
   final bool textItalic;
   final String textColorHex;
   final String textBackgroundHex;
-  final bool textShowBackground;
-  final bool textShowBorder;
+  final bool? _textShowBackground;
+  final bool? _textShowBorder;
+  bool get textShowBackground => _textShowBackground ?? true;
+  bool get textShowBorder => _textShowBorder ?? true;
 
   _ClipInspectorValues copyWith({
     double? opacity,
@@ -938,6 +943,16 @@ class _ClipInspectorCard extends StatelessWidget {
               activeColor: context.cyberpunk.neonBlue,
               onChanged: (double value) {
                 onChanged(values.copyWith(textPosYPx: value));
+              },
+            ),
+            _InspectorSlider(
+              label: 'Angle ${values.rotationDeg.toStringAsFixed(0)}deg',
+              min: -180,
+              max: 180,
+              value: values.rotationDeg,
+              activeColor: context.cyberpunk.neonBlue,
+              onChanged: (double value) {
+                onChanged(values.copyWith(rotationDeg: value));
               },
             ),
             _InspectorSlider(
@@ -1864,7 +1879,7 @@ class _PanelShellState extends State<_PanelShell> {
         child: Card(
           margin: EdgeInsets.zero,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+            padding: const EdgeInsets.fromLTRB(8, 4, 8, 6),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
@@ -1879,7 +1894,6 @@ class _PanelShellState extends State<_PanelShell> {
                     if (widget.headerTrailing != null) widget.headerTrailing!,
                   ],
                 ),
-                const SizedBox(height: 8),
                 Expanded(child: widget.child),
               ],
             ),

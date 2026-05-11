@@ -590,6 +590,8 @@ class _TextOverlay extends StatelessWidget {
     final double sx = stageWidth / math.max(1, projectCanvasWidth);
     final double sy = stageHeight / math.max(1, projectCanvasHeight);
     final double textScale = math.min(sx, sy);
+    final double textOpacity = clip.opacity.clamp(0.0, 1.0);
+    final double textRotationRad = clip.rotationDeg * (math.pi / 180.0);
     final TextStyle textStyle = TextStyle(
       color: _colorFromHex(
         clip.textColorHex,
@@ -614,31 +616,40 @@ class _TextOverlay extends StatelessWidget {
       alignment: Alignment.center,
       child: Transform.translate(
         offset: Offset(clip.textPosXPx * sx, clip.textPosYPx * sy),
-        child: GestureDetector(
-          onTap: onTap,
-          onPanUpdate: isSelected && onPanUpdate != null
-              ? (DragUpdateDetails details) => onPanUpdate!(
-                  Offset(details.delta.dx / sx, details.delta.dy / sy),
-                )
-              : null,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: clip.textShowBackground
-                  ? backgroundColor.withValues(alpha: 0.62)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(8),
-              border: borderSide == null
-                  ? null
-                  : Border.fromBorderSide(borderSide),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              child: Text(
-                text,
-                textAlign: TextAlign.center,
-                maxLines: 4,
-                overflow: TextOverflow.ellipsis,
-                style: textStyle,
+        child: Transform.rotate(
+          angle: textRotationRad,
+          child: GestureDetector(
+            onTap: onTap,
+            onPanUpdate: isSelected && onPanUpdate != null
+                ? (DragUpdateDetails details) => onPanUpdate!(
+                    Offset(details.delta.dx / sx, details.delta.dy / sy),
+                  )
+                : null,
+            child: Opacity(
+              opacity: textOpacity,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: clip.textShowBackground
+                      ? backgroundColor.withValues(alpha: 0.62)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                  border: borderSide == null
+                      ? null
+                      : Border.fromBorderSide(borderSide),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  child: Text(
+                    text,
+                    textAlign: TextAlign.center,
+                    maxLines: 4,
+                    overflow: TextOverflow.ellipsis,
+                    style: textStyle,
+                  ),
+                ),
               ),
             ),
           ),

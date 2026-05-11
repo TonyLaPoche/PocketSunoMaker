@@ -77,7 +77,7 @@ Construire un editeur video desktop macOS, 100% open source et gratuit, sous Flu
   - [x] Barre d'outils timeline complete et fixe (selection, lame, trim, split, zoom, snapping, marqueurs)
   - [x] Pistes mieux structurees (headers piste, etats mute/solo/lock, labels plus lisibles)
   - [x] Playhead et selection clips avec hierarchie visuelle forte (accent actif uniquement)
-  - [x] Progression: headers piste enrichis (mute/solo/lock), toggle snapping global, badge playhead renforce
+  - [x] Progression: headers piste enrichis (mute/solo/lock), toggle snapping global, badge playhead renforce + tete d'epingle draggable (pause uniquement) + aide contextuelle outils timeline (?)
 - [x] Etape 3 - Inspecteur et coherence visuelle cyberpunk
   - [x] Panneau inspecteur contextuel (transform, opacite, vitesse, audio de base)
   - [x] Systeme de densite/contraste: neon reserve aux elements actifs, texte secondaire adouci
@@ -87,16 +87,17 @@ Construire un editeur video desktop macOS, 100% open source et gratuit, sous Flu
   - [x] Micro-interactions fluides (hover, focus, selection, transitions courtes)
   - [x] Accessibilite desktop (tailles minimales de cibles, lisibilite, raccourcis de base)
   - [x] Validation UX sur sessions montage longues (fatigue visuelle, rapidite d'execution)
-  - [x] Progression: micro-interactions hover sur panneaux studio + raccourcis clavier de base (Play/Pause, Nouveau, Importer, Sauvegarder, Charger) + cibles boutons principales agrandies + raccourcis timeline (V/B/T/H/M, N snapping, S split) + seek clavier rapide (fleches gauche/droite) + mode confort visuel (intensite neon reduite)
+  - [x] Progression: micro-interactions hover sur panneaux studio + raccourcis clavier de base (Play/Pause, Nouveau, Importer, Sauvegarder, Charger) + cibles boutons principales agrandies + raccourcis timeline (V/B/T/H/M, N snapping, S split) + seek clavier rapide (fleches gauche/droite) + mode confort visuel (intensite neon reduite) + transport preview compacte (play/temps/seek sur une ligne) + nettoyages visuels preview (infos media actives retirees)
 
 ## M4 - Enrichissements
 - [x] Section Timeline étirable (réduction des trois sections "Media", "Lecteur" et Inspecteur/Export)
 - [x] Preview adaptable et orientee export (agrandissement manuel, ratio auto sur preset, cadre neon rose/violet)
 - [ ] Sous-titres et texte anime
-  - Progression en cours: texte overlay v1 (clip texte dedie, edition depuis inspecteur, style typographique de base: police/taille px/gras/italique/couleurs, positionnement drag dans preview, rendu timeline specifique, persistance `.psm`, projection preview en coordonnees canvas + export drawtext pour coherence taille/position, lisibilite renforcee en preview avec adaptation a l'echelle du preset de sortie)
+  - Progression en cours: texte overlay v1 (clip texte dedie, edition depuis inspecteur, style typographique de base: police/taille px/gras/italique/couleurs, positionnement drag dans preview, rendu timeline specifique, persistance `.psm`, projection preview en coordonnees canvas + export drawtext pour coherence taille/position, lisibilite renforcee en preview avec adaptation a l'echelle du preset de sortie, toggles fond/bordure dans inspecteur avec application preview+export)
 - [ ] Effets (glitch, rotation, etc.) pluginables
 - [ ] Visualizer lie au son
 - [ ] UX avancee (raccourcis, undo/redo, marqueurs)
+- [x] Panneau Media enrichi (tabs Media/Outils, action "Ajouter texte au playhead" deplacee dans Outils > Texte)
 - [x] Pinch zoom smooth (interpolation fluide)
 - [ ] Affinage sensibilite gestes trackpad (calibrage fin zoom/scroll)
 

@@ -3,9 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../app/theme/cyberpunk_palette.dart';
 import '../../../project/domain/entities/clip.dart';
 import '../../../project/domain/entities/project.dart';
-import '../../../project/domain/entities/track.dart';
 import '../controllers/preview_state.dart';
-import '../utils/preview_clip_resolver.dart';
 import 'preview_viewport.dart';
 
 class PreviewPanel extends StatefulWidget {
@@ -56,21 +54,6 @@ class _PreviewPanelState extends State<PreviewPanel> {
         ),
       );
     }
-
-    final String activeVideoClip =
-        findActiveClip(
-          project: widget.project!,
-          positionMs: widget.state.currentPositionMs,
-          type: TrackType.video,
-        )?.clip.assetPath.split('/').last ??
-        'Aucun';
-    final String activeAudioClip =
-        findActiveClip(
-          project: widget.project!,
-          positionMs: widget.state.currentPositionMs,
-          type: TrackType.audio,
-        )?.clip.assetPath.split('/').last ??
-        'Aucun';
 
     return _PanelCard(
       child: LayoutBuilder(
@@ -144,51 +127,34 @@ class _PreviewPanelState extends State<PreviewPanel> {
                         ),
                         label: Text(widget.state.isPlaying ? 'Pause' : 'Play'),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
+                      Text(
+                        '${_formatTime(widget.state.currentPositionMs)} / ${_formatTime(widget.state.durationMs)}',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: context.cyberpunk.textMuted,
+                        ),
+                      ),
                       Expanded(
-                        child: Text(
-                          '${_formatTime(widget.state.currentPositionMs)} / ${_formatTime(widget.state.durationMs)}',
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(color: context.cyberpunk.textMuted),
+                        child: Slider(
+                          min: 0,
+                          max: widget.state.durationMs <= 0
+                              ? 1
+                              : widget.state.durationMs.toDouble(),
+                          value: widget.state.currentPositionMs
+                              .clamp(
+                                0,
+                                widget.state.durationMs <= 0
+                                    ? 1
+                                    : widget.state.durationMs,
+                              )
+                              .toDouble(),
+                          onChangeStart: (_) => widget.onScrubStart(),
+                          onChangeEnd: (_) => widget.onScrubEnd(),
+                          onChanged: (double value) =>
+                              widget.onSeekTo(value.round()),
                         ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 6),
-                  Slider(
-                    min: 0,
-                    max: widget.state.durationMs <= 0
-                        ? 1
-                        : widget.state.durationMs.toDouble(),
-                    value: widget.state.currentPositionMs
-                        .clamp(
-                          0,
-                          widget.state.durationMs <= 0
-                              ? 1
-                              : widget.state.durationMs,
-                        )
-                        .toDouble(),
-                    onChangeStart: (_) => widget.onScrubStart(),
-                    onChangeEnd: (_) => widget.onScrubEnd(),
-                    onChanged: (double value) => widget.onSeekTo(value.round()),
-                  ),
-                  Text(
-                    'Video active: $activeVideoClip',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: context.cyberpunk.neonBlue,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Audio actif: $activeAudioClip',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: context.cyberpunk.neonPink,
-                    ),
                   ),
                 ],
               ),

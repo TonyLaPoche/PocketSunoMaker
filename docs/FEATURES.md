@@ -21,11 +21,14 @@
 - zoom timeline et snapping
 - marqueurs
 - modes d'edition (selection, lame, trim, main, marqueur)
+- tete du playhead draggable (seulement en pause) pour ajustement fin
+- aide integree des outils timeline via bouton "?"
 
 ## 4) Preview
 
 - lecture/pause/seek
 - synchro audio/video
+- transport compact sur une seule ligne (play, temps, slider)
 - zone preview agrandissable/reductible
 - cadre preview neon (rose/violet) aligne sur le format de sortie
 - adaptation automatique du ratio selon preset export (YouTube/Shorts/Reels)
@@ -55,6 +58,7 @@
 - templates de style
 - import sous-titres (phase suivante: SRT)
 - timeline dediee texte
+- style texte editable: couleur, fond, bordure (avec toggles fond/bordure)
 
 ## 8) Audio
 

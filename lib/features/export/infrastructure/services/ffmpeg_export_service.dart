@@ -176,10 +176,13 @@ class FfmpegExportService {
       final double end = (clip.timelineStartMs + clip.durationMs) / 1000;
       final String fontColor = clip.textColorHex.replaceAll('#', '');
       final String boxColor = clip.textBackgroundHex.replaceAll('#', '');
+      final double textOpacity = clip.opacity.clamp(0.0, 1.0);
+      final String textOpacityStr = textOpacity.toStringAsFixed(3);
+      final String boxOpacityStr = (textOpacity * 0.62).toStringAsFixed(3);
       final int boxEnabled = clip.textShowBackground ? 1 : 0;
       drawTextFilters.add(
         "drawtext=text='$text':font='$font':fontsize=$fontSize:"
-        "fontcolor=$fontColor:box=$boxEnabled:boxcolor=$boxColor@0.62:"
+        "fontcolor=$fontColor@$textOpacityStr:box=$boxEnabled:boxcolor=$boxColor@$boxOpacityStr:"
         "x=(w-text_w)/2+${xOffset.toStringAsFixed(2)}:"
         "y=(h-text_h)/2+${yOffset.toStringAsFixed(2)}:"
         "enable='between(t\\,${start.toStringAsFixed(3)}\\,${end.toStringAsFixed(3)})'",
