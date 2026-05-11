@@ -39,7 +39,10 @@ Construire un editeur video desktop macOS, 100% open source et gratuit, sous Flu
 ## M2 - Montage de base
 - [x] Ajout clip depuis Media Bin (prototype)
 - [x] Timeline visuelle multi-pistes (prototype)
+- [x] Barre d'outils edition (selection, lame, trim, main, marqueur)
+- [x] Zoom/dezoom timeline
 - [x] Ajout/suppression de clips
+- [x] Split clip au playhead (outil lame)
 - [x] Trim in/out
 - [x] Deplacement drag and drop sur timeline
 - [x] Snapping basique

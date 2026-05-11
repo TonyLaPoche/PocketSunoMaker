@@ -20,6 +20,7 @@
 - trim / split / move
 - zoom timeline et snapping
 - marqueurs
+- modes d'edition (selection, lame, trim, main, marqueur)
 
 ## 4) Preview
 

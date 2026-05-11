@@ -311,6 +311,8 @@ class ProjectHomePage extends ConsumerWidget {
                                     projectController.trimClipStartByDelta,
                                 onTrimClipEndByDelta:
                                     projectController.trimClipEndByDelta,
+                                onSplitClipAtPlayhead:
+                                    projectController.splitClipAtPlayhead,
                                 onRemoveClip: projectController.removeClip,
                               ),
                             ),

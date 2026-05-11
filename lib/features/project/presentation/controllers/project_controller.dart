@@ -363,6 +363,68 @@ class ProjectController extends Notifier<ProjectState> {
     );
   }
 
+  void splitClipAtPlayhead({
+    required String trackId,
+    required String clipId,
+    required int playheadMs,
+  }) {
+    final Project? project = state.currentProject;
+    if (project == null) {
+      return;
+    }
+
+    final List<Track> updatedTracks = project.tracks
+        .map((Track track) {
+          if (track.id != trackId) {
+            return track;
+          }
+
+          final List<Clip> nextClips = <Clip>[];
+          for (final Clip clip in track.clips) {
+            if (clip.id != clipId) {
+              nextClips.add(clip);
+              continue;
+            }
+
+            final int clipStart = clip.timelineStartMs;
+            final int clipEnd = clip.timelineStartMs + clip.durationMs;
+            if (playheadMs <= clipStart || playheadMs >= clipEnd) {
+              nextClips.add(clip);
+              continue;
+            }
+
+            final int leftDurationMs = playheadMs - clipStart;
+            final int rightDurationMs = clipEnd - playheadMs;
+            if (leftDurationMs < _minClipDurationMs ||
+                rightDurationMs < _minClipDurationMs) {
+              nextClips.add(clip);
+              continue;
+            }
+
+            final int sourceSplitMs = clip.sourceInMs + leftDurationMs;
+            final Clip leftClip = clip.copyWith(sourceOutMs: sourceSplitMs);
+            final Clip rightClip = clip.copyWith(
+              id: 'clip-${DateTime.now().microsecondsSinceEpoch}',
+              timelineStartMs: playheadMs,
+              sourceInMs: sourceSplitMs,
+            );
+            nextClips
+              ..add(leftClip)
+              ..add(rightClip);
+          }
+
+          return track.copyWith(clips: nextClips);
+        })
+        .toList(growable: false);
+
+    state = state.copyWith(
+      currentProject: project.copyWith(
+        tracks: updatedTracks,
+        durationMs: _computeProjectDurationMs(updatedTracks),
+      ),
+    );
+  }
+
   String _sanitizeFileName(String source) {
     final String noExtension = p.basenameWithoutExtension(source.trim());
     final String safe = noExtension.replaceAll(RegExp(r'[^a-zA-Z0-9_\- ]'), '');
