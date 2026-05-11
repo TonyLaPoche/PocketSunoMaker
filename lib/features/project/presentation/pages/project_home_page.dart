@@ -154,11 +154,11 @@ class ProjectHomePage extends ConsumerWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
-                  Expanded(
-                    flex: 3,
+                  SizedBox(
+                    width: 320,
                     child: Card(
                       child: Padding(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
@@ -166,12 +166,7 @@ class ProjectHomePage extends ConsumerWidget {
                               'Media Bin',
                               style: Theme.of(context).textTheme.titleLarge,
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Ajoute tes fichiers via le bouton ou en drag & drop, puis utilise + pour envoyer un media sur la timeline.',
-                              style: Theme.of(context).textTheme.bodyMedium,
-                            ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 6),
                             Expanded(
                               child: DropTarget(
                                 onDragEntered: (_) =>
@@ -188,24 +183,13 @@ class ProjectHomePage extends ConsumerWidget {
                                 child: DecoratedBox(
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: mediaState.isDraggingOver
-                                          ? context.cyberpunk.neonPink
-                                          : context.cyberpunk.border,
-                                      width: mediaState.isDraggingOver ? 2 : 1,
-                                    ),
-                                    boxShadow: mediaState.isDraggingOver
-                                        ? <BoxShadow>[
-                                            BoxShadow(
-                                              color: context.cyberpunk.neonPink
-                                                  .withValues(alpha: 0.18),
-                                              blurRadius: 12,
-                                            ),
-                                          ]
-                                        : null,
+                                    color: context.cyberpunk.bgSecondary,
                                   ),
                                   child: Padding(
-                                    padding: const EdgeInsets.all(12),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 6,
+                                    ),
                                     child: MediaBinPanel(
                                       assets: mediaState.assets,
                                       isLoading: mediaState.isLoading,
@@ -225,7 +209,6 @@ class ProjectHomePage extends ConsumerWidget {
                   ),
                   const SizedBox(width: 16),
                   Expanded(
-                    flex: 2,
                     child: Card(
                       child: Padding(
                         padding: const EdgeInsets.all(12),

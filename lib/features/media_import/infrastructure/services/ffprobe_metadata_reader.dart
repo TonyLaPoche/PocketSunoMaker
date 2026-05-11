@@ -21,22 +21,29 @@ class FfprobeMetadataReader {
   const FfprobeMetadataReader();
 
   Future<MediaProbeResult> read(String mediaPath) async {
-    final ProcessResult result = await Process.run('ffprobe', <String>[
-      '-v',
-      'error',
-      '-print_format',
-      'json',
-      '-show_streams',
-      '-show_format',
-      mediaPath,
-    ]);
+    _log('ffprobe start: $mediaPath');
+    final ProcessResult result =
+        await Process.run('ffprobe', <String>[
+          '-v',
+          'error',
+          '-print_format',
+          'json',
+          '-show_streams',
+          '-show_format',
+          mediaPath,
+        ]).timeout(
+          const Duration(seconds: 6),
+          onTimeout: () => ProcessResult(0, -1, '', 'ffprobe timeout'),
+        );
 
     if (result.exitCode != 0) {
+      _log('ffprobe failed (exit=${result.exitCode}) stderr=${result.stderr}');
       return const MediaProbeResult();
     }
 
     final Object? decoded = jsonDecode(result.stdout as String);
     if (decoded is! Map<String, dynamic>) {
+      _log('ffprobe invalid json payload');
       return const MediaProbeResult();
     }
 
@@ -57,7 +64,10 @@ class FfprobeMetadataReader {
           orElse: () => null,
         );
 
-    final int? durationMs = _parseDurationMs(format?['duration'] as String?);
+    final int? durationMs =
+        _parseDurationMs(format?['duration']) ??
+        _parseDurationMs(videoStream?['duration']) ??
+        _parseDurationMs(audioStream?['duration']);
     final int? width = _parseInt(videoStream?['width']);
     final int? height = _parseInt(videoStream?['height']);
     final double? frameRate = _parseFraction(
@@ -66,20 +76,28 @@ class FfprobeMetadataReader {
     final String? codec =
         (videoStream?['codec_name'] ?? audioStream?['codec_name']) as String?;
 
-    return MediaProbeResult(
+    final MediaProbeResult probe = MediaProbeResult(
       durationMs: durationMs,
       videoWidth: width,
       videoHeight: height,
       frameRate: frameRate,
       codec: codec,
     );
+    _log(
+      'ffprobe ok duration=${probe.durationMs} codec=${probe.codec} res=${probe.videoWidth}x${probe.videoHeight}',
+    );
+    return probe;
   }
 
-  int? _parseDurationMs(String? secondsAsString) {
-    if (secondsAsString == null || secondsAsString.isEmpty) {
+  int? _parseDurationMs(Object? secondsAsValue) {
+    if (secondsAsValue == null) {
       return null;
     }
-    final double? value = double.tryParse(secondsAsString);
+    final double? value = switch (secondsAsValue) {
+      String() => double.tryParse(secondsAsValue),
+      num() => secondsAsValue.toDouble(),
+      _ => null,
+    };
     if (value == null) {
       return null;
     }
@@ -116,5 +134,10 @@ class FfprobeMetadataReader {
       return null;
     }
     return numerator / denominator;
+  }
+
+  void _log(String message) {
+    // ignore: avoid_print
+    print('[FfprobeMetadataReader] $message');
   }
 }
