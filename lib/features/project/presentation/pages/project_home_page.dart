@@ -513,6 +513,8 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
                                                   karaokeSweepDurationMs: values
                                                       .karaokeSweepDurationMs
                                                       .round(),
+                                                  effectIntensity:
+                                                      values.effectIntensity,
                                                 );
                                             final _ClipInspectorValues
                                             activeValues =
@@ -947,6 +949,7 @@ class _ClipInspectorValues {
     required this.karaokeFillColorHex,
     required this.karaokeLeadInMs,
     required this.karaokeSweepDurationMs,
+    required this.effectIntensity,
     bool? textShowBackground,
     bool? textShowBorder,
   }) : _textShowBackground = textShowBackground,
@@ -986,6 +989,7 @@ class _ClipInspectorValues {
     karaokeFillColorHex: '#FEE440',
     karaokeLeadInMs: 0,
     karaokeSweepDurationMs: 2500,
+    effectIntensity: 0.6,
     textShowBackground: true,
     textShowBorder: true,
   );
@@ -1025,6 +1029,7 @@ class _ClipInspectorValues {
       karaokeFillColorHex: clip.karaokeFillColorHex,
       karaokeLeadInMs: clip.karaokeLeadInMs.toDouble(),
       karaokeSweepDurationMs: clip.karaokeSweepDurationMs.toDouble(),
+      effectIntensity: clip.effectIntensity,
       textShowBackground: clip.textShowBackground,
       textShowBorder: clip.textShowBorder,
     );
@@ -1063,6 +1068,7 @@ class _ClipInspectorValues {
   final String karaokeFillColorHex;
   final double karaokeLeadInMs;
   final double karaokeSweepDurationMs;
+  final double effectIntensity;
   final bool? _textShowBackground;
   final bool? _textShowBorder;
   bool get textShowBackground => _textShowBackground ?? true;
@@ -1102,6 +1108,7 @@ class _ClipInspectorValues {
     String? karaokeFillColorHex,
     double? karaokeLeadInMs,
     double? karaokeSweepDurationMs,
+    double? effectIntensity,
     bool? textShowBackground,
     bool? textShowBorder,
   }) {
@@ -1140,6 +1147,7 @@ class _ClipInspectorValues {
       karaokeLeadInMs: karaokeLeadInMs ?? this.karaokeLeadInMs,
       karaokeSweepDurationMs:
           karaokeSweepDurationMs ?? this.karaokeSweepDurationMs,
+      effectIntensity: effectIntensity ?? this.effectIntensity,
       textShowBackground: textShowBackground ?? this.textShowBackground,
       textShowBorder: textShowBorder ?? this.textShowBorder,
     );
@@ -1180,7 +1188,10 @@ class _ClipInspectorCard extends StatelessWidget {
                 ? (clip.textContent?.trim().isNotEmpty == true
                       ? clip.textContent!
                       : 'Texte')
-                : clip.assetPath.split('/').last,
+                : (trackType == TrackType.visualEffect ||
+                          trackType == TrackType.audioEffect
+                      ? _effectLabelForClip(trackType, clip)
+                      : clip.assetPath.split('/').last),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -1204,8 +1215,40 @@ class _ClipInspectorCard extends StatelessWidget {
             ),
             Divider(color: context.cyberpunk.border.withValues(alpha: 0.7)),
           ],
-          if (trackType != TrackType.audio &&
-              trackType != TrackType.text) ...<Widget>[
+          if (trackType == TrackType.visualEffect ||
+              trackType == TrackType.audioEffect) ...<Widget>[
+            Text(
+              trackType == TrackType.visualEffect
+                  ? 'Effet visuel'
+                  : 'Effet sonore',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: context.cyberpunk.textMuted,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              _effectLabelForClip(trackType, clip),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: context.cyberpunk.textPrimary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            _InspectorSlider(
+              label:
+                  'Intensite ${(values.effectIntensity * 100).toStringAsFixed(0)}%',
+              min: 0.1,
+              max: 1.0,
+              value: values.effectIntensity,
+              activeColor: context.cyberpunk.neonBlue,
+              onChanged: (double value) {
+                onChanged(values.copyWith(effectIntensity: value));
+              },
+            ),
+            Divider(color: context.cyberpunk.border.withValues(alpha: 0.7)),
+          ],
+          if (trackType == TrackType.video || trackType == TrackType.overlay)
+            ...<Widget>[
             Text(
               'Transform',
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
@@ -1235,7 +1278,8 @@ class _ClipInspectorCard extends StatelessWidget {
             ),
             Divider(color: context.cyberpunk.border.withValues(alpha: 0.7)),
           ],
-          if (trackType != TrackType.audio) ...<Widget>[
+          if (trackType == TrackType.video || trackType == TrackType.overlay)
+            ...<Widget>[
             Text(
               'Image / Video',
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
@@ -1254,7 +1298,9 @@ class _ClipInspectorCard extends StatelessWidget {
               },
             ),
           ],
-          if (trackType != TrackType.text) ...<Widget>[
+          if (trackType == TrackType.audio ||
+              trackType == TrackType.video ||
+              trackType == TrackType.overlay) ...<Widget>[
             Divider(color: context.cyberpunk.border.withValues(alpha: 0.7)),
             Text(
               'Audio / Tempo',
@@ -1287,6 +1333,35 @@ class _ClipInspectorCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _effectLabelForClip(TrackType type, Clip clip) {
+    if (type == TrackType.visualEffect) {
+      switch (clip.visualEffectType) {
+        case VisualEffectType.glitch:
+          return 'Glitch cyberpunk';
+        case VisualEffectType.shake:
+          return 'Tremblement';
+        case VisualEffectType.rgbSplit:
+          return 'RGB Split';
+        case VisualEffectType.flash:
+          return 'Flash';
+        case VisualEffectType.vhs:
+          return 'VHS';
+        case null:
+          return 'Effet visuel';
+      }
+    }
+    switch (clip.audioEffectType) {
+      case AudioEffectType.censorBeep:
+        return 'Bip censure';
+      case AudioEffectType.distortion:
+        return 'Distorsion';
+      case AudioEffectType.stutter:
+        return 'Stutter';
+      case null:
+        return 'Effet sonore';
+    }
   }
 }
 

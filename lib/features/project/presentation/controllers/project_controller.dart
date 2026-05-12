@@ -517,6 +517,7 @@ class ProjectController extends Notifier<ProjectState> {
     String? karaokeFillColorHex,
     int? karaokeLeadInMs,
     int? karaokeSweepDurationMs,
+    double? effectIntensity,
   }) {
     _updateClip(
       trackId: trackId,
@@ -566,6 +567,7 @@ class ProjectController extends Notifier<ProjectState> {
           karaokeSweepDurationMs: karaokeSweepDurationMs == null
               ? null
               : _clampInt(karaokeSweepDurationMs, 300, 10000),
+          effectIntensity: effectIntensity?.clamp(0.1, 1.0),
         );
       },
     );

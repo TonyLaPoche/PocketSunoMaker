@@ -33,12 +33,19 @@ class FfmpegExportService {
     }
 
     final bool hasTextOverlays = _hasTextOverlays(project);
+    final bool hasVisualEffectClips = _hasVisualEffectClips(project);
+    final bool hasAudioEffectClips = _hasAudioEffectClips(project);
     final bool drawTextAvailable = hasTextOverlays
         ? await _isFilterAvailable(ffmpegCommand, 'drawtext')
         : true;
     if (hasTextOverlays && !drawTextAvailable) {
       throw Exception(
         'Export impossible: le filtre FFmpeg drawtext est absent. Installe ffmpeg-full (Homebrew) ou configure un FFmpeg avec libfreetype pour garantir le rendu texte a l export.',
+      );
+    }
+    if (hasVisualEffectClips || hasAudioEffectClips) {
+      throw Exception(
+        'Export bloque: des clips Effets visuels/sonores sont presents mais leur rendu FFmpeg v1 n est pas encore active. Retire ces clips d effet avant export, ou attends la phase de parite export effets.',
       );
     }
 
@@ -214,6 +221,20 @@ class FfmpegExportService {
         .where((Track track) => track.type == TrackType.text)
         .expand((Track track) => track.clips)
         .any((Clip clip) => (clip.textContent ?? '').trim().isNotEmpty);
+  }
+
+  bool _hasVisualEffectClips(Project project) {
+    return project.tracks
+        .where((Track track) => track.type == TrackType.visualEffect)
+        .expand((Track track) => track.clips)
+        .isNotEmpty;
+  }
+
+  bool _hasAudioEffectClips(Project project) {
+    return project.tracks
+        .where((Track track) => track.type == TrackType.audioEffect)
+        .expand((Track track) => track.clips)
+        .isNotEmpty;
   }
 
   Future<bool> _isFilterAvailable(

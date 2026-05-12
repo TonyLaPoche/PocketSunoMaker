@@ -642,15 +642,74 @@ class _EffectGlitch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final double t = localMs / 1000.0;
-    final double amp = 5 * intensity;
-    final double dx = math.sin(t * 56.0) * amp;
+    final double amp = 4 + 12 * intensity;
+    final double burst = math.sin(t * 22.0).abs();
+    final double dx =
+        (math.sin(t * 63.0) * amp * (0.55 + burst * 0.45)).clamp(-18.0, 18.0);
+    final double dy = (math.cos(t * 37.0) * 1.2 * intensity).clamp(-4.0, 4.0);
+    final double neonAlpha = (0.08 + intensity * 0.15).clamp(0.0, 0.4);
     return Stack(
       fit: StackFit.expand,
       children: <Widget>[
-        Transform.translate(offset: Offset(dx, 0), child: child),
+        Transform.translate(offset: Offset(dx, dy), child: child),
         _EffectRgbSplit(localMs: localMs, intensity: intensity, child: child),
+        IgnorePointer(
+          child: ColorFiltered(
+            colorFilter: const ColorFilter.mode(
+              Color(0xFFB100FF),
+              BlendMode.softLight,
+            ),
+            child: Opacity(opacity: neonAlpha, child: child),
+          ),
+        ),
+        IgnorePointer(
+          child: CustomPaint(
+            painter: _GlitchSlicesPainter(
+              phase: t,
+              intensity: intensity,
+            ),
+            child: const SizedBox.expand(),
+          ),
+        ),
       ],
     );
+  }
+}
+
+class _GlitchSlicesPainter extends CustomPainter {
+  const _GlitchSlicesPainter({required this.phase, required this.intensity});
+
+  final double phase;
+  final double intensity;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint barA = Paint()
+      ..color = const Color(0xFF00E5FF).withValues(alpha: 0.08 + 0.20 * intensity)
+      ..blendMode = BlendMode.plus;
+    final Paint barB = Paint()
+      ..color = const Color(0xFFFF00E6).withValues(alpha: 0.06 + 0.16 * intensity)
+      ..blendMode = BlendMode.plus;
+    final Paint darkLine = Paint()
+      ..color = Colors.black.withValues(alpha: 0.10 + 0.18 * intensity)
+      ..strokeWidth = 1.0;
+
+    final int bands = (5 + intensity * 10).round();
+    for (int i = 0; i < bands; i++) {
+      final double seed = phase * (7.0 + i * 0.9) + i * 1.618;
+      final double y = ((math.sin(seed) + 1) * 0.5) * size.height;
+      final double h = (1.5 + (math.cos(seed * 1.7).abs() * 9.0 * intensity))
+          .clamp(1.5, 14.0);
+      final double shift = math.cos(seed * 2.3) * (8 + 24 * intensity);
+      final Rect r = Rect.fromLTWH(shift, y, size.width, h);
+      canvas.drawRect(r, i.isEven ? barA : barB);
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), darkLine);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _GlitchSlicesPainter oldDelegate) {
+    return oldDelegate.phase != phase || oldDelegate.intensity != intensity;
   }
 }
 
