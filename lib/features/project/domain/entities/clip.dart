@@ -1,5 +1,9 @@
 enum TextAnimationType { none, fade, slideUp, slideDown, zoom }
 
+enum VisualEffectType { glitch, shake, rgbSplit, flash, vhs }
+
+enum AudioEffectType { censorBeep, distortion, stutter }
+
 class Clip {
   const Clip({
     required this.id,
@@ -43,6 +47,9 @@ class Clip {
     this.karaokeFillColorHex = '#FEE440',
     this.karaokeLeadInMs = 0,
     this.karaokeSweepDurationMs = 2500,
+    this.visualEffectType,
+    this.audioEffectType,
+    this.effectIntensity = 0.6,
   });
 
   final String id;
@@ -86,6 +93,9 @@ class Clip {
   final String karaokeFillColorHex;
   final int karaokeLeadInMs;
   final int karaokeSweepDurationMs;
+  final VisualEffectType? visualEffectType;
+  final AudioEffectType? audioEffectType;
+  final double effectIntensity;
 
   bool get hasEntryFade =>
       textEntryFade || textEntryAnimation == TextAnimationType.fade;
@@ -149,6 +159,9 @@ class Clip {
     String? karaokeFillColorHex,
     int? karaokeLeadInMs,
     int? karaokeSweepDurationMs,
+    VisualEffectType? visualEffectType,
+    AudioEffectType? audioEffectType,
+    double? effectIntensity,
   }) {
     return Clip(
       id: id ?? this.id,
@@ -193,6 +206,9 @@ class Clip {
       karaokeLeadInMs: karaokeLeadInMs ?? this.karaokeLeadInMs,
       karaokeSweepDurationMs:
           karaokeSweepDurationMs ?? this.karaokeSweepDurationMs,
+      visualEffectType: visualEffectType ?? this.visualEffectType,
+      audioEffectType: audioEffectType ?? this.audioEffectType,
+      effectIntensity: effectIntensity ?? this.effectIntensity,
     );
   }
 }

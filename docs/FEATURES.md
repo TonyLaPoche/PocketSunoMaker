@@ -51,6 +51,10 @@
 ## 6) Effets et animation
 
 - transformations de base (position, scale, rotation, opacity)
+- boite a outils Effets avec 2 categories v1: visuels + sonores
+- timelines dediees pour effets visuels et effets sonores, avec creation de nouvelles pistes
+- effets visuels v1 preview: glitch, tremblement, RGB split, flash, VHS
+- effets sonores v1 (insertion timeline): bip censure, distorsion, stutter
 - effets visuels (glitch, blur, color, etc.)
 - transitions
 - systeme extensible d'effets (plugin-like)

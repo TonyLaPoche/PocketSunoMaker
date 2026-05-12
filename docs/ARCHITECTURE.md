@@ -31,6 +31,7 @@ Cette architecture suit une logique Clean Architecture pour garder une base main
   - edition timeline (move/trim/split/snap)
   - orchestration etat projet (controllers Riverpod)
   - inspecteur contextuel clip (transform, opacite, audio, texte)
+  - gestion des clips effets (visuels/sonores) et pistes dediees
 - `features/media_import`
   - import fichiers via picker
   - import drag and drop
@@ -41,6 +42,7 @@ Cette architecture suit une logique Clean Architecture pour garder une base main
   - rendu media actif (video/image)
   - canvas ratio export, grille de reperes, overlays texte (position/angle/opacite)
   - animations texte (fade/slide/zoom) + mode karaoke v1 en rendu shader mono-texte
+  - rendu effets visuels v1 en temps reel (glitch, tremblement, RGB split, flash, VHS)
 - `features/export`
   - file de jobs export
   - presets cibles (YouTube, Shorts, Reels)

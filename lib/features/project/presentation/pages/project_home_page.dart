@@ -269,6 +269,46 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
                                                     createNewTrack,
                                               );
                                             },
+                                      onAddVisualEffectAtPlayhead:
+                                          project == null
+                                          ? null
+                                          : ({
+                                              required VisualEffectType
+                                              effectType,
+                                              String? targetTrackId,
+                                              bool createNewTrack = false,
+                                            }) {
+                                              projectController
+                                                  .addVisualEffectClipAt(
+                                                    startMs: previewState
+                                                        .currentPositionMs,
+                                                    effectType: effectType,
+                                                    targetTrackId:
+                                                        targetTrackId,
+                                                    forceCreateNewTrack:
+                                                        createNewTrack,
+                                                  );
+                                            },
+                                      onAddAudioEffectAtPlayhead:
+                                          project == null
+                                          ? null
+                                          : ({
+                                              required AudioEffectType
+                                              effectType,
+                                              String? targetTrackId,
+                                              bool createNewTrack = false,
+                                            }) {
+                                              projectController
+                                                  .addAudioEffectClipAt(
+                                                    startMs: previewState
+                                                        .currentPositionMs,
+                                                    effectType: effectType,
+                                                    targetTrackId:
+                                                        targetTrackId,
+                                                    forceCreateNewTrack:
+                                                        createNewTrack,
+                                                  );
+                                            },
                                     ),
                                   ),
                                 ),
@@ -1986,12 +2026,26 @@ class _MediaToolsTabs extends StatefulWidget {
     required this.project,
     required this.mediaChild,
     required this.onAddTextAtPlayhead,
+    required this.onAddVisualEffectAtPlayhead,
+    required this.onAddAudioEffectAtPlayhead,
   });
 
   final Project? project;
   final Widget mediaChild;
   final void Function({String? targetTrackId, bool createNewTrack})?
   onAddTextAtPlayhead;
+  final void Function({
+    required VisualEffectType effectType,
+    String? targetTrackId,
+    bool createNewTrack,
+  })?
+  onAddVisualEffectAtPlayhead;
+  final void Function({
+    required AudioEffectType effectType,
+    String? targetTrackId,
+    bool createNewTrack,
+  })?
+  onAddAudioEffectAtPlayhead;
 
   @override
   State<_MediaToolsTabs> createState() => _MediaToolsTabsState();
@@ -1999,9 +2053,16 @@ class _MediaToolsTabs extends StatefulWidget {
 
 class _MediaToolsTabsState extends State<_MediaToolsTabs> {
   String _activeTool = 'text';
+  String _effectsCategory = 'visual';
   static const String _latestTextTrack = '__latest_text_track__';
   static const String _newTextTrack = '__new_text_track__';
+  static const String _latestVisualTrack = '__latest_visual_track__';
+  static const String _newVisualTrack = '__new_visual_track__';
+  static const String _latestAudioEffectTrack = '__latest_audio_effect_track__';
+  static const String _newAudioEffectTrack = '__new_audio_effect_track__';
   String _textTarget = _latestTextTrack;
+  String _visualEffectTarget = _latestVisualTrack;
+  String _audioEffectTarget = _latestAudioEffectTrack;
 
   @override
   Widget build(BuildContext context) {
@@ -2167,7 +2228,11 @@ class _MediaToolsTabsState extends State<_MediaToolsTabs> {
       );
     }
 
-    final String title = _activeTool == 'effects' ? 'Effets' : 'Transitions';
+    if (_activeTool == 'effects') {
+      return _buildEffectsPanel(context);
+    }
+
+    final String title = 'Transitions';
     return Container(
       key: ValueKey<String>('tool_$_activeTool'),
       padding: const EdgeInsets.all(10),
@@ -2183,6 +2248,303 @@ class _MediaToolsTabsState extends State<_MediaToolsTabs> {
         ).textTheme.bodySmall?.copyWith(color: context.cyberpunk.textMuted),
       ),
     );
+  }
+
+  Widget _buildEffectsPanel(BuildContext context) {
+    final List<Track> visualTracks =
+        (widget.project?.tracks ?? const <Track>[])
+            .where((Track track) => track.type == TrackType.visualEffect)
+            .toList(growable: false)
+          ..sort((Track a, Track b) => a.index.compareTo(b.index));
+    final List<Track> audioTracks =
+        (widget.project?.tracks ?? const <Track>[])
+            .where((Track track) => track.type == TrackType.audioEffect)
+            .toList(growable: false)
+          ..sort((Track a, Track b) => a.index.compareTo(b.index));
+
+    return Container(
+      key: const ValueKey<String>('tool_effects'),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: context.cyberpunk.border),
+        color: context.cyberpunk.bgPrimary.withValues(alpha: 0.35),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text('Effets', style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 6),
+          SegmentedButton<String>(
+            segments: const <ButtonSegment<String>>[
+              ButtonSegment<String>(
+                value: 'visual',
+                icon: Icon(Icons.auto_awesome_outlined),
+                label: Text('Visuels'),
+              ),
+              ButtonSegment<String>(
+                value: 'audio',
+                icon: Icon(Icons.graphic_eq),
+                label: Text('Sonores'),
+              ),
+            ],
+            selected: <String>{_effectsCategory},
+            onSelectionChanged: (Set<String> selection) {
+              setState(() {
+                _effectsCategory = selection.first;
+              });
+            },
+          ),
+          const SizedBox(height: 8),
+          if (_effectsCategory == 'visual') ...<Widget>[
+            _effectTrackDropdown(
+              context: context,
+              label: 'Destination effets visuels',
+              currentValue: _visualEffectTarget,
+              latestValue: _latestVisualTrack,
+              newValue: _newVisualTrack,
+              latestLabel: 'Piste effets visuels active',
+              newLabel: 'Nouvelle piste effets visuels',
+              tracks: visualTracks,
+              trackLabelBuilder: _visualTrackLabel,
+              onChanged: (String value) {
+                setState(() {
+                  _visualEffectTarget = value;
+                });
+              },
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: <Widget>[
+                _effectAddButton(
+                  label: 'Glitch',
+                  icon: Icons.bolt_outlined,
+                  onTap: widget.onAddVisualEffectAtPlayhead == null
+                      ? null
+                      : () => widget.onAddVisualEffectAtPlayhead!(
+                          effectType: VisualEffectType.glitch,
+                          targetTrackId:
+                              _visualEffectTarget == _latestVisualTrack ||
+                                  _visualEffectTarget == _newVisualTrack
+                              ? null
+                              : _visualEffectTarget,
+                          createNewTrack:
+                              _visualEffectTarget == _newVisualTrack,
+                        ),
+                ),
+                _effectAddButton(
+                  label: 'Tremblement',
+                  icon: Icons.vibration_outlined,
+                  onTap: widget.onAddVisualEffectAtPlayhead == null
+                      ? null
+                      : () => widget.onAddVisualEffectAtPlayhead!(
+                          effectType: VisualEffectType.shake,
+                          targetTrackId:
+                              _visualEffectTarget == _latestVisualTrack ||
+                                  _visualEffectTarget == _newVisualTrack
+                              ? null
+                              : _visualEffectTarget,
+                          createNewTrack:
+                              _visualEffectTarget == _newVisualTrack,
+                        ),
+                ),
+                _effectAddButton(
+                  label: 'RGB Split',
+                  icon: Icons.blur_linear,
+                  onTap: widget.onAddVisualEffectAtPlayhead == null
+                      ? null
+                      : () => widget.onAddVisualEffectAtPlayhead!(
+                          effectType: VisualEffectType.rgbSplit,
+                          targetTrackId:
+                              _visualEffectTarget == _latestVisualTrack ||
+                                  _visualEffectTarget == _newVisualTrack
+                              ? null
+                              : _visualEffectTarget,
+                          createNewTrack:
+                              _visualEffectTarget == _newVisualTrack,
+                        ),
+                ),
+                _effectAddButton(
+                  label: 'Flash',
+                  icon: Icons.flash_on_outlined,
+                  onTap: widget.onAddVisualEffectAtPlayhead == null
+                      ? null
+                      : () => widget.onAddVisualEffectAtPlayhead!(
+                          effectType: VisualEffectType.flash,
+                          targetTrackId:
+                              _visualEffectTarget == _latestVisualTrack ||
+                                  _visualEffectTarget == _newVisualTrack
+                              ? null
+                              : _visualEffectTarget,
+                          createNewTrack:
+                              _visualEffectTarget == _newVisualTrack,
+                        ),
+                ),
+                _effectAddButton(
+                  label: 'VHS',
+                  icon: Icons.tv,
+                  onTap: widget.onAddVisualEffectAtPlayhead == null
+                      ? null
+                      : () => widget.onAddVisualEffectAtPlayhead!(
+                          effectType: VisualEffectType.vhs,
+                          targetTrackId:
+                              _visualEffectTarget == _latestVisualTrack ||
+                                  _visualEffectTarget == _newVisualTrack
+                              ? null
+                              : _visualEffectTarget,
+                          createNewTrack:
+                              _visualEffectTarget == _newVisualTrack,
+                        ),
+                ),
+              ],
+            ),
+          ] else ...<Widget>[
+            _effectTrackDropdown(
+              context: context,
+              label: 'Destination effets sonores',
+              currentValue: _audioEffectTarget,
+              latestValue: _latestAudioEffectTrack,
+              newValue: _newAudioEffectTrack,
+              latestLabel: 'Piste effets sonores active',
+              newLabel: 'Nouvelle piste effets sonores',
+              tracks: audioTracks,
+              trackLabelBuilder: _audioTrackLabel,
+              onChanged: (String value) {
+                setState(() {
+                  _audioEffectTarget = value;
+                });
+              },
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: <Widget>[
+                _effectAddButton(
+                  label: 'Bip censure',
+                  icon: Icons.volume_up_outlined,
+                  onTap: widget.onAddAudioEffectAtPlayhead == null
+                      ? null
+                      : () => widget.onAddAudioEffectAtPlayhead!(
+                          effectType: AudioEffectType.censorBeep,
+                          targetTrackId:
+                              _audioEffectTarget == _latestAudioEffectTrack ||
+                                  _audioEffectTarget == _newAudioEffectTrack
+                              ? null
+                              : _audioEffectTarget,
+                          createNewTrack:
+                              _audioEffectTarget == _newAudioEffectTrack,
+                        ),
+                ),
+                _effectAddButton(
+                  label: 'Distorsion',
+                  icon: Icons.multitrack_audio_outlined,
+                  onTap: widget.onAddAudioEffectAtPlayhead == null
+                      ? null
+                      : () => widget.onAddAudioEffectAtPlayhead!(
+                          effectType: AudioEffectType.distortion,
+                          targetTrackId:
+                              _audioEffectTarget == _latestAudioEffectTrack ||
+                                  _audioEffectTarget == _newAudioEffectTrack
+                              ? null
+                              : _audioEffectTarget,
+                          createNewTrack:
+                              _audioEffectTarget == _newAudioEffectTrack,
+                        ),
+                ),
+                _effectAddButton(
+                  label: 'Stutter',
+                  icon: Icons.graphic_eq,
+                  onTap: widget.onAddAudioEffectAtPlayhead == null
+                      ? null
+                      : () => widget.onAddAudioEffectAtPlayhead!(
+                          effectType: AudioEffectType.stutter,
+                          targetTrackId:
+                              _audioEffectTarget == _latestAudioEffectTrack ||
+                                  _audioEffectTarget == _newAudioEffectTrack
+                              ? null
+                              : _audioEffectTarget,
+                          createNewTrack:
+                              _audioEffectTarget == _newAudioEffectTrack,
+                        ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _effectTrackDropdown({
+    required BuildContext context,
+    required String label,
+    required String currentValue,
+    required String latestValue,
+    required String newValue,
+    required String latestLabel,
+    required String newLabel,
+    required List<Track> tracks,
+    required String Function(Track track) trackLabelBuilder,
+    required ValueChanged<String> onChanged,
+  }) {
+    return DropdownButtonFormField<String>(
+      initialValue: currentValue,
+      isExpanded: true,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+        isDense: true,
+      ),
+      items: <DropdownMenuItem<String>>[
+        DropdownMenuItem<String>(value: latestValue, child: Text(latestLabel)),
+        ...tracks.map((Track track) {
+          return DropdownMenuItem<String>(
+            value: track.id,
+            child: Text(
+              trackLabelBuilder(track),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          );
+        }),
+        DropdownMenuItem<String>(value: newValue, child: Text(newLabel)),
+      ],
+      onChanged: (String? value) {
+        if (value == null) {
+          return;
+        }
+        onChanged(value);
+      },
+    );
+  }
+
+  Widget _effectAddButton({
+    required String label,
+    required IconData icon,
+    required VoidCallback? onTap,
+  }) {
+    return FilledButton.icon(
+      onPressed: onTap,
+      icon: Icon(icon, size: 16),
+      label: Text(label),
+    );
+  }
+
+  String _visualTrackLabel(Track track) {
+    if (track.name?.trim().isNotEmpty == true) {
+      return track.name!;
+    }
+    return 'Effets visuels ${track.index + 1}';
+  }
+
+  String _audioTrackLabel(Track track) {
+    if (track.name?.trim().isNotEmpty == true) {
+      return track.name!;
+    }
+    return 'Effets sonores ${track.index + 1}';
   }
 }
 

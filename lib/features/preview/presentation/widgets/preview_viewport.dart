@@ -97,6 +97,8 @@ class _PreviewViewportState extends State<PreviewViewport> {
       widget.project,
       widget.positionMs,
     );
+    final List<_ActiveVisualEffect> activeVisualEffects =
+        _findActiveVisualEffects(widget.project, widget.positionMs);
     final int stageWidth = widget.outputWidth ?? widget.project.canvasWidth;
     final int stageHeight = widget.outputHeight ?? widget.project.canvasHeight;
 
@@ -169,23 +171,26 @@ class _PreviewViewportState extends State<PreviewViewport> {
               child: Stack(
                 fit: StackFit.expand,
                 children: <Widget>[
-                  _VisualTransform(
-                    opacity: visualOpacity,
-                    scale: visualScale,
-                    rotationRad: visualRotationRad,
-                    child: Image.file(
-                      imageFile,
-                      fit: BoxFit.contain,
-                      errorBuilder:
-                          (
-                            BuildContext context,
-                            Object error,
-                            StackTrace? stackTrace,
-                          ) => const _FallbackLabel(
-                            label: 'Image non accessible',
-                            details:
-                                'Reimporte ce fichier pour renouveler la permission.',
-                          ),
+                  _applyVisualEffects(
+                    effects: activeVisualEffects,
+                    child: _VisualTransform(
+                      opacity: visualOpacity,
+                      scale: visualScale,
+                      rotationRad: visualRotationRad,
+                      child: Image.file(
+                        imageFile,
+                        fit: BoxFit.contain,
+                        errorBuilder:
+                            (
+                              BuildContext context,
+                              Object error,
+                              StackTrace? stackTrace,
+                            ) => const _FallbackLabel(
+                              label: 'Image non accessible',
+                              details:
+                                  'Reimporte ce fichier pour renouveler la permission.',
+                            ),
+                      ),
                     ),
                   ),
                   if (widget.showGuides) const _GuidesOverlay(),
@@ -239,16 +244,19 @@ class _PreviewViewportState extends State<PreviewViewport> {
               child: Stack(
                 fit: StackFit.expand,
                 children: <Widget>[
-                  _VisualTransform(
-                    opacity: visualOpacity,
-                    scale: visualScale,
-                    rotationRad: visualRotationRad,
-                    child: FittedBox(
-                      fit: BoxFit.contain,
-                      child: SizedBox(
-                        width: controller.value.size.width,
-                        height: controller.value.size.height,
-                        child: VideoPlayer(controller),
+                  _applyVisualEffects(
+                    effects: activeVisualEffects,
+                    child: _VisualTransform(
+                      opacity: visualOpacity,
+                      scale: visualScale,
+                      rotationRad: visualRotationRad,
+                      child: FittedBox(
+                        fit: BoxFit.contain,
+                        child: SizedBox(
+                          width: controller.value.size.width,
+                          height: controller.value.size.height,
+                          child: VideoPlayer(controller),
+                        ),
                       ),
                     ),
                   ),
@@ -432,6 +440,96 @@ class _PreviewViewportState extends State<PreviewViewport> {
         )
         .toList(growable: false);
   }
+
+  List<_ActiveVisualEffect> _findActiveVisualEffects(
+    Project project,
+    int positionMs,
+  ) {
+    final List<_ActiveVisualEffect> effects = <_ActiveVisualEffect>[];
+    for (final Track track in project.tracks) {
+      if (track.type != TrackType.visualEffect) {
+        continue;
+      }
+      for (final project_clip.Clip clip in track.clips) {
+        final project_clip.VisualEffectType? type = clip.visualEffectType;
+        if (type == null) {
+          continue;
+        }
+        final int clipStart = clip.timelineStartMs;
+        final int clipEnd = clip.timelineStartMs + clip.durationMs;
+        if (positionMs < clipStart || positionMs > clipEnd) {
+          continue;
+        }
+        effects.add(
+          _ActiveVisualEffect(
+            type: type,
+            localMs: (positionMs - clipStart).clamp(0, clip.durationMs),
+            intensity: clip.effectIntensity.clamp(0.1, 1.0),
+          ),
+        );
+      }
+    }
+    return effects;
+  }
+
+  Widget _applyVisualEffects({
+    required Widget child,
+    required List<_ActiveVisualEffect> effects,
+  }) {
+    Widget current = child;
+    for (final _ActiveVisualEffect effect in effects) {
+      switch (effect.type) {
+        case project_clip.VisualEffectType.glitch:
+          current = _EffectGlitch(
+            localMs: effect.localMs,
+            intensity: effect.intensity,
+            child: current,
+          );
+          break;
+        case project_clip.VisualEffectType.shake:
+          current = _EffectShake(
+            localMs: effect.localMs,
+            intensity: effect.intensity,
+            child: current,
+          );
+          break;
+        case project_clip.VisualEffectType.rgbSplit:
+          current = _EffectRgbSplit(
+            localMs: effect.localMs,
+            intensity: effect.intensity,
+            child: current,
+          );
+          break;
+        case project_clip.VisualEffectType.flash:
+          current = _EffectFlash(
+            localMs: effect.localMs,
+            intensity: effect.intensity,
+            child: current,
+          );
+          break;
+        case project_clip.VisualEffectType.vhs:
+          current = _EffectVhs(
+            localMs: effect.localMs,
+            intensity: effect.intensity,
+            child: current,
+          );
+          break;
+      }
+    }
+    return current;
+  }
+}
+
+class _ActiveVisualEffect {
+  const _ActiveVisualEffect({
+    required this.type,
+    required this.localMs,
+    required this.intensity,
+  });
+
+  final project_clip.VisualEffectType type;
+  final int localMs;
+  final double intensity;
 }
 
 class _VisualTransform extends StatelessWidget {
@@ -456,6 +554,210 @@ class _VisualTransform extends StatelessWidget {
         child: Transform.scale(scale: scale, child: child),
       ),
     );
+  }
+}
+
+class _EffectShake extends StatelessWidget {
+  const _EffectShake({
+    required this.child,
+    required this.localMs,
+    required this.intensity,
+  });
+
+  final Widget child;
+  final int localMs;
+  final double intensity;
+
+  @override
+  Widget build(BuildContext context) {
+    final double t = localMs / 1000.0;
+    final double amp = 8 * intensity;
+    final double dx = math.sin(t * 34.0) * amp;
+    final double dy = math.cos(t * 27.0) * amp * 0.65;
+    return Transform.translate(offset: Offset(dx, dy), child: child);
+  }
+}
+
+class _EffectRgbSplit extends StatelessWidget {
+  const _EffectRgbSplit({
+    required this.child,
+    required this.localMs,
+    required this.intensity,
+  });
+
+  final Widget child;
+  final int localMs;
+  final double intensity;
+
+  @override
+  Widget build(BuildContext context) {
+    final double t = localMs / 1000.0;
+    final double shift = (1.8 + math.sin(t * 18) * 1.8) * intensity;
+    return Stack(
+      fit: StackFit.expand,
+      children: <Widget>[
+        child,
+        Transform.translate(
+          offset: Offset(-shift, 0),
+          child: Opacity(
+            opacity: 0.20 * intensity,
+            child: ColorFiltered(
+              colorFilter: const ColorFilter.mode(
+                Colors.redAccent,
+                BlendMode.screen,
+              ),
+              child: child,
+            ),
+          ),
+        ),
+        Transform.translate(
+          offset: Offset(shift, 0),
+          child: Opacity(
+            opacity: 0.20 * intensity,
+            child: ColorFiltered(
+              colorFilter: const ColorFilter.mode(
+                Colors.cyanAccent,
+                BlendMode.screen,
+              ),
+              child: child,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _EffectGlitch extends StatelessWidget {
+  const _EffectGlitch({
+    required this.child,
+    required this.localMs,
+    required this.intensity,
+  });
+
+  final Widget child;
+  final int localMs;
+  final double intensity;
+
+  @override
+  Widget build(BuildContext context) {
+    final double t = localMs / 1000.0;
+    final double amp = 5 * intensity;
+    final double dx = math.sin(t * 56.0) * amp;
+    return Stack(
+      fit: StackFit.expand,
+      children: <Widget>[
+        Transform.translate(offset: Offset(dx, 0), child: child),
+        _EffectRgbSplit(localMs: localMs, intensity: intensity, child: child),
+      ],
+    );
+  }
+}
+
+class _EffectFlash extends StatelessWidget {
+  const _EffectFlash({
+    required this.child,
+    required this.localMs,
+    required this.intensity,
+  });
+
+  final Widget child;
+  final int localMs;
+  final double intensity;
+
+  @override
+  Widget build(BuildContext context) {
+    final double t = localMs / 1000.0;
+    final double pulse = ((math.sin(t * 14.0) + 1) / 2);
+    return Stack(
+      fit: StackFit.expand,
+      children: <Widget>[
+        child,
+        IgnorePointer(
+          child: Container(
+            color: Colors.white.withValues(alpha: pulse * 0.28 * intensity),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _EffectVhs extends StatelessWidget {
+  const _EffectVhs({
+    required this.child,
+    required this.localMs,
+    required this.intensity,
+  });
+
+  final Widget child;
+  final int localMs;
+  final double intensity;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: <Widget>[
+        ColorFiltered(
+          colorFilter: ColorFilter.matrix(<double>[
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            -10 * intensity,
+            0.0,
+            0.96,
+            0.0,
+            0.0,
+            -8 * intensity,
+            0.0,
+            0.0,
+            0.88,
+            0.0,
+            -6 * intensity,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+          ]),
+          child: child,
+        ),
+        IgnorePointer(
+          child: CustomPaint(
+            painter: _ScanlinesPainter(
+              intensity: intensity,
+              phase: localMs / 1000.0,
+            ),
+            child: const SizedBox.expand(),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ScanlinesPainter extends CustomPainter {
+  const _ScanlinesPainter({required this.intensity, required this.phase});
+
+  final double intensity;
+  final double phase;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint line = Paint()
+      ..color = Colors.black.withValues(alpha: 0.12 * intensity)
+      ..strokeWidth = 1;
+    final double offset = (math.sin(phase * 2.0) + 1) * 1.2;
+    for (double y = offset; y < size.height; y += 3.0) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), line);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ScanlinesPainter oldDelegate) {
+    return oldDelegate.intensity != intensity || oldDelegate.phase != phase;
   }
 }
 

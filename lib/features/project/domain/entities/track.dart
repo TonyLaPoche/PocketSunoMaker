@@ -1,6 +1,6 @@
 import 'clip.dart';
 
-enum TrackType { video, audio, overlay, text }
+enum TrackType { video, audio, overlay, text, visualEffect, audioEffect }
 
 class Track {
   const Track({

@@ -978,6 +978,36 @@ class _TimelineTrackRow extends StatelessWidget {
   onRemoveClip;
   static const double _trackHeaderWidth = 148;
 
+  String _visualEffectLabel(VisualEffectType? type) {
+    switch (type) {
+      case VisualEffectType.glitch:
+        return 'Glitch';
+      case VisualEffectType.shake:
+        return 'Tremblement';
+      case VisualEffectType.rgbSplit:
+        return 'RGB Split';
+      case VisualEffectType.flash:
+        return 'Flash';
+      case VisualEffectType.vhs:
+        return 'VHS';
+      case null:
+        return 'Effet visuel';
+    }
+  }
+
+  String _audioEffectLabel(AudioEffectType? type) {
+    switch (type) {
+      case AudioEffectType.censorBeep:
+        return 'Bip censure';
+      case AudioEffectType.distortion:
+        return 'Distorsion';
+      case AudioEffectType.stutter:
+        return 'Stutter';
+      case null:
+        return 'Effet sonore';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isSelectedTrack =
@@ -1090,7 +1120,10 @@ class _TimelineTrackRow extends StatelessWidget {
           ),
           ...track.clips.map((Clip clip) {
             final bool isTextClip = track.type == TrackType.text;
-            final double clipHeight = isTextClip ? 30 : 42;
+            final bool isEffectClip =
+                track.type == TrackType.visualEffect ||
+                track.type == TrackType.audioEffect;
+            final double clipHeight = isTextClip || isEffectClip ? 30 : 42;
             final double left =
                 _trackHeaderWidth +
                 (clip.timelineStartMs / 1000) * pixelsPerSecond;
@@ -1155,6 +1188,10 @@ class _TimelineTrackRow extends StatelessWidget {
                     ? (clip.textContent?.trim().isNotEmpty == true
                           ? clip.textContent!.trim()
                           : 'Texte')
+                    : track.type == TrackType.visualEffect
+                    ? _visualEffectLabel(clip.visualEffectType)
+                    : track.type == TrackType.audioEffect
+                    ? _audioEffectLabel(clip.audioEffectType)
                     : p.basename(clip.assetPath),
                 onTrimStartByDeltaPx: (double deltaPx) {
                   final int deltaMs = (deltaPx / pixelsPerSecond * 1000)

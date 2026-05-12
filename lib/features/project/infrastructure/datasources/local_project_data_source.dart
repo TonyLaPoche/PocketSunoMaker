@@ -107,6 +107,9 @@ class LocalProjectDataSource {
       'karaokeFillColorHex': clip.karaokeFillColorHex,
       'karaokeLeadInMs': clip.karaokeLeadInMs,
       'karaokeSweepDurationMs': clip.karaokeSweepDurationMs,
+      'visualEffectType': clip.visualEffectType?.name,
+      'audioEffectType': clip.audioEffectType?.name,
+      'effectIntensity': clip.effectIntensity,
     };
   }
 
@@ -189,6 +192,12 @@ class LocalProjectDataSource {
       json['textExitZoom'],
       fallback: exitLegacy == TextAnimationType.zoom,
     );
+    final VisualEffectType? visualEffectType = _asVisualEffectType(
+      json['visualEffectType'],
+    );
+    final AudioEffectType? audioEffectType = _asAudioEffectType(
+      json['audioEffectType'],
+    );
 
     return Clip(
       id: json['id'] as String? ?? '',
@@ -235,6 +244,9 @@ class LocalProjectDataSource {
         json['karaokeSweepDurationMs'],
         fallback: 2500,
       ),
+      visualEffectType: visualEffectType,
+      audioEffectType: audioEffectType,
+      effectIntensity: _asDouble(json['effectIntensity'], fallback: 0.6),
     );
   }
 
@@ -285,5 +297,29 @@ class LocalProjectDataSource {
       }
     }
     return fallback;
+  }
+
+  VisualEffectType? _asVisualEffectType(Object? value) {
+    if (value is! String) {
+      return null;
+    }
+    for (final VisualEffectType type in VisualEffectType.values) {
+      if (type.name == value) {
+        return type;
+      }
+    }
+    return null;
+  }
+
+  AudioEffectType? _asAudioEffectType(Object? value) {
+    if (value is! String) {
+      return null;
+    }
+    for (final AudioEffectType type in AudioEffectType.values) {
+      if (type.name == value) {
+        return type;
+      }
+    }
+    return null;
   }
 }

@@ -645,6 +645,56 @@ class ProjectController extends Notifier<ProjectState> {
     );
   }
 
+  void addVisualEffectClipAt({
+    required int startMs,
+    required VisualEffectType effectType,
+    int durationMs = 2000,
+    String? targetTrackId,
+    bool forceCreateNewTrack = false,
+  }) {
+    _addEffectClipAt(
+      startMs: startMs,
+      durationMs: durationMs,
+      targetType: TrackType.visualEffect,
+      targetTrackId: targetTrackId,
+      forceCreateNewTrack: forceCreateNewTrack,
+      buildClip: (int safeStartMs, int safeDurationMs) => Clip(
+        id: 'clip-${DateTime.now().microsecondsSinceEpoch}',
+        assetPath: '',
+        timelineStartMs: safeStartMs,
+        sourceInMs: 0,
+        sourceOutMs: safeDurationMs,
+        visualEffectType: effectType,
+      ),
+      defaultTrackNameBuilder: _defaultVisualEffectTrackName,
+    );
+  }
+
+  void addAudioEffectClipAt({
+    required int startMs,
+    required AudioEffectType effectType,
+    int durationMs = 1200,
+    String? targetTrackId,
+    bool forceCreateNewTrack = false,
+  }) {
+    _addEffectClipAt(
+      startMs: startMs,
+      durationMs: durationMs,
+      targetType: TrackType.audioEffect,
+      targetTrackId: targetTrackId,
+      forceCreateNewTrack: forceCreateNewTrack,
+      buildClip: (int safeStartMs, int safeDurationMs) => Clip(
+        id: 'clip-${DateTime.now().microsecondsSinceEpoch}',
+        assetPath: '',
+        timelineStartMs: safeStartMs,
+        sourceInMs: 0,
+        sourceOutMs: safeDurationMs,
+        audioEffectType: effectType,
+      ),
+      defaultTrackNameBuilder: _defaultAudioEffectTrackName,
+    );
+  }
+
   void renameTextClip({
     required String trackId,
     required String clipId,
@@ -670,6 +720,79 @@ class ProjectController extends Notifier<ProjectState> {
           return track.copyWith(name: sanitized);
         })
         .toList(growable: false);
+    state = state.copyWith(
+      currentProject: project.copyWith(
+        tracks: tracks,
+        durationMs: _computeProjectDurationMs(tracks),
+      ),
+      errorMessage: null,
+    );
+  }
+
+  void _addEffectClipAt({
+    required int startMs,
+    required int durationMs,
+    required TrackType targetType,
+    required String? targetTrackId,
+    required bool forceCreateNewTrack,
+    required Clip Function(int safeStartMs, int safeDurationMs) buildClip,
+    required String Function(List<Track>) defaultTrackNameBuilder,
+  }) {
+    final Project? project = state.currentProject;
+    if (project == null) {
+      return;
+    }
+    final List<Track> tracks = List<Track>.from(project.tracks);
+    final int safeStartMs = startMs < 0 ? 0 : startMs;
+    final int safeDurationMs = durationMs < _minClipDurationMs
+        ? _minClipDurationMs
+        : durationMs;
+    final Track? existingTrack = forceCreateNewTrack
+        ? null
+        : targetTrackId == null
+        ? tracks.where((Track track) => track.type == targetType).fold<Track?>(
+            null,
+            (Track? current, Track next) {
+              if (current == null || next.index > current.index) {
+                return next;
+              }
+              return current;
+            },
+          )
+        : tracks
+              .where((Track track) => track.id == targetTrackId)
+              .fold<Track?>(
+                null,
+                (Track? current, Track next) =>
+                    next.type == targetType ? next : current,
+              );
+
+    final Clip effectClip = buildClip(safeStartMs, safeDurationMs);
+    if (existingTrack == null) {
+      tracks.add(
+        Track(
+          id: '${targetType.name}-track-${DateTime.now().millisecondsSinceEpoch}',
+          type: targetType,
+          index: tracks.length,
+          name: defaultTrackNameBuilder(tracks),
+          clips: <Clip>[effectClip],
+        ),
+      );
+    } else {
+      final int trackIndex = tracks.indexWhere(
+        (Track track) => track.id == existingTrack.id,
+      );
+      if (trackIndex == -1) {
+        return;
+      }
+      final List<Clip> clips = List<Clip>.from(existingTrack.clips)
+        ..add(effectClip)
+        ..sort(
+          (Clip a, Clip b) => a.timelineStartMs.compareTo(b.timelineStartMs),
+        );
+      tracks[trackIndex] = existingTrack.copyWith(clips: clips);
+    }
+
     state = state.copyWith(
       currentProject: project.copyWith(
         tracks: tracks,
@@ -739,6 +862,24 @@ class ProjectController extends Notifier<ProjectState> {
     final int count =
         tracks.where((Track track) => track.type == TrackType.text).length + 1;
     return 'Texte $count';
+  }
+
+  String _defaultVisualEffectTrackName(List<Track> tracks) {
+    final int count =
+        tracks
+            .where((Track track) => track.type == TrackType.visualEffect)
+            .length +
+        1;
+    return 'Effets visuels $count';
+  }
+
+  String _defaultAudioEffectTrackName(List<Track> tracks) {
+    final int count =
+        tracks
+            .where((Track track) => track.type == TrackType.audioEffect)
+            .length +
+        1;
+    return 'Effets sonores $count';
   }
 
   int _clipDurationForAsset(MediaAsset asset) {
