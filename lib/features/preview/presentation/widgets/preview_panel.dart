@@ -10,6 +10,7 @@ class PreviewPanel extends StatefulWidget {
   const PreviewPanel({
     required this.project,
     required this.state,
+    required this.audioReactiveLevel,
     required this.onTogglePlayPause,
     required this.onScrubStart,
     required this.onScrubEnd,
@@ -25,6 +26,7 @@ class PreviewPanel extends StatefulWidget {
 
   final Project? project;
   final PreviewState state;
+  final double audioReactiveLevel;
   final VoidCallback onTogglePlayPause;
   final VoidCallback onScrubStart;
   final VoidCallback onScrubEnd;
@@ -105,6 +107,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
                     project: widget.project!,
                     positionMs: widget.state.currentPositionMs,
                     isPlaying: widget.state.isPlaying,
+                    audioReactiveLevel: widget.audioReactiveLevel,
                     viewportHeight: viewportHeight,
                     selectedTextClipId: widget.selectedTextClipId,
                     onTextClipSelected: widget.onTextClipSelected,

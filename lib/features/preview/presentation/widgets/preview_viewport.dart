@@ -17,6 +17,7 @@ class PreviewViewport extends StatefulWidget {
     required this.project,
     required this.positionMs,
     required this.isPlaying,
+    required this.audioReactiveLevel,
     this.viewportHeight = 190,
     this.selectedTextClipId,
     this.onTextClipSelected,
@@ -30,6 +31,7 @@ class PreviewViewport extends StatefulWidget {
   final Project project;
   final int positionMs;
   final bool isPlaying;
+  final double audioReactiveLevel;
   final double viewportHeight;
   final String? selectedTextClipId;
   final void Function(String trackId, project_clip.Clip clip)?
@@ -463,8 +465,14 @@ class _PreviewViewportState extends State<PreviewViewport> {
         effects.add(
           _ActiveVisualEffect(
             type: type,
+            timelineMs: positionMs,
             localMs: (positionMs - clipStart).clamp(0, clip.durationMs),
             intensity: clip.effectIntensity.clamp(0.1, 1.0),
+            shakeAmplitudePx: clip.effectShakeAmplitudePx.clamp(2.0, 40.0),
+            shakeFrequencyHz: clip.effectShakeFrequencyHz.clamp(4.0, 60.0),
+            shakeAudioSync: clip.effectShakeAudioSync,
+            shakeAutoBpm: clip.effectShakeAutoBpm,
+            shakeDetectedBpm: clip.effectShakeDetectedBpm.clamp(60.0, 220.0),
           ),
         );
       }
@@ -488,8 +496,15 @@ class _PreviewViewportState extends State<PreviewViewport> {
           break;
         case project_clip.VisualEffectType.shake:
           current = _EffectShake(
+            timelineMs: effect.timelineMs,
             localMs: effect.localMs,
             intensity: effect.intensity,
+            amplitudePx: effect.shakeAmplitudePx,
+            frequencyHz: effect.shakeFrequencyHz,
+            audioSync: effect.shakeAudioSync,
+            autoBpm: effect.shakeAutoBpm,
+            detectedBpm: effect.shakeDetectedBpm,
+            audioReactiveLevel: widget.audioReactiveLevel,
             child: current,
           );
           break;
@@ -523,13 +538,25 @@ class _PreviewViewportState extends State<PreviewViewport> {
 class _ActiveVisualEffect {
   const _ActiveVisualEffect({
     required this.type,
+    required this.timelineMs,
     required this.localMs,
     required this.intensity,
+    required this.shakeAmplitudePx,
+    required this.shakeFrequencyHz,
+    required this.shakeAudioSync,
+    required this.shakeAutoBpm,
+    required this.shakeDetectedBpm,
   });
 
   final project_clip.VisualEffectType type;
+  final int timelineMs;
   final int localMs;
   final double intensity;
+  final double shakeAmplitudePx;
+  final double shakeFrequencyHz;
+  final bool shakeAudioSync;
+  final bool shakeAutoBpm;
+  final double shakeDetectedBpm;
 }
 
 class _VisualTransform extends StatelessWidget {
@@ -560,20 +587,49 @@ class _VisualTransform extends StatelessWidget {
 class _EffectShake extends StatelessWidget {
   const _EffectShake({
     required this.child,
+    required this.timelineMs,
     required this.localMs,
     required this.intensity,
+    required this.amplitudePx,
+    required this.frequencyHz,
+    required this.audioSync,
+    required this.autoBpm,
+    required this.detectedBpm,
+    required this.audioReactiveLevel,
   });
 
   final Widget child;
+  final int timelineMs;
   final int localMs;
   final double intensity;
+  final double amplitudePx;
+  final double frequencyHz;
+  final bool audioSync;
+  final bool autoBpm;
+  final double detectedBpm;
+  final double audioReactiveLevel;
 
   @override
   Widget build(BuildContext context) {
-    final double t = localMs / 1000.0;
-    final double amp = 8 * intensity;
-    final double dx = math.sin(t * 34.0) * amp;
-    final double dy = math.cos(t * 27.0) * amp * 0.65;
+    final double t = (audioSync ? timelineMs : localMs) / 1000.0;
+    final double effectiveFrequencyHz = autoBpm && audioSync
+        ? (detectedBpm / 60.0).clamp(0.8, 4.0)
+        : frequencyHz;
+    final double reactiveGate = audioSync
+        ? math.pow(
+            ((audioReactiveLevel - 0.05) / 0.95).clamp(0.0, 1.0),
+            0.72,
+          ).toDouble()
+        : 1.0;
+    final double beatPulse = audioSync
+        ? (0.62 + 0.38 * math.sin(t * math.pi * 2 * effectiveFrequencyHz).abs())
+        : 1.0;
+    final double amp =
+        amplitudePx * (0.45 + intensity * 0.90) * beatPulse * reactiveGate;
+    final double baseFreqHz = effectiveFrequencyHz * (0.6 + intensity * 0.8);
+    final double dx = math.sin(t * math.pi * 2 * baseFreqHz) * amp;
+    final double dy =
+        math.cos(t * math.pi * 2 * (baseFreqHz * 0.77)) * amp * 0.65;
     return Transform.translate(offset: Offset(dx, dy), child: child);
   }
 }

@@ -16,6 +16,9 @@ import '../../../media_import/presentation/widgets/media_bin_panel.dart';
 import '../../../preview/presentation/controllers/preview_controller.dart';
 import '../../../preview/presentation/controllers/preview_audio_sync_controller.dart';
 import '../../../preview/presentation/controllers/preview_state.dart';
+import '../../../preview/infrastructure/services/audio_bpm_detector.dart';
+import '../../../preview/infrastructure/services/audio_reactivity_analyzer.dart';
+import '../../../preview/presentation/models/active_clip_info.dart';
 import '../../../preview/presentation/widgets/preview_panel.dart';
 import '../../../preview/presentation/utils/preview_clip_resolver.dart';
 import '../../domain/entities/clip.dart';
@@ -41,6 +44,14 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
   double _timelineHeightPx = 300;
   final Map<String, _ClipInspectorValues> _inspectorByClipId =
       <String, _ClipInspectorValues>{};
+  final Map<String, double> _autoBpmCacheByAudioPath = <String, double>{};
+  final Set<String> _autoBpmDetectingClipIds = <String>{};
+  final AudioBpmDetector _audioBpmDetector = AudioBpmDetector();
+  final AudioReactivityAnalyzer _audioReactivityAnalyzer =
+      AudioReactivityAnalyzer();
+  final Map<String, AudioReactivityProfile> _audioReactiveByPath =
+      <String, AudioReactivityProfile>{};
+  final Set<String> _audioReactiveLoadingPaths = <String>{};
   static const double _minTimelineHeightPx = 180;
   static const double _minTopPanelsHeightPx = 220;
 
@@ -116,6 +127,10 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
     final exportState = ref.watch(exportQueueControllerProvider);
     final exportController = ref.read(exportQueueControllerProvider.notifier);
     final Project? project = projectState.currentProject;
+    final double audioReactiveLevel = _resolveAudioReactiveLevel(
+      project,
+      previewState.currentPositionMs,
+    );
     ExportJob? runningExportJob;
     int queuedExportsCount = 0;
     for (final ExportJob job in exportState.jobs) {
@@ -320,6 +335,7 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
                                     child: PreviewPanel(
                                       project: project,
                                       state: previewState,
+                                      audioReactiveLevel: audioReactiveLevel,
                                       onTogglePlayPause:
                                           previewController.togglePlayPause,
                                       onScrubStart:
@@ -438,84 +454,36 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
                                                 inspectedClip == null) {
                                               return;
                                             }
+                                            final _ClipInspectorValues
+                                            previousValues =
+                                                _inspectorByClipId[inspectedClip
+                                                        .id] ??
+                                                _ClipInspectorValues.fromClip(
+                                                  inspectedClip,
+                                                );
                                             setState(() {
                                               _inspectorByClipId[inspectedClip
                                                       .id] =
                                                   values;
                                             });
-                                            projectController
-                                                .updateClipInspectorValues(
-                                                  trackId: trackId,
-                                                  clipId: inspectedClip.id,
-                                                  opacity: values.opacity,
-                                                  speed: values.speed,
-                                                  volume: values.volume,
-                                                  scale: values.scale,
-                                                  rotationDeg:
-                                                      values.rotationDeg,
-                                                  textPosXPx: values.textPosXPx,
-                                                  textPosYPx: values.textPosYPx,
-                                                  textFontSizePx:
-                                                      values.textFontSizePx,
-                                                  textFontFamily:
-                                                      values.textFontFamily,
-                                                  textBold: values.textBold,
-                                                  textItalic: values.textItalic,
-                                                  textColorHex:
-                                                      values.textColorHex,
-                                                  textBackgroundHex:
-                                                      values.textBackgroundHex,
-                                                  textShowBackground:
-                                                      values.textShowBackground,
-                                                  textShowBorder:
-                                                      values.textShowBorder,
-                                                  textEntryAnimation:
-                                                      values.textEntryAnimation,
-                                                  textExitAnimation:
-                                                      values.textExitAnimation,
-                                                  textEntryFade:
-                                                      values.textEntryFade,
-                                                  textEntrySlideUp:
-                                                      values.textEntrySlideUp,
-                                                  textEntrySlideDown:
-                                                      values.textEntrySlideDown,
-                                                  textEntryZoom:
-                                                      values.textEntryZoom,
-                                                  textExitFade:
-                                                      values.textExitFade,
-                                                  textExitSlideUp:
-                                                      values.textExitSlideUp,
-                                                  textExitSlideDown:
-                                                      values.textExitSlideDown,
-                                                  textExitZoom:
-                                                      values.textExitZoom,
-                                                  textEntryDurationMs: values
-                                                      .textEntryDurationMs
-                                                      .round(),
-                                                  textExitDurationMs: values
-                                                      .textExitDurationMs
-                                                      .round(),
-                                                  textEntryOffsetPx:
-                                                      values.textEntryOffsetPx,
-                                                  textExitOffsetPx:
-                                                      values.textExitOffsetPx,
-                                                  textEntryScale:
-                                                      values.textEntryScale,
-                                                  textExitScale:
-                                                      values.textExitScale,
-                                                  karaokeEnabled:
-                                                      values.karaokeEnabled,
-                                                  karaokeFillColorHex: values
-                                                      .karaokeFillColorHex,
-                                                  karaokeLeadInMs: values
-                                                      .karaokeLeadInMs
-                                                      .round(),
-                                                  karaokeSweepDurationMs: values
-                                                      .karaokeSweepDurationMs
-                                                      .round(),
-                                                  effectIntensity:
-                                                      values.effectIntensity,
-                                                );
+                                            _applyInspectorValues(
+                                              projectController:
+                                                  projectController,
+                                              trackId: trackId,
+                                              clipId: inspectedClip.id,
+                                              values: values,
+                                            );
+                                            unawaited(
+                                              _maybeRunAutoBpmDetection(
+                                                projectController:
+                                                    projectController,
+                                                project: project,
+                                                trackId: trackId,
+                                                clipId: inspectedClip.id,
+                                                previousValues: previousValues,
+                                                values: values,
+                                              ),
+                                            );
                                             final _ClipInspectorValues
                                             activeValues =
                                                 _activeInspectorValues(
@@ -737,6 +705,211 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
         _ClipInspectorValues.fromClip(inspectedClip);
   }
 
+  void _applyInspectorValues({
+    required ProjectController projectController,
+    required String trackId,
+    required String clipId,
+    required _ClipInspectorValues values,
+  }) {
+    projectController.updateClipInspectorValues(
+      trackId: trackId,
+      clipId: clipId,
+      opacity: values.opacity,
+      speed: values.speed,
+      volume: values.volume,
+      scale: values.scale,
+      rotationDeg: values.rotationDeg,
+      textPosXPx: values.textPosXPx,
+      textPosYPx: values.textPosYPx,
+      textFontSizePx: values.textFontSizePx,
+      textFontFamily: values.textFontFamily,
+      textBold: values.textBold,
+      textItalic: values.textItalic,
+      textColorHex: values.textColorHex,
+      textBackgroundHex: values.textBackgroundHex,
+      textShowBackground: values.textShowBackground,
+      textShowBorder: values.textShowBorder,
+      textEntryAnimation: values.textEntryAnimation,
+      textExitAnimation: values.textExitAnimation,
+      textEntryFade: values.textEntryFade,
+      textEntrySlideUp: values.textEntrySlideUp,
+      textEntrySlideDown: values.textEntrySlideDown,
+      textEntryZoom: values.textEntryZoom,
+      textExitFade: values.textExitFade,
+      textExitSlideUp: values.textExitSlideUp,
+      textExitSlideDown: values.textExitSlideDown,
+      textExitZoom: values.textExitZoom,
+      textEntryDurationMs: values.textEntryDurationMs.round(),
+      textExitDurationMs: values.textExitDurationMs.round(),
+      textEntryOffsetPx: values.textEntryOffsetPx,
+      textExitOffsetPx: values.textExitOffsetPx,
+      textEntryScale: values.textEntryScale,
+      textExitScale: values.textExitScale,
+      karaokeEnabled: values.karaokeEnabled,
+      karaokeFillColorHex: values.karaokeFillColorHex,
+      karaokeLeadInMs: values.karaokeLeadInMs.round(),
+      karaokeSweepDurationMs: values.karaokeSweepDurationMs.round(),
+      effectIntensity: values.effectIntensity,
+      effectShakeAmplitudePx: values.effectShakeAmplitudePx,
+      effectShakeFrequencyHz: values.effectShakeFrequencyHz,
+      effectShakeAudioSync: values.effectShakeAudioSync,
+      effectShakeAutoBpm: values.effectShakeAutoBpm,
+      effectShakeDetectedBpm: values.effectShakeDetectedBpm,
+    );
+  }
+
+  Future<void> _maybeRunAutoBpmDetection({
+    required ProjectController projectController,
+    required Project? project,
+    required String trackId,
+    required String clipId,
+    required _ClipInspectorValues previousValues,
+    required _ClipInspectorValues values,
+  }) async {
+    if (!values.effectShakeAudioSync || !values.effectShakeAutoBpm) {
+      return;
+    }
+    final bool toggledOn = !previousValues.effectShakeAutoBpm;
+    if (!toggledOn) {
+      return;
+    }
+    if (_autoBpmDetectingClipIds.contains(clipId)) {
+      return;
+    }
+    final Clip? audioClip = _firstTimelineAudioClip(project);
+    if (audioClip == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Auto BPM: ajoute une piste audio sur la timeline.'),
+          ),
+        );
+      }
+      return;
+    }
+    final String audioPath = audioClip.assetPath;
+    final double? cached = _autoBpmCacheByAudioPath[audioPath];
+    if (cached != null) {
+      final _ClipInspectorValues nextValues = values.copyWith(
+        effectShakeDetectedBpm: cached,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _inspectorByClipId[clipId] = nextValues;
+      });
+      _applyInspectorValues(
+        projectController: projectController,
+        trackId: trackId,
+        clipId: clipId,
+        values: nextValues,
+      );
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _autoBpmDetectingClipIds.add(clipId);
+      });
+    }
+    final double? bpm = await _audioBpmDetector.detectBpm(audioPath: audioPath);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _autoBpmDetectingClipIds.remove(clipId);
+    });
+    if (bpm == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Auto BPM: detection impossible. Verifie la piste audio.',
+          ),
+        ),
+      );
+      return;
+    }
+    _autoBpmCacheByAudioPath[audioPath] = bpm;
+    final _ClipInspectorValues nextValues = values.copyWith(
+      effectShakeDetectedBpm: bpm,
+    );
+    setState(() {
+      _inspectorByClipId[clipId] = nextValues;
+    });
+    _applyInspectorValues(
+      projectController: projectController,
+      trackId: trackId,
+      clipId: clipId,
+      values: nextValues,
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Auto BPM detecte: ${bpm.toStringAsFixed(1)} BPM'),
+      ),
+    );
+  }
+
+  Clip? _firstTimelineAudioClip(Project? project) {
+    if (project == null) {
+      return null;
+    }
+    final List<Clip> clips = project.tracks
+        .where((Track track) => track.type == TrackType.audio)
+        .expand((Track track) => track.clips)
+        .toList(growable: false);
+    if (clips.isEmpty) {
+      return null;
+    }
+    clips.sort((Clip a, Clip b) => a.timelineStartMs.compareTo(b.timelineStartMs));
+    return clips.first;
+  }
+
+  double _resolveAudioReactiveLevel(Project? project, int positionMs) {
+    if (project == null) {
+      return 0.0;
+    }
+    final ActiveClipInfo? activeAudio = findActiveClip(
+      project: project,
+      positionMs: positionMs,
+      type: TrackType.audio,
+    );
+    if (activeAudio == null) {
+      return 0.0;
+    }
+    final String path = activeAudio.clip.assetPath;
+    final AudioReactivityProfile? profile = _audioReactiveByPath[path];
+    if (profile == null) {
+      unawaited(_ensureAudioReactiveProfile(path));
+      return 0.0;
+    }
+    final double sec = activeAudio.sourcePositionMs / 1000.0;
+    return profile.levelAtSec(sec);
+  }
+
+  Future<void> _ensureAudioReactiveProfile(String audioPath) async {
+    if (_audioReactiveByPath.containsKey(audioPath) ||
+        _audioReactiveLoadingPaths.contains(audioPath)) {
+      return;
+    }
+    if (mounted) {
+      setState(() {
+        _audioReactiveLoadingPaths.add(audioPath);
+      });
+    }
+    final AudioReactivityProfile? profile = await _audioReactivityAnalyzer
+        .analyze(audioPath: audioPath);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _audioReactiveLoadingPaths.remove(audioPath);
+      if (profile != null) {
+        _audioReactiveByPath[audioPath] = profile;
+      }
+    });
+  }
+
   TrackType? _inspectedTrackType(Project? project) {
     final String? trackId = _inspectedTrackId;
     if (project == null || trackId == null) {
@@ -950,6 +1123,11 @@ class _ClipInspectorValues {
     required this.karaokeLeadInMs,
     required this.karaokeSweepDurationMs,
     required this.effectIntensity,
+    required this.effectShakeAmplitudePx,
+    required this.effectShakeFrequencyHz,
+    required this.effectShakeAudioSync,
+    required this.effectShakeAutoBpm,
+    required this.effectShakeDetectedBpm,
     bool? textShowBackground,
     bool? textShowBorder,
   }) : _textShowBackground = textShowBackground,
@@ -990,6 +1168,11 @@ class _ClipInspectorValues {
     karaokeLeadInMs: 0,
     karaokeSweepDurationMs: 2500,
     effectIntensity: 0.6,
+    effectShakeAmplitudePx: 8.0,
+    effectShakeFrequencyHz: 34.0,
+    effectShakeAudioSync: false,
+    effectShakeAutoBpm: false,
+    effectShakeDetectedBpm: 120.0,
     textShowBackground: true,
     textShowBorder: true,
   );
@@ -1030,6 +1213,11 @@ class _ClipInspectorValues {
       karaokeLeadInMs: clip.karaokeLeadInMs.toDouble(),
       karaokeSweepDurationMs: clip.karaokeSweepDurationMs.toDouble(),
       effectIntensity: clip.effectIntensity,
+      effectShakeAmplitudePx: clip.effectShakeAmplitudePx,
+      effectShakeFrequencyHz: clip.effectShakeFrequencyHz,
+      effectShakeAudioSync: clip.effectShakeAudioSync,
+      effectShakeAutoBpm: clip.effectShakeAutoBpm,
+      effectShakeDetectedBpm: clip.effectShakeDetectedBpm,
       textShowBackground: clip.textShowBackground,
       textShowBorder: clip.textShowBorder,
     );
@@ -1069,6 +1257,11 @@ class _ClipInspectorValues {
   final double karaokeLeadInMs;
   final double karaokeSweepDurationMs;
   final double effectIntensity;
+  final double effectShakeAmplitudePx;
+  final double effectShakeFrequencyHz;
+  final bool effectShakeAudioSync;
+  final bool effectShakeAutoBpm;
+  final double effectShakeDetectedBpm;
   final bool? _textShowBackground;
   final bool? _textShowBorder;
   bool get textShowBackground => _textShowBackground ?? true;
@@ -1109,6 +1302,11 @@ class _ClipInspectorValues {
     double? karaokeLeadInMs,
     double? karaokeSweepDurationMs,
     double? effectIntensity,
+    double? effectShakeAmplitudePx,
+    double? effectShakeFrequencyHz,
+    bool? effectShakeAudioSync,
+    bool? effectShakeAutoBpm,
+    double? effectShakeDetectedBpm,
     bool? textShowBackground,
     bool? textShowBorder,
   }) {
@@ -1148,6 +1346,14 @@ class _ClipInspectorValues {
       karaokeSweepDurationMs:
           karaokeSweepDurationMs ?? this.karaokeSweepDurationMs,
       effectIntensity: effectIntensity ?? this.effectIntensity,
+      effectShakeAmplitudePx:
+          effectShakeAmplitudePx ?? this.effectShakeAmplitudePx,
+      effectShakeFrequencyHz:
+          effectShakeFrequencyHz ?? this.effectShakeFrequencyHz,
+      effectShakeAudioSync: effectShakeAudioSync ?? this.effectShakeAudioSync,
+      effectShakeAutoBpm: effectShakeAutoBpm ?? this.effectShakeAutoBpm,
+      effectShakeDetectedBpm:
+          effectShakeDetectedBpm ?? this.effectShakeDetectedBpm,
       textShowBackground: textShowBackground ?? this.textShowBackground,
       textShowBorder: textShowBorder ?? this.textShowBorder,
     );
@@ -1245,6 +1451,59 @@ class _ClipInspectorCard extends StatelessWidget {
                 onChanged(values.copyWith(effectIntensity: value));
               },
             ),
+            if (trackType == TrackType.visualEffect &&
+                clip.visualEffectType == VisualEffectType.shake) ...<Widget>[
+              _InspectorSlider(
+                label:
+                    'Amplitude ${values.effectShakeAmplitudePx.toStringAsFixed(0)} px',
+                min: 2,
+                max: 40,
+                value: values.effectShakeAmplitudePx,
+                activeColor: context.cyberpunk.neonPink,
+                onChanged: (double value) {
+                  onChanged(values.copyWith(effectShakeAmplitudePx: value));
+                },
+              ),
+              _InspectorSlider(
+                label:
+                    'Frequence ${values.effectShakeFrequencyHz.toStringAsFixed(1)} Hz',
+                min: 4,
+                max: 60,
+                value: values.effectShakeFrequencyHz,
+                activeColor: context.cyberpunk.neonPink,
+                onChanged: (double value) {
+                  onChanged(values.copyWith(effectShakeFrequencyHz: value));
+                },
+              ),
+              SwitchListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Synchro sur la timeline audio'),
+                subtitle: const Text(
+                  'Le tremblement suit le tempo global de la timeline',
+                ),
+                value: values.effectShakeAudioSync,
+                activeThumbColor: context.cyberpunk.neonBlue,
+                onChanged: (bool enabled) {
+                  onChanged(values.copyWith(effectShakeAudioSync: enabled));
+                },
+              ),
+              SwitchListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Auto BPM detection'),
+                subtitle: Text(
+                  'BPM detecte: ${values.effectShakeDetectedBpm.toStringAsFixed(1)}',
+                ),
+                value: values.effectShakeAutoBpm,
+                activeThumbColor: context.cyberpunk.neonPink,
+                onChanged: values.effectShakeAudioSync
+                    ? (bool enabled) {
+                        onChanged(values.copyWith(effectShakeAutoBpm: enabled));
+                      }
+                    : null,
+              ),
+            ],
             Divider(color: context.cyberpunk.border.withValues(alpha: 0.7)),
           ],
           if (trackType == TrackType.video || trackType == TrackType.overlay)

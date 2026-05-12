@@ -43,9 +43,9 @@ class FfmpegExportService {
         'Export impossible: le filtre FFmpeg drawtext est absent. Installe ffmpeg-full (Homebrew) ou configure un FFmpeg avec libfreetype pour garantir le rendu texte a l export.',
       );
     }
-    if (hasVisualEffectClips || hasAudioEffectClips) {
+    if (hasAudioEffectClips && audioClip == null) {
       throw Exception(
-        'Export bloque: des clips Effets visuels/sonores sont presents mais leur rendu FFmpeg v1 n est pas encore active. Retire ces clips d effet avant export, ou attends la phase de parite export effets.',
+        'Export bloque: des clips Effets sonores sont presents mais aucun media audio n est disponible pour appliquer ces effets.',
       );
     }
 
@@ -82,13 +82,23 @@ class FfmpegExportService {
         '0:a:0',
       ]);
     }
+    if (audioClip != null) {
+      final String? audioFilter = _buildAudioFilter(project: project);
+      if (audioFilter != null && audioFilter.isNotEmpty) {
+        args.addAll(<String>['-af', audioFilter]);
+      }
+    }
 
     args.addAll(<String>[
       '-progress',
       'pipe:1',
       '-nostats',
       '-vf',
-      _buildVideoFilter(project: project, preset: preset),
+      _buildVideoFilter(
+        project: project,
+        preset: preset,
+        includeVisualEffects: hasVisualEffectClips,
+      ),
       '-r',
       preset.frameRate.toString(),
       '-c:v',
@@ -293,10 +303,20 @@ class FfmpegExportService {
   String _buildVideoFilter({
     required Project project,
     required ExportPreset preset,
+    required bool includeVisualEffects,
   }) {
     final String baseScalePad =
         'scale=${preset.width}:${preset.height}:force_original_aspect_ratio=decrease,'
         'pad=${preset.width}:${preset.height}:(ow-iw)/2:(oh-ih)/2';
+    final List<Clip> visualEffectClips =
+        project.tracks
+            .where((Track track) => track.type == TrackType.visualEffect)
+            .expand((Track track) => track.clips)
+            .where((Clip clip) => clip.visualEffectType != null)
+            .toList(growable: false)
+          ..sort(
+            (Clip a, Clip b) => a.timelineStartMs.compareTo(b.timelineStartMs),
+          );
     final List<Clip> textClips =
         project.tracks
             .where((Track track) => track.type == TrackType.text)
@@ -305,8 +325,14 @@ class FfmpegExportService {
           ..sort(
             (Clip a, Clip b) => a.timelineStartMs.compareTo(b.timelineStartMs),
           );
+    final List<String> filters = <String>[baseScalePad];
+    if (includeVisualEffects && visualEffectClips.isNotEmpty) {
+      for (final Clip effectClip in visualEffectClips) {
+        filters.addAll(_buildVisualEffectFilters(effectClip));
+      }
+    }
     if (textClips.isEmpty) {
-      return baseScalePad;
+      return filters.join(',');
     }
     final double sx = preset.width / project.canvasWidth;
     final double sy = preset.height / project.canvasHeight;
@@ -385,9 +411,159 @@ class FfmpegExportService {
       }
     }
     if (drawTextFilters.isEmpty) {
-      return baseScalePad;
+      return filters.join(',');
     }
-    return <String>[baseScalePad, ...drawTextFilters].join(',');
+    return <String>[...filters, ...drawTextFilters].join(',');
+  }
+
+  List<String> _buildVisualEffectFilters(Clip clip) {
+    final VisualEffectType? type = clip.visualEffectType;
+    if (type == null) {
+      return const <String>[];
+    }
+    final double intensity = clip.effectIntensity.clamp(0.1, 1.0);
+    final String enabled = _enableBetween(
+      clip.timelineStartMs / 1000,
+      (clip.timelineStartMs + clip.durationMs) / 1000,
+    );
+    switch (type) {
+      case VisualEffectType.glitch:
+        final int noiseStrength = (10 + intensity * 26).round();
+        final int cropPx = (6 + intensity * 20).round();
+        final double amp = 2 + intensity * 6;
+        final int boxH = (2 + intensity * 8).round();
+        final double boxAlpha = (0.12 + intensity * 0.28).clamp(0.0, 1.0);
+        return <String>[
+          'noise=alls=$noiseStrength:allf=t+u:$enabled',
+          "eq=contrast=${(1.05 + intensity * 0.28).toStringAsFixed(3)}:"
+              "saturation=${(1.20 + intensity * 0.75).toStringAsFixed(3)}:"
+              "brightness=${(-0.02 + intensity * 0.06).toStringAsFixed(3)}:$enabled",
+          "hue=h='${(8 + intensity * 24).toStringAsFixed(2)}*sin(27*t)':$enabled",
+          "crop=iw-$cropPx:ih-$cropPx:"
+              "x='${(cropPx / 2).toStringAsFixed(2)}+${amp.toStringAsFixed(2)}*sin(63*t)':"
+              "y='${(cropPx / 2).toStringAsFixed(2)}+${(amp * 0.7).toStringAsFixed(2)}*cos(41*t)':"
+              "$enabled",
+          'scale=iw:ih:$enabled',
+          "drawbox=x=0:y='mod(t*240\\,ih)':w=iw:h=$boxH:"
+              'color=0x00F0FF@${boxAlpha.toStringAsFixed(3)}:t=fill:$enabled',
+          "drawbox=x=0:y='mod(t*170+123\\,ih)':w=iw:h=$boxH:"
+              'color=0xFF00E6@${(boxAlpha * 0.85).toStringAsFixed(3)}:t=fill:$enabled',
+        ];
+      case VisualEffectType.shake:
+        final double start = clip.timelineStartMs / 1000;
+        final double baseAmplitude = clip.effectShakeAmplitudePx.clamp(2.0, 40.0);
+        final double amplitude = baseAmplitude * (0.45 + intensity * 0.90);
+        final double frequencyHz =
+            clip.effectShakeAutoBpm
+                ? (clip.effectShakeDetectedBpm.clamp(60.0, 220.0) / 60.0)
+                : clip.effectShakeFrequencyHz.clamp(4.0, 60.0);
+        final String phaseExpr = clip.effectShakeAudioSync
+            ? 't'
+            : '(t-${start.toStringAsFixed(3)})';
+        final int cropPx = (8 + amplitude * 1.5).round().clamp(8, 80);
+        final double shakeX = amplitude;
+        final double shakeY = amplitude * 0.68;
+        final String wx = (math.pi * 2 * frequencyHz).toStringAsFixed(3);
+        final String wy = (math.pi * 2 * (frequencyHz * 0.77)).toStringAsFixed(
+          3,
+        );
+        return <String>[
+          "crop=iw-$cropPx:ih-$cropPx:"
+              "x='${(cropPx / 2).toStringAsFixed(2)}+${shakeX.toStringAsFixed(2)}*sin($wx*$phaseExpr)':"
+              "y='${(cropPx / 2).toStringAsFixed(2)}+${shakeY.toStringAsFixed(2)}*cos($wy*$phaseExpr)':"
+              "$enabled",
+          'scale=iw:ih:$enabled',
+        ];
+      case VisualEffectType.rgbSplit:
+        final double channelShift = 10 + intensity * 48;
+        return <String>[
+          "lutrgb=r='clip(val+${channelShift.toStringAsFixed(2)}*sin(19*t)\\,0\\,255)':"
+              "g='val':"
+              "b='clip(val-${channelShift.toStringAsFixed(2)}*sin(23*t)\\,0\\,255)':"
+              "$enabled",
+          "eq=saturation=${(1.08 + intensity * 0.26).toStringAsFixed(3)}:$enabled",
+        ];
+      case VisualEffectType.flash:
+        final double brightnessBase = 0.03 + intensity * 0.05;
+        final double pulse = 0.10 + intensity * 0.22;
+        return <String>[
+          "eq=brightness='${brightnessBase.toStringAsFixed(3)}+${pulse.toStringAsFixed(3)}*abs(sin(14*t))':"
+              "saturation=${(1.0 + intensity * 0.2).toStringAsFixed(3)}:"
+              "$enabled",
+        ];
+      case VisualEffectType.vhs:
+        final int noiseStrength = (4 + intensity * 16).round();
+        final int scanlineH = (1 + intensity * 3).round();
+        final double scanAlpha = (0.08 + intensity * 0.16).clamp(0.0, 1.0);
+        return <String>[
+          "eq=contrast=${(0.96 + intensity * 0.10).toStringAsFixed(3)}:"
+              "saturation=${(0.76 + intensity * 0.16).toStringAsFixed(3)}:"
+              "brightness=${(-0.03).toStringAsFixed(3)}:$enabled",
+          'noise=alls=$noiseStrength:allf=t:$enabled',
+          "drawbox=x=0:y='mod(t*120\\,ih)':w=iw:h=$scanlineH:"
+              'color=black@${scanAlpha.toStringAsFixed(3)}:t=fill:$enabled',
+        ];
+    }
+  }
+
+  String _enableBetween(double startSec, double endSec) {
+    return "enable='between(t\\,${startSec.toStringAsFixed(3)}\\,${endSec.toStringAsFixed(3)})'";
+  }
+
+  String? _buildAudioFilter({required Project project}) {
+    final List<Clip> audioEffects =
+        project.tracks
+            .where((Track track) => track.type == TrackType.audioEffect)
+            .expand((Track track) => track.clips)
+            .where((Clip clip) => clip.audioEffectType != null)
+            .toList(growable: false)
+          ..sort(
+            (Clip a, Clip b) => a.timelineStartMs.compareTo(b.timelineStartMs),
+          );
+    if (audioEffects.isEmpty) {
+      return null;
+    }
+
+    final List<String> filters = <String>[];
+    for (final Clip effect in audioEffects) {
+      final AudioEffectType? type = effect.audioEffectType;
+      if (type == null) {
+        continue;
+      }
+      final double start = effect.timelineStartMs / 1000;
+      final double end = (effect.timelineStartMs + effect.durationMs) / 1000;
+      final String enabled = _enableBetween(start, end);
+      final double intensity = effect.effectIntensity.clamp(0.1, 1.0);
+      switch (type) {
+        case AudioEffectType.censorBeep:
+          // V1 export: mute segment (preview superposes generated beep).
+          filters.add('volume=0:$enabled');
+          break;
+        case AudioEffectType.distortion:
+          final int highpassHz = (90 + intensity * 220).round();
+          final int lowpassHz = (3200 + intensity * 1800).round();
+          final double gain = 1.10 + intensity * 0.85;
+          filters.add('highpass=f=$highpassHz:$enabled');
+          filters.add('lowpass=f=$lowpassHz:$enabled');
+          filters.add('volume=${gain.toStringAsFixed(3)}:$enabled');
+          break;
+        case AudioEffectType.stutter:
+          final double period = (0.18 - intensity * 0.11).clamp(0.05, 0.18);
+          final double gateOn = (0.028 + intensity * 0.028).clamp(0.018, 0.08);
+          final String startS = start.toStringAsFixed(3);
+          final String periodS = period.toStringAsFixed(3);
+          final String gateOnS = gateOn.toStringAsFixed(3);
+          filters.add(
+            "volume='if(between(t\\,$startS\\,${end.toStringAsFixed(3)})\\,"
+            "if(lt(mod(t-$startS\\,$periodS)\\,$gateOnS)\\,1\\,0)\\,1)'",
+          );
+          break;
+      }
+    }
+    if (filters.isEmpty) {
+      return null;
+    }
+    return filters.join(',');
   }
 
   String _escapeDrawText(String text) {

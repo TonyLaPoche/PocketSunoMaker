@@ -110,6 +110,11 @@ class LocalProjectDataSource {
       'visualEffectType': clip.visualEffectType?.name,
       'audioEffectType': clip.audioEffectType?.name,
       'effectIntensity': clip.effectIntensity,
+      'effectShakeAmplitudePx': clip.effectShakeAmplitudePx,
+      'effectShakeFrequencyHz': clip.effectShakeFrequencyHz,
+      'effectShakeAudioSync': clip.effectShakeAudioSync,
+      'effectShakeAutoBpm': clip.effectShakeAutoBpm,
+      'effectShakeDetectedBpm': clip.effectShakeDetectedBpm,
     };
   }
 
@@ -247,6 +252,23 @@ class LocalProjectDataSource {
       visualEffectType: visualEffectType,
       audioEffectType: audioEffectType,
       effectIntensity: _asDouble(json['effectIntensity'], fallback: 0.6),
+      effectShakeAmplitudePx: _asDouble(
+        json['effectShakeAmplitudePx'],
+        fallback: 8.0,
+      ),
+      effectShakeFrequencyHz: _asDouble(
+        json['effectShakeFrequencyHz'],
+        fallback: 34.0,
+      ),
+      effectShakeAudioSync: _asBool(
+        json['effectShakeAudioSync'],
+        fallback: false,
+      ),
+      effectShakeAutoBpm: _asBool(json['effectShakeAutoBpm'], fallback: false),
+      effectShakeDetectedBpm: _asDouble(
+        json['effectShakeDetectedBpm'],
+        fallback: 120.0,
+      ),
     );
   }
 

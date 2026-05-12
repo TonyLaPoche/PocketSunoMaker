@@ -50,6 +50,11 @@ class Clip {
     this.visualEffectType,
     this.audioEffectType,
     this.effectIntensity = 0.6,
+    this.effectShakeAmplitudePx = 8.0,
+    this.effectShakeFrequencyHz = 34.0,
+    this.effectShakeAudioSync = false,
+    this.effectShakeAutoBpm = false,
+    this.effectShakeDetectedBpm = 120.0,
   });
 
   final String id;
@@ -96,6 +101,11 @@ class Clip {
   final VisualEffectType? visualEffectType;
   final AudioEffectType? audioEffectType;
   final double effectIntensity;
+  final double effectShakeAmplitudePx;
+  final double effectShakeFrequencyHz;
+  final bool effectShakeAudioSync;
+  final bool effectShakeAutoBpm;
+  final double effectShakeDetectedBpm;
 
   bool get hasEntryFade =>
       textEntryFade || textEntryAnimation == TextAnimationType.fade;
@@ -162,6 +172,11 @@ class Clip {
     VisualEffectType? visualEffectType,
     AudioEffectType? audioEffectType,
     double? effectIntensity,
+    double? effectShakeAmplitudePx,
+    double? effectShakeFrequencyHz,
+    bool? effectShakeAudioSync,
+    bool? effectShakeAutoBpm,
+    double? effectShakeDetectedBpm,
   }) {
     return Clip(
       id: id ?? this.id,
@@ -209,6 +224,14 @@ class Clip {
       visualEffectType: visualEffectType ?? this.visualEffectType,
       audioEffectType: audioEffectType ?? this.audioEffectType,
       effectIntensity: effectIntensity ?? this.effectIntensity,
+      effectShakeAmplitudePx:
+          effectShakeAmplitudePx ?? this.effectShakeAmplitudePx,
+      effectShakeFrequencyHz:
+          effectShakeFrequencyHz ?? this.effectShakeFrequencyHz,
+      effectShakeAudioSync: effectShakeAudioSync ?? this.effectShakeAudioSync,
+      effectShakeAutoBpm: effectShakeAutoBpm ?? this.effectShakeAutoBpm,
+      effectShakeDetectedBpm:
+          effectShakeDetectedBpm ?? this.effectShakeDetectedBpm,
     );
   }
 }

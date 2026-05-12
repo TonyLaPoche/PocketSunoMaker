@@ -518,6 +518,11 @@ class ProjectController extends Notifier<ProjectState> {
     int? karaokeLeadInMs,
     int? karaokeSweepDurationMs,
     double? effectIntensity,
+    double? effectShakeAmplitudePx,
+    double? effectShakeFrequencyHz,
+    bool? effectShakeAudioSync,
+    bool? effectShakeAutoBpm,
+    double? effectShakeDetectedBpm,
   }) {
     _updateClip(
       trackId: trackId,
@@ -568,6 +573,11 @@ class ProjectController extends Notifier<ProjectState> {
               ? null
               : _clampInt(karaokeSweepDurationMs, 300, 10000),
           effectIntensity: effectIntensity?.clamp(0.1, 1.0),
+          effectShakeAmplitudePx: effectShakeAmplitudePx?.clamp(2.0, 40.0),
+          effectShakeFrequencyHz: effectShakeFrequencyHz?.clamp(4.0, 60.0),
+          effectShakeAudioSync: effectShakeAudioSync,
+          effectShakeAutoBpm: effectShakeAutoBpm,
+          effectShakeDetectedBpm: effectShakeDetectedBpm?.clamp(60.0, 220.0),
         );
       },
     );
