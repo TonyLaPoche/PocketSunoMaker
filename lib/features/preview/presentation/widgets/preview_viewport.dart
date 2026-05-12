@@ -473,6 +473,18 @@ class _PreviewViewportState extends State<PreviewViewport> {
             shakeAudioSync: clip.effectShakeAudioSync,
             shakeAutoBpm: clip.effectShakeAutoBpm,
             shakeDetectedBpm: clip.effectShakeDetectedBpm.clamp(60.0, 220.0),
+            glitchTearStrength: clip.effectGlitchTearStrength.clamp(0.05, 1.0),
+            glitchNoiseAmount: clip.effectGlitchNoiseAmount.clamp(0.0, 1.0),
+            glitchColorA: _parseHexColor(
+              clip.effectGlitchColorAHex,
+              fallback: const Color(0xFF00E5FF),
+            ),
+            glitchColorB: _parseHexColor(
+              clip.effectGlitchColorBHex,
+              fallback: const Color(0xFFFF00E6),
+            ),
+            glitchAutoColors: clip.effectGlitchAutoColors,
+            glitchAudioSync: clip.effectGlitchAudioSync,
           ),
         );
       }
@@ -489,8 +501,16 @@ class _PreviewViewportState extends State<PreviewViewport> {
       switch (effect.type) {
         case project_clip.VisualEffectType.glitch:
           current = _EffectGlitch(
+            timelineMs: effect.timelineMs,
             localMs: effect.localMs,
             intensity: effect.intensity,
+            tearStrength: effect.glitchTearStrength,
+            noiseAmount: effect.glitchNoiseAmount,
+            colorA: effect.glitchColorA,
+            colorB: effect.glitchColorB,
+            autoColors: effect.glitchAutoColors,
+            audioSync: effect.glitchAudioSync,
+            audioReactiveLevel: widget.audioReactiveLevel,
             child: current,
           );
           break;
@@ -546,6 +566,12 @@ class _ActiveVisualEffect {
     required this.shakeAudioSync,
     required this.shakeAutoBpm,
     required this.shakeDetectedBpm,
+    required this.glitchTearStrength,
+    required this.glitchNoiseAmount,
+    required this.glitchColorA,
+    required this.glitchColorB,
+    required this.glitchAutoColors,
+    required this.glitchAudioSync,
   });
 
   final project_clip.VisualEffectType type;
@@ -557,6 +583,12 @@ class _ActiveVisualEffect {
   final bool shakeAudioSync;
   final bool shakeAutoBpm;
   final double shakeDetectedBpm;
+  final double glitchTearStrength;
+  final double glitchNoiseAmount;
+  final Color glitchColorA;
+  final Color glitchColorB;
+  final bool glitchAutoColors;
+  final bool glitchAudioSync;
 }
 
 class _VisualTransform extends StatelessWidget {
@@ -687,42 +719,71 @@ class _EffectRgbSplit extends StatelessWidget {
 class _EffectGlitch extends StatelessWidget {
   const _EffectGlitch({
     required this.child,
+    required this.timelineMs,
     required this.localMs,
     required this.intensity,
+    required this.tearStrength,
+    required this.noiseAmount,
+    required this.colorA,
+    required this.colorB,
+    required this.autoColors,
+    required this.audioSync,
+    required this.audioReactiveLevel,
   });
 
   final Widget child;
+  final int timelineMs;
   final int localMs;
   final double intensity;
+  final double tearStrength;
+  final double noiseAmount;
+  final Color colorA;
+  final Color colorB;
+  final bool autoColors;
+  final bool audioSync;
+  final double audioReactiveLevel;
 
   @override
   Widget build(BuildContext context) {
-    final double t = localMs / 1000.0;
-    final double amp = 4 + 12 * intensity;
+    final double t = (audioSync ? timelineMs : localMs) / 1000.0;
+    final double reactive = audioSync
+        ? math.pow(
+            ((audioReactiveLevel - 0.04) / 0.96).clamp(0.0, 1.0),
+            0.72,
+          ).toDouble()
+        : 1.0;
+    final double amp = (2 + 16 * intensity) * (0.35 + tearStrength) * reactive;
     final double burst = math.sin(t * 22.0).abs();
     final double dx =
         (math.sin(t * 63.0) * amp * (0.55 + burst * 0.45)).clamp(-18.0, 18.0);
     final double dy = (math.cos(t * 37.0) * 1.2 * intensity).clamp(-4.0, 4.0);
-    final double neonAlpha = (0.08 + intensity * 0.15).clamp(0.0, 0.4);
+    final bool highEnergy = reactive > 0.62;
+    final Color autoA = highEnergy
+        ? const Color(0xFF00E5FF)
+        : const Color(0xFFFEE440);
+    final Color autoB = highEnergy
+        ? const Color(0xFFFF00E6)
+        : const Color(0xFF7C4DFF);
+    final Color cA = autoColors ? autoA : colorA;
+    final Color cB = autoColors ? autoB : colorB;
     return Stack(
       fit: StackFit.expand,
       children: <Widget>[
         Transform.translate(offset: Offset(dx, dy), child: child),
-        _EffectRgbSplit(localMs: localMs, intensity: intensity, child: child),
-        IgnorePointer(
-          child: ColorFiltered(
-            colorFilter: const ColorFilter.mode(
-              Color(0xFFB100FF),
-              BlendMode.softLight,
-            ),
-            child: Opacity(opacity: neonAlpha, child: child),
-          ),
+        _EffectRgbSplit(
+          localMs: localMs,
+          intensity: intensity * (0.35 + tearStrength * 0.40) * reactive,
+          child: child,
         ),
         IgnorePointer(
           child: CustomPaint(
             painter: _GlitchSlicesPainter(
               phase: t,
               intensity: intensity,
+              tearStrength: tearStrength,
+              noiseAmount: noiseAmount,
+              colorA: cA,
+              colorB: cB,
             ),
             child: const SizedBox.expand(),
           ),
@@ -733,40 +794,83 @@ class _EffectGlitch extends StatelessWidget {
 }
 
 class _GlitchSlicesPainter extends CustomPainter {
-  const _GlitchSlicesPainter({required this.phase, required this.intensity});
+  const _GlitchSlicesPainter({
+    required this.phase,
+    required this.intensity,
+    required this.tearStrength,
+    required this.noiseAmount,
+    required this.colorA,
+    required this.colorB,
+  });
 
   final double phase;
   final double intensity;
+  final double tearStrength;
+  final double noiseAmount;
+  final Color colorA;
+  final Color colorB;
 
   @override
   void paint(Canvas canvas, Size size) {
     final Paint barA = Paint()
-      ..color = const Color(0xFF00E5FF).withValues(alpha: 0.08 + 0.20 * intensity)
+      ..color = colorA.withValues(
+        alpha: (0.05 + (0.14 + noiseAmount * 0.10) * intensity).clamp(0.0, 0.45),
+      )
       ..blendMode = BlendMode.plus;
     final Paint barB = Paint()
-      ..color = const Color(0xFFFF00E6).withValues(alpha: 0.06 + 0.16 * intensity)
+      ..color = colorB.withValues(
+        alpha: (0.04 + (0.12 + noiseAmount * 0.10) * intensity).clamp(0.0, 0.42),
+      )
       ..blendMode = BlendMode.plus;
     final Paint darkLine = Paint()
-      ..color = Colors.black.withValues(alpha: 0.10 + 0.18 * intensity)
+      ..color = Colors.black.withValues(alpha: 0.14 + 0.24 * intensity)
+      ..strokeWidth = 1.0;
+    final Paint darkGapLine = Paint()
+      ..color = Colors.black.withValues(alpha: 0.08 + 0.14 * intensity)
       ..strokeWidth = 1.0;
 
-    final int bands = (5 + intensity * 10).round();
+    final int bands = (4 + intensity * 8 + tearStrength * 10).round();
     for (int i = 0; i < bands; i++) {
       final double seed = phase * (7.0 + i * 0.9) + i * 1.618;
       final double y = ((math.sin(seed) + 1) * 0.5) * size.height;
-      final double h = (1.5 + (math.cos(seed * 1.7).abs() * 9.0 * intensity))
+      final double h = (1.5 +
+              (math.cos(seed * 1.7).abs() *
+                  (7.0 + tearStrength * 14.0) *
+                  intensity))
           .clamp(1.5, 14.0);
-      final double shift = math.cos(seed * 2.3) * (8 + 24 * intensity);
+      final double shift =
+          math.cos(seed * 2.3) * (6 + 18 * intensity + 20 * tearStrength);
       final Rect r = Rect.fromLTWH(shift, y, size.width, h);
       canvas.drawRect(r, i.isEven ? barA : barB);
       canvas.drawLine(Offset(0, y), Offset(size.width, y), darkLine);
+      if (i.isEven) {
+        final double gapY = (y + h + 1).clamp(0.0, size.height);
+        canvas.drawLine(Offset(0, gapY), Offset(size.width, gapY), darkGapLine);
+      }
     }
   }
 
   @override
   bool shouldRepaint(covariant _GlitchSlicesPainter oldDelegate) {
-    return oldDelegate.phase != phase || oldDelegate.intensity != intensity;
+    return oldDelegate.phase != phase ||
+        oldDelegate.intensity != intensity ||
+        oldDelegate.tearStrength != tearStrength ||
+        oldDelegate.noiseAmount != noiseAmount ||
+        oldDelegate.colorA != colorA ||
+        oldDelegate.colorB != colorB;
   }
+}
+
+Color _parseHexColor(String hex, {required Color fallback}) {
+  final String normalized = hex.replaceAll('#', '').trim();
+  if (normalized.length != 6) {
+    return fallback;
+  }
+  final int? rgb = int.tryParse(normalized, radix: 16);
+  if (rgb == null) {
+    return fallback;
+  }
+  return Color(0xFF000000 | rgb);
 }
 
 class _EffectFlash extends StatelessWidget {

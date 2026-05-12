@@ -523,6 +523,12 @@ class ProjectController extends Notifier<ProjectState> {
     bool? effectShakeAudioSync,
     bool? effectShakeAutoBpm,
     double? effectShakeDetectedBpm,
+    double? effectGlitchTearStrength,
+    double? effectGlitchNoiseAmount,
+    String? effectGlitchColorAHex,
+    String? effectGlitchColorBHex,
+    bool? effectGlitchAutoColors,
+    bool? effectGlitchAudioSync,
   }) {
     _updateClip(
       trackId: trackId,
@@ -578,6 +584,12 @@ class ProjectController extends Notifier<ProjectState> {
           effectShakeAudioSync: effectShakeAudioSync,
           effectShakeAutoBpm: effectShakeAutoBpm,
           effectShakeDetectedBpm: effectShakeDetectedBpm?.clamp(60.0, 220.0),
+          effectGlitchTearStrength: effectGlitchTearStrength?.clamp(0.05, 1.0),
+          effectGlitchNoiseAmount: effectGlitchNoiseAmount?.clamp(0.0, 1.0),
+          effectGlitchColorAHex: effectGlitchColorAHex,
+          effectGlitchColorBHex: effectGlitchColorBHex,
+          effectGlitchAutoColors: effectGlitchAutoColors,
+          effectGlitchAudioSync: effectGlitchAudioSync,
         );
       },
     );

@@ -428,26 +428,39 @@ class FfmpegExportService {
     );
     switch (type) {
       case VisualEffectType.glitch:
-        final int noiseStrength = (10 + intensity * 26).round();
-        final int cropPx = (6 + intensity * 20).round();
-        final double amp = 2 + intensity * 6;
+        final double tearStrength = clip.effectGlitchTearStrength.clamp(0.05, 1.0);
+        final double noiseAmount = clip.effectGlitchNoiseAmount.clamp(0.0, 1.0);
+        final bool audioSync = clip.effectGlitchAudioSync;
+        final String phaseExpr = audioSync
+            ? 't'
+            : '(t-${(clip.timelineStartMs / 1000).toStringAsFixed(3)})';
+        final int noiseStrength = (8 + intensity * 22 + noiseAmount * 24).round();
+        final int cropPx = (4 + intensity * 12 + tearStrength * 18).round();
+        final double amp = 1.5 + intensity * 5 + tearStrength * 7;
         final int boxH = (2 + intensity * 8).round();
         final double boxAlpha = (0.12 + intensity * 0.28).clamp(0.0, 1.0);
+        final String colorA = _sanitizeHexRgb(
+          clip.effectGlitchColorAHex,
+          fallback: '00E5FF',
+        );
+        final String colorB = _sanitizeHexRgb(
+          clip.effectGlitchColorBHex,
+          fallback: 'FF00E6',
+        );
         return <String>[
           'noise=alls=$noiseStrength:allf=t+u:$enabled',
-          "eq=contrast=${(1.05 + intensity * 0.28).toStringAsFixed(3)}:"
-              "saturation=${(1.20 + intensity * 0.75).toStringAsFixed(3)}:"
-              "brightness=${(-0.02 + intensity * 0.06).toStringAsFixed(3)}:$enabled",
-          "hue=h='${(8 + intensity * 24).toStringAsFixed(2)}*sin(27*t)':$enabled",
+          "eq=contrast=${(1.02 + intensity * 0.16).toStringAsFixed(3)}:"
+              "saturation=${(1.00 + intensity * 0.12).toStringAsFixed(3)}:"
+              "brightness=${(-0.01 + intensity * 0.02).toStringAsFixed(3)}:$enabled",
           "crop=iw-$cropPx:ih-$cropPx:"
-              "x='${(cropPx / 2).toStringAsFixed(2)}+${amp.toStringAsFixed(2)}*sin(63*t)':"
-              "y='${(cropPx / 2).toStringAsFixed(2)}+${(amp * 0.7).toStringAsFixed(2)}*cos(41*t)':"
+              "x='${(cropPx / 2).toStringAsFixed(2)}+${amp.toStringAsFixed(2)}*sin(63*$phaseExpr)':"
+              "y='${(cropPx / 2).toStringAsFixed(2)}+${(amp * 0.7).toStringAsFixed(2)}*cos(41*$phaseExpr)':"
               "$enabled",
           'scale=iw:ih:$enabled',
           "drawbox=x=0:y='mod(t*240\\,ih)':w=iw:h=$boxH:"
-              'color=0x00F0FF@${boxAlpha.toStringAsFixed(3)}:t=fill:$enabled',
+              'color=0x$colorA@${boxAlpha.toStringAsFixed(3)}:t=fill:$enabled',
           "drawbox=x=0:y='mod(t*170+123\\,ih)':w=iw:h=$boxH:"
-              'color=0xFF00E6@${(boxAlpha * 0.85).toStringAsFixed(3)}:t=fill:$enabled',
+              'color=0x$colorB@${(boxAlpha * 0.85).toStringAsFixed(3)}:t=fill:$enabled',
         ];
       case VisualEffectType.shake:
         final double start = clip.timelineStartMs / 1000;
@@ -695,6 +708,18 @@ class FfmpegExportService {
     final int start = math.max(0, lines.length - 8);
     final String compact = lines.sublist(start).join(' | ');
     return compact.length > 900 ? '${compact.substring(0, 900)}...' : compact;
+  }
+
+  String _sanitizeHexRgb(String hex, {required String fallback}) {
+    final String normalized = hex.replaceAll('#', '').trim();
+    if (normalized.length != 6) {
+      return fallback;
+    }
+    final int? value = int.tryParse(normalized, radix: 16);
+    if (value == null) {
+      return fallback;
+    }
+    return normalized.toUpperCase();
   }
 
   String? _resolveFontFile(String fontFamily) {

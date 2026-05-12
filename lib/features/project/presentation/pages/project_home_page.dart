@@ -755,6 +755,12 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
       effectShakeAudioSync: values.effectShakeAudioSync,
       effectShakeAutoBpm: values.effectShakeAutoBpm,
       effectShakeDetectedBpm: values.effectShakeDetectedBpm,
+      effectGlitchTearStrength: values.effectGlitchTearStrength,
+      effectGlitchNoiseAmount: values.effectGlitchNoiseAmount,
+      effectGlitchColorAHex: values.effectGlitchColorAHex,
+      effectGlitchColorBHex: values.effectGlitchColorBHex,
+      effectGlitchAutoColors: values.effectGlitchAutoColors,
+      effectGlitchAudioSync: values.effectGlitchAudioSync,
     );
   }
 
@@ -1128,6 +1134,12 @@ class _ClipInspectorValues {
     required this.effectShakeAudioSync,
     required this.effectShakeAutoBpm,
     required this.effectShakeDetectedBpm,
+    required this.effectGlitchTearStrength,
+    required this.effectGlitchNoiseAmount,
+    required this.effectGlitchColorAHex,
+    required this.effectGlitchColorBHex,
+    required this.effectGlitchAutoColors,
+    required this.effectGlitchAudioSync,
     bool? textShowBackground,
     bool? textShowBorder,
   }) : _textShowBackground = textShowBackground,
@@ -1173,6 +1185,12 @@ class _ClipInspectorValues {
     effectShakeAudioSync: false,
     effectShakeAutoBpm: false,
     effectShakeDetectedBpm: 120.0,
+    effectGlitchTearStrength: 0.55,
+    effectGlitchNoiseAmount: 0.45,
+    effectGlitchColorAHex: '#00E5FF',
+    effectGlitchColorBHex: '#FF00E6',
+    effectGlitchAutoColors: true,
+    effectGlitchAudioSync: false,
     textShowBackground: true,
     textShowBorder: true,
   );
@@ -1218,6 +1236,12 @@ class _ClipInspectorValues {
       effectShakeAudioSync: clip.effectShakeAudioSync,
       effectShakeAutoBpm: clip.effectShakeAutoBpm,
       effectShakeDetectedBpm: clip.effectShakeDetectedBpm,
+      effectGlitchTearStrength: clip.effectGlitchTearStrength,
+      effectGlitchNoiseAmount: clip.effectGlitchNoiseAmount,
+      effectGlitchColorAHex: clip.effectGlitchColorAHex,
+      effectGlitchColorBHex: clip.effectGlitchColorBHex,
+      effectGlitchAutoColors: clip.effectGlitchAutoColors,
+      effectGlitchAudioSync: clip.effectGlitchAudioSync,
       textShowBackground: clip.textShowBackground,
       textShowBorder: clip.textShowBorder,
     );
@@ -1262,6 +1286,12 @@ class _ClipInspectorValues {
   final bool effectShakeAudioSync;
   final bool effectShakeAutoBpm;
   final double effectShakeDetectedBpm;
+  final double effectGlitchTearStrength;
+  final double effectGlitchNoiseAmount;
+  final String effectGlitchColorAHex;
+  final String effectGlitchColorBHex;
+  final bool effectGlitchAutoColors;
+  final bool effectGlitchAudioSync;
   final bool? _textShowBackground;
   final bool? _textShowBorder;
   bool get textShowBackground => _textShowBackground ?? true;
@@ -1307,6 +1337,12 @@ class _ClipInspectorValues {
     bool? effectShakeAudioSync,
     bool? effectShakeAutoBpm,
     double? effectShakeDetectedBpm,
+    double? effectGlitchTearStrength,
+    double? effectGlitchNoiseAmount,
+    String? effectGlitchColorAHex,
+    String? effectGlitchColorBHex,
+    bool? effectGlitchAutoColors,
+    bool? effectGlitchAudioSync,
     bool? textShowBackground,
     bool? textShowBorder,
   }) {
@@ -1354,6 +1390,18 @@ class _ClipInspectorValues {
       effectShakeAutoBpm: effectShakeAutoBpm ?? this.effectShakeAutoBpm,
       effectShakeDetectedBpm:
           effectShakeDetectedBpm ?? this.effectShakeDetectedBpm,
+      effectGlitchTearStrength:
+          effectGlitchTearStrength ?? this.effectGlitchTearStrength,
+      effectGlitchNoiseAmount:
+          effectGlitchNoiseAmount ?? this.effectGlitchNoiseAmount,
+      effectGlitchColorAHex:
+          effectGlitchColorAHex ?? this.effectGlitchColorAHex,
+      effectGlitchColorBHex:
+          effectGlitchColorBHex ?? this.effectGlitchColorBHex,
+      effectGlitchAutoColors:
+          effectGlitchAutoColors ?? this.effectGlitchAutoColors,
+      effectGlitchAudioSync:
+          effectGlitchAudioSync ?? this.effectGlitchAudioSync,
       textShowBackground: textShowBackground ?? this.textShowBackground,
       textShowBorder: textShowBorder ?? this.textShowBorder,
     );
@@ -1502,6 +1550,90 @@ class _ClipInspectorCard extends StatelessWidget {
                         onChanged(values.copyWith(effectShakeAutoBpm: enabled));
                       }
                     : null,
+              ),
+            ],
+            if (trackType == TrackType.visualEffect &&
+                clip.visualEffectType == VisualEffectType.glitch) ...<Widget>[
+              _InspectorSlider(
+                label:
+                    'Dechirure ${(values.effectGlitchTearStrength * 100).toStringAsFixed(0)}%',
+                min: 0.05,
+                max: 1.0,
+                value: values.effectGlitchTearStrength,
+                activeColor: context.cyberpunk.neonPink,
+                onChanged: (double value) {
+                  onChanged(values.copyWith(effectGlitchTearStrength: value));
+                },
+              ),
+              _InspectorSlider(
+                label:
+                    'Bruit ${(values.effectGlitchNoiseAmount * 100).toStringAsFixed(0)}%',
+                min: 0,
+                max: 1.0,
+                value: values.effectGlitchNoiseAmount,
+                activeColor: context.cyberpunk.neonPink,
+                onChanged: (double value) {
+                  onChanged(values.copyWith(effectGlitchNoiseAmount: value));
+                },
+              ),
+              SwitchListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Couleurs auto-detectees'),
+                subtitle: const Text(
+                  'Palette dynamique selon la reactivite audio',
+                ),
+                value: values.effectGlitchAutoColors,
+                activeThumbColor: context.cyberpunk.neonBlue,
+                onChanged: (bool enabled) {
+                  onChanged(values.copyWith(effectGlitchAutoColors: enabled));
+                },
+              ),
+              if (!values.effectGlitchAutoColors) ...<Widget>[
+                _ColorChoiceRow(
+                  label: 'Couleur A',
+                  selectedHex: values.effectGlitchColorAHex,
+                  choices: const <String>[
+                    '#00E5FF',
+                    '#FF00E6',
+                    '#FEE440',
+                    '#00FF87',
+                    '#FFFFFF',
+                    '#FF4D4D',
+                  ],
+                  onSelect: (String hex) {
+                    onChanged(values.copyWith(effectGlitchColorAHex: hex));
+                  },
+                ),
+                const SizedBox(height: 6),
+                _ColorChoiceRow(
+                  label: 'Couleur B',
+                  selectedHex: values.effectGlitchColorBHex,
+                  choices: const <String>[
+                    '#FF00E6',
+                    '#00E5FF',
+                    '#7C4DFF',
+                    '#FF8A00',
+                    '#FFFFFF',
+                    '#2AF598',
+                  ],
+                  onSelect: (String hex) {
+                    onChanged(values.copyWith(effectGlitchColorBHex: hex));
+                  },
+                ),
+              ],
+              SwitchListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Synchro sonore'),
+                subtitle: const Text(
+                  'Intensite glitch reactive au signal audio temps reel',
+                ),
+                value: values.effectGlitchAudioSync,
+                activeThumbColor: context.cyberpunk.neonBlue,
+                onChanged: (bool enabled) {
+                  onChanged(values.copyWith(effectGlitchAudioSync: enabled));
+                },
               ),
             ],
             Divider(color: context.cyberpunk.border.withValues(alpha: 0.7)),

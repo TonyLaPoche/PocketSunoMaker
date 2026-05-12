@@ -55,6 +55,12 @@ class Clip {
     this.effectShakeAudioSync = false,
     this.effectShakeAutoBpm = false,
     this.effectShakeDetectedBpm = 120.0,
+    this.effectGlitchTearStrength = 0.55,
+    this.effectGlitchNoiseAmount = 0.45,
+    this.effectGlitchColorAHex = '#00E5FF',
+    this.effectGlitchColorBHex = '#FF00E6',
+    this.effectGlitchAutoColors = true,
+    this.effectGlitchAudioSync = false,
   });
 
   final String id;
@@ -106,6 +112,12 @@ class Clip {
   final bool effectShakeAudioSync;
   final bool effectShakeAutoBpm;
   final double effectShakeDetectedBpm;
+  final double effectGlitchTearStrength;
+  final double effectGlitchNoiseAmount;
+  final String effectGlitchColorAHex;
+  final String effectGlitchColorBHex;
+  final bool effectGlitchAutoColors;
+  final bool effectGlitchAudioSync;
 
   bool get hasEntryFade =>
       textEntryFade || textEntryAnimation == TextAnimationType.fade;
@@ -177,6 +189,12 @@ class Clip {
     bool? effectShakeAudioSync,
     bool? effectShakeAutoBpm,
     double? effectShakeDetectedBpm,
+    double? effectGlitchTearStrength,
+    double? effectGlitchNoiseAmount,
+    String? effectGlitchColorAHex,
+    String? effectGlitchColorBHex,
+    bool? effectGlitchAutoColors,
+    bool? effectGlitchAudioSync,
   }) {
     return Clip(
       id: id ?? this.id,
@@ -232,6 +250,15 @@ class Clip {
       effectShakeAutoBpm: effectShakeAutoBpm ?? this.effectShakeAutoBpm,
       effectShakeDetectedBpm:
           effectShakeDetectedBpm ?? this.effectShakeDetectedBpm,
+      effectGlitchTearStrength:
+          effectGlitchTearStrength ?? this.effectGlitchTearStrength,
+      effectGlitchNoiseAmount:
+          effectGlitchNoiseAmount ?? this.effectGlitchNoiseAmount,
+      effectGlitchColorAHex: effectGlitchColorAHex ?? this.effectGlitchColorAHex,
+      effectGlitchColorBHex: effectGlitchColorBHex ?? this.effectGlitchColorBHex,
+      effectGlitchAutoColors:
+          effectGlitchAutoColors ?? this.effectGlitchAutoColors,
+      effectGlitchAudioSync: effectGlitchAudioSync ?? this.effectGlitchAudioSync,
     );
   }
 }

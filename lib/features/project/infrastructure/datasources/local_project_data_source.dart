@@ -115,6 +115,12 @@ class LocalProjectDataSource {
       'effectShakeAudioSync': clip.effectShakeAudioSync,
       'effectShakeAutoBpm': clip.effectShakeAutoBpm,
       'effectShakeDetectedBpm': clip.effectShakeDetectedBpm,
+      'effectGlitchTearStrength': clip.effectGlitchTearStrength,
+      'effectGlitchNoiseAmount': clip.effectGlitchNoiseAmount,
+      'effectGlitchColorAHex': clip.effectGlitchColorAHex,
+      'effectGlitchColorBHex': clip.effectGlitchColorBHex,
+      'effectGlitchAutoColors': clip.effectGlitchAutoColors,
+      'effectGlitchAudioSync': clip.effectGlitchAudioSync,
     };
   }
 
@@ -268,6 +274,26 @@ class LocalProjectDataSource {
       effectShakeDetectedBpm: _asDouble(
         json['effectShakeDetectedBpm'],
         fallback: 120.0,
+      ),
+      effectGlitchTearStrength: _asDouble(
+        json['effectGlitchTearStrength'],
+        fallback: 0.55,
+      ),
+      effectGlitchNoiseAmount: _asDouble(
+        json['effectGlitchNoiseAmount'],
+        fallback: 0.45,
+      ),
+      effectGlitchColorAHex:
+          json['effectGlitchColorAHex'] as String? ?? '#00E5FF',
+      effectGlitchColorBHex:
+          json['effectGlitchColorBHex'] as String? ?? '#FF00E6',
+      effectGlitchAutoColors: _asBool(
+        json['effectGlitchAutoColors'],
+        fallback: true,
+      ),
+      effectGlitchAudioSync: _asBool(
+        json['effectGlitchAudioSync'],
+        fallback: false,
       ),
     );
   }
