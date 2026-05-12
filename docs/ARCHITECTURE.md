@@ -40,11 +40,12 @@ Cette architecture suit une logique Clean Architecture pour garder une base main
   - synchronisation audio/video en preview
   - rendu media actif (video/image)
   - canvas ratio export, grille de reperes, overlays texte (position/angle/opacite)
+  - animations texte (fade/slide/zoom) + mode karaoke v1 en rendu shader mono-texte
 - `features/export`
   - file de jobs export
   - presets cibles (YouTube, Shorts, Reels)
   - service export FFmpeg (progression temps reel, annulation, erreurs actionnables)
-  - parite preview/export des outils pris en charge (ex: texte)
+  - parite preview/export des outils pris en charge (ex: texte, animations, karaoke)
 
 ## Modules planifies
 

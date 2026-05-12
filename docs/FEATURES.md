@@ -62,6 +62,11 @@
 - import sous-titres (phase suivante: SRT)
 - timeline dediee texte
 - style texte editable: couleur, fond, bordure, angle (avec toggles fond/bordure)
+- polices enrichies: Roboto, Arial, Helvetica, Avenir Next, Futura, Georgia, Menlo, Times New Roman, Courier New
+- sous-onglet "Animation" dans l inspecteur texte (entree/sortie)
+- mini timeline de courbe entree/sortie dans l onglet Animation pour preview rapide des reglages
+- animations texte: fade, slide up/down, zoom (avec controle duree/intensite)
+- mode karaoke v1: remplissage couleur lineaire progressif du texte en mono-rendu shader (pas de double superposition visuelle), preview + export, couleur de remplissage configurable, delai de depart et duree de sweep
 
 ## 8) Audio
 

@@ -642,6 +642,12 @@ class _TextOverlay extends StatelessWidget {
       fontFamily: clip.textFontFamily,
       height: 1.1,
     );
+    final TextStyle karaokeStyle = textStyle.copyWith(
+      color: _colorFromHex(
+        clip.karaokeFillColorHex,
+        fallback: context.cyberpunk.neonBlue,
+      ),
+    );
     final Color backgroundColor = _colorFromHex(
       clip.textBackgroundHex,
       fallback: Colors.black,
@@ -660,39 +666,49 @@ class _TextOverlay extends StatelessWidget {
         ),
         child: Transform.rotate(
           angle: textRotationRad,
-          child: GestureDetector(
-            onTap: onTap,
-            onPanUpdate: isSelected && onPanUpdate != null
-                ? (DragUpdateDetails details) => onPanUpdate!(
-                    Offset(details.delta.dx / sx, details.delta.dy / sy),
-                  )
-                : null,
-            child: Opacity(
-              opacity: (textOpacity * overlayAnimation.opacityFactor).clamp(
-                0.0,
-                1.0,
-              ),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: clip.textShowBackground
-                      ? backgroundColor.withValues(alpha: 0.62)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                  border: borderSide == null
-                      ? null
-                      : Border.fromBorderSide(borderSide),
+          child: Transform.scale(
+            scale: overlayAnimation.scaleFactor,
+            child: GestureDetector(
+              onTap: onTap,
+              onPanUpdate: isSelected && onPanUpdate != null
+                  ? (DragUpdateDetails details) => onPanUpdate!(
+                      Offset(details.delta.dx / sx, details.delta.dy / sy),
+                    )
+                  : null,
+              child: Opacity(
+                opacity: (textOpacity * overlayAnimation.opacityFactor).clamp(
+                  0.0,
+                  1.0,
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: clip.textShowBackground
+                        ? backgroundColor.withValues(alpha: 0.62)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(8),
+                    border: borderSide == null
+                        ? null
+                        : Border.fromBorderSide(borderSide),
                   ),
-                  child: Text(
-                    text,
-                    textAlign: TextAlign.center,
-                    maxLines: 4,
-                    overflow: TextOverflow.ellipsis,
-                    style: textStyle,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    child: clip.karaokeEnabled
+                        ? _KaraokeTextFill(
+                            text: text,
+                            baseStyle: textStyle,
+                            fillStyle: karaokeStyle,
+                            progress: _karaokeProgress(),
+                          )
+                        : Text(
+                            text,
+                            textAlign: TextAlign.center,
+                            maxLines: 4,
+                            overflow: TextOverflow.ellipsis,
+                            style: textStyle,
+                          ),
                   ),
                 ),
               ),
@@ -726,27 +742,70 @@ class _TextOverlay extends StatelessWidget {
     final int remainingMs = clipDurationMs - localMs;
     double alphaFactor = 1.0;
     double offsetYPx = 0.0;
+    double scaleFactor = 1.0;
+    final double entryScaleFrom = clip.textEntryScale.clamp(0.2, 1.0);
+    final double exitScaleTo = clip.textExitScale.clamp(0.2, 1.0);
 
-    if (clip.textEntryAnimation == project_clip.TextAnimationType.fade &&
-        entryDurationMs > 0 &&
-        localMs < entryDurationMs) {
-      final double progress = localMs / entryDurationMs;
-      alphaFactor *= progress.clamp(0.0, 1.0);
-      offsetYPx += (1 - progress.clamp(0.0, 1.0)) * 20;
+    if (entryDurationMs > 0 && localMs < entryDurationMs) {
+      final double progress = (localMs / entryDurationMs).clamp(0.0, 1.0);
+      switch (clip.textEntryAnimation) {
+        case project_clip.TextAnimationType.none:
+          break;
+        case project_clip.TextAnimationType.fade:
+          alphaFactor *= progress;
+          break;
+        case project_clip.TextAnimationType.slideUp:
+          offsetYPx += (1 - progress) * clip.textEntryOffsetPx;
+          break;
+        case project_clip.TextAnimationType.slideDown:
+          offsetYPx -= (1 - progress) * clip.textEntryOffsetPx;
+          break;
+        case project_clip.TextAnimationType.zoom:
+          scaleFactor *= entryScaleFrom + (1 - entryScaleFrom) * progress;
+          break;
+      }
     }
 
-    if (clip.textExitAnimation == project_clip.TextAnimationType.fade &&
-        exitDurationMs > 0 &&
-        remainingMs < exitDurationMs) {
-      final double progress = remainingMs / exitDurationMs;
-      alphaFactor *= progress.clamp(0.0, 1.0);
-      offsetYPx -= (1 - progress.clamp(0.0, 1.0)) * 20;
+    if (exitDurationMs > 0 && remainingMs < exitDurationMs) {
+      final double progress = (remainingMs / exitDurationMs).clamp(0.0, 1.0);
+      switch (clip.textExitAnimation) {
+        case project_clip.TextAnimationType.none:
+          break;
+        case project_clip.TextAnimationType.fade:
+          alphaFactor *= progress;
+          break;
+        case project_clip.TextAnimationType.slideUp:
+          offsetYPx -= (1 - progress) * clip.textExitOffsetPx;
+          break;
+        case project_clip.TextAnimationType.slideDown:
+          offsetYPx += (1 - progress) * clip.textExitOffsetPx;
+          break;
+        case project_clip.TextAnimationType.zoom:
+          scaleFactor *= exitScaleTo + (1 - exitScaleTo) * progress;
+          break;
+      }
     }
 
     return _TextOverlayAnimation(
       opacityFactor: alphaFactor.clamp(0.0, 1.0),
       offsetYPx: offsetYPx,
+      scaleFactor: scaleFactor.clamp(0.2, 2.0),
     );
+  }
+
+  double _karaokeProgress() {
+    if (!clip.karaokeEnabled) {
+      return 0.0;
+    }
+    final int safePos = clipPositionMs.clamp(0, clip.durationMs);
+    final int localMs = safePos - clip.karaokeLeadInMs;
+    if (localMs <= 0) {
+      return 0.0;
+    }
+    final int sweepMs = clip.karaokeSweepDurationMs <= 0
+        ? clip.durationMs
+        : clip.karaokeSweepDurationMs;
+    return (localMs / math.max(1, sweepMs)).clamp(0.0, 1.0);
   }
 }
 
@@ -754,10 +813,65 @@ class _TextOverlayAnimation {
   const _TextOverlayAnimation({
     required this.opacityFactor,
     required this.offsetYPx,
+    required this.scaleFactor,
   });
 
   final double opacityFactor;
   final double offsetYPx;
+  final double scaleFactor;
+}
+
+class _KaraokeTextFill extends StatelessWidget {
+  const _KaraokeTextFill({
+    required this.text,
+    required this.baseStyle,
+    required this.fillStyle,
+    required this.progress,
+  });
+
+  final String text;
+  final TextStyle baseStyle;
+  final TextStyle fillStyle;
+  final double progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final double safeProgress = progress.clamp(0.0, 1.0);
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final double textWidth =
+            constraints.maxWidth.isFinite && constraints.maxWidth > 0
+            ? constraints.maxWidth
+            : 1000;
+        final double textHeight =
+            constraints.maxHeight.isFinite && constraints.maxHeight > 0
+            ? constraints.maxHeight
+            : (baseStyle.fontSize ?? 24) * 1.4;
+        final double edge = safeProgress <= 0
+            ? 0.0001
+            : safeProgress >= 1
+            ? 0.9999
+            : safeProgress;
+        final Color baseColor = baseStyle.color ?? Colors.white;
+        final Color fillColor = fillStyle.color ?? baseColor;
+        final Paint karaokePaint = Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: <Color>[fillColor, fillColor, baseColor, baseColor],
+            stops: <double>[0, edge, edge, 1],
+          ).createShader(Rect.fromLTWH(0, 0, textWidth, textHeight));
+
+        return Text(
+          text,
+          textAlign: TextAlign.center,
+          maxLines: 4,
+          overflow: TextOverflow.ellipsis,
+          style: baseStyle.copyWith(foreground: karaokePaint),
+        );
+      },
+    );
+  }
 }
 
 class _FallbackLabel extends StatelessWidget {

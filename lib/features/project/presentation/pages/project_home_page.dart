@@ -439,6 +439,24 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
                                                   textExitDurationMs: values
                                                       .textExitDurationMs
                                                       .round(),
+                                                  textEntryOffsetPx:
+                                                      values.textEntryOffsetPx,
+                                                  textExitOffsetPx:
+                                                      values.textExitOffsetPx,
+                                                  textEntryScale:
+                                                      values.textEntryScale,
+                                                  textExitScale:
+                                                      values.textExitScale,
+                                                  karaokeEnabled:
+                                                      values.karaokeEnabled,
+                                                  karaokeFillColorHex: values
+                                                      .karaokeFillColorHex,
+                                                  karaokeLeadInMs: values
+                                                      .karaokeLeadInMs
+                                                      .round(),
+                                                  karaokeSweepDurationMs: values
+                                                      .karaokeSweepDurationMs
+                                                      .round(),
                                                 );
                                             final _ClipInspectorValues
                                             activeValues =
@@ -857,6 +875,14 @@ class _ClipInspectorValues {
     required this.textExitAnimation,
     required this.textEntryDurationMs,
     required this.textExitDurationMs,
+    required this.textEntryOffsetPx,
+    required this.textExitOffsetPx,
+    required this.textEntryScale,
+    required this.textExitScale,
+    required this.karaokeEnabled,
+    required this.karaokeFillColorHex,
+    required this.karaokeLeadInMs,
+    required this.karaokeSweepDurationMs,
     bool? textShowBackground,
     bool? textShowBorder,
   }) : _textShowBackground = textShowBackground,
@@ -880,6 +906,14 @@ class _ClipInspectorValues {
     textExitAnimation: TextAnimationType.none,
     textEntryDurationMs: 300,
     textExitDurationMs: 300,
+    textEntryOffsetPx: 28.0,
+    textExitOffsetPx: 28.0,
+    textEntryScale: 0.70,
+    textExitScale: 0.70,
+    karaokeEnabled: false,
+    karaokeFillColorHex: '#FEE440',
+    karaokeLeadInMs: 0,
+    karaokeSweepDurationMs: 2500,
     textShowBackground: true,
     textShowBorder: true,
   );
@@ -903,6 +937,14 @@ class _ClipInspectorValues {
       textExitAnimation: clip.textExitAnimation,
       textEntryDurationMs: clip.textEntryDurationMs.toDouble(),
       textExitDurationMs: clip.textExitDurationMs.toDouble(),
+      textEntryOffsetPx: clip.textEntryOffsetPx,
+      textExitOffsetPx: clip.textExitOffsetPx,
+      textEntryScale: clip.textEntryScale,
+      textExitScale: clip.textExitScale,
+      karaokeEnabled: clip.karaokeEnabled,
+      karaokeFillColorHex: clip.karaokeFillColorHex,
+      karaokeLeadInMs: clip.karaokeLeadInMs.toDouble(),
+      karaokeSweepDurationMs: clip.karaokeSweepDurationMs.toDouble(),
       textShowBackground: clip.textShowBackground,
       textShowBorder: clip.textShowBorder,
     );
@@ -925,6 +967,14 @@ class _ClipInspectorValues {
   final TextAnimationType textExitAnimation;
   final double textEntryDurationMs;
   final double textExitDurationMs;
+  final double textEntryOffsetPx;
+  final double textExitOffsetPx;
+  final double textEntryScale;
+  final double textExitScale;
+  final bool karaokeEnabled;
+  final String karaokeFillColorHex;
+  final double karaokeLeadInMs;
+  final double karaokeSweepDurationMs;
   final bool? _textShowBackground;
   final bool? _textShowBorder;
   bool get textShowBackground => _textShowBackground ?? true;
@@ -948,6 +998,14 @@ class _ClipInspectorValues {
     TextAnimationType? textExitAnimation,
     double? textEntryDurationMs,
     double? textExitDurationMs,
+    double? textEntryOffsetPx,
+    double? textExitOffsetPx,
+    double? textEntryScale,
+    double? textExitScale,
+    bool? karaokeEnabled,
+    String? karaokeFillColorHex,
+    double? karaokeLeadInMs,
+    double? karaokeSweepDurationMs,
     bool? textShowBackground,
     bool? textShowBorder,
   }) {
@@ -969,6 +1027,15 @@ class _ClipInspectorValues {
       textExitAnimation: textExitAnimation ?? this.textExitAnimation,
       textEntryDurationMs: textEntryDurationMs ?? this.textEntryDurationMs,
       textExitDurationMs: textExitDurationMs ?? this.textExitDurationMs,
+      textEntryOffsetPx: textEntryOffsetPx ?? this.textEntryOffsetPx,
+      textExitOffsetPx: textExitOffsetPx ?? this.textExitOffsetPx,
+      textEntryScale: textEntryScale ?? this.textEntryScale,
+      textExitScale: textExitScale ?? this.textExitScale,
+      karaokeEnabled: karaokeEnabled ?? this.karaokeEnabled,
+      karaokeFillColorHex: karaokeFillColorHex ?? this.karaokeFillColorHex,
+      karaokeLeadInMs: karaokeLeadInMs ?? this.karaokeLeadInMs,
+      karaokeSweepDurationMs:
+          karaokeSweepDurationMs ?? this.karaokeSweepDurationMs,
       textShowBackground: textShowBackground ?? this.textShowBackground,
       textShowBorder: textShowBorder ?? this.textShowBorder,
     );
@@ -1026,235 +1093,10 @@ class _ClipInspectorCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           if (trackType == TrackType.text) ...<Widget>[
-            FilledButton.icon(
-              onPressed: onEditText,
-              icon: const Icon(Icons.edit_outlined),
-              label: const Text('Editer texte'),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Texte (rich text v1)',
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: context.cyberpunk.textMuted,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            _InspectorSlider(
-              label: 'Position X ${values.textPosXPx.toStringAsFixed(0)} px',
-              min: -900,
-              max: 900,
-              value: values.textPosXPx,
-              activeColor: context.cyberpunk.neonBlue,
-              onChanged: (double value) {
-                onChanged(values.copyWith(textPosXPx: value));
-              },
-            ),
-            _InspectorSlider(
-              label: 'Position Y ${values.textPosYPx.toStringAsFixed(0)} px',
-              min: -500,
-              max: 500,
-              value: values.textPosYPx,
-              activeColor: context.cyberpunk.neonBlue,
-              onChanged: (double value) {
-                onChanged(values.copyWith(textPosYPx: value));
-              },
-            ),
-            _InspectorSlider(
-              label: 'Angle ${values.rotationDeg.toStringAsFixed(0)}deg',
-              min: -180,
-              max: 180,
-              value: values.rotationDeg,
-              activeColor: context.cyberpunk.neonBlue,
-              onChanged: (double value) {
-                onChanged(values.copyWith(rotationDeg: value));
-              },
-            ),
-            const SizedBox(height: 4),
-            DropdownButtonFormField<TextAnimationType>(
-              initialValue: values.textEntryAnimation,
-              isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Animation apparition',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-              items: TextAnimationType.values
-                  .map(
-                    (TextAnimationType type) =>
-                        DropdownMenuItem<TextAnimationType>(
-                          value: type,
-                          child: Text(
-                            type == TextAnimationType.none ? 'Aucune' : 'Fondu',
-                          ),
-                        ),
-                  )
-                  .toList(growable: false),
-              onChanged: (TextAnimationType? value) {
-                if (value == null) {
-                  return;
-                }
-                onChanged(values.copyWith(textEntryAnimation: value));
-              },
-            ),
-            _InspectorSlider(
-              label:
-                  'Duree apparition ${values.textEntryDurationMs.toStringAsFixed(0)} ms',
-              min: 0,
-              max: 3000,
-              value: values.textEntryDurationMs,
-              activeColor: context.cyberpunk.neonBlue,
-              onChanged: (double value) {
-                onChanged(values.copyWith(textEntryDurationMs: value));
-              },
-            ),
-            const SizedBox(height: 4),
-            DropdownButtonFormField<TextAnimationType>(
-              initialValue: values.textExitAnimation,
-              isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Animation sortie',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-              items: TextAnimationType.values
-                  .map(
-                    (TextAnimationType type) =>
-                        DropdownMenuItem<TextAnimationType>(
-                          value: type,
-                          child: Text(
-                            type == TextAnimationType.none ? 'Aucune' : 'Fondu',
-                          ),
-                        ),
-                  )
-                  .toList(growable: false),
-              onChanged: (TextAnimationType? value) {
-                if (value == null) {
-                  return;
-                }
-                onChanged(values.copyWith(textExitAnimation: value));
-              },
-            ),
-            _InspectorSlider(
-              label:
-                  'Duree sortie ${values.textExitDurationMs.toStringAsFixed(0)} ms',
-              min: 0,
-              max: 3000,
-              value: values.textExitDurationMs,
-              activeColor: context.cyberpunk.neonBlue,
-              onChanged: (double value) {
-                onChanged(values.copyWith(textExitDurationMs: value));
-              },
-            ),
-            _InspectorSlider(
-              label:
-                  'Taille police ${values.textFontSizePx.toStringAsFixed(0)} px',
-              min: 12,
-              max: 160,
-              value: values.textFontSizePx,
-              activeColor: context.cyberpunk.neonPink,
-              onChanged: (double value) {
-                onChanged(values.copyWith(textFontSizePx: value));
-              },
-            ),
-            const SizedBox(height: 4),
-            DropdownButtonFormField<String>(
-              initialValue: values.textFontFamily,
-              isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Police',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-              items:
-                  const <String>[
-                        'Roboto',
-                        'Arial',
-                        'Times New Roman',
-                        'Courier New',
-                      ]
-                      .map(
-                        (String family) => DropdownMenuItem<String>(
-                          value: family,
-                          child: Text(family),
-                        ),
-                      )
-                      .toList(growable: false),
-              onChanged: (String? family) {
-                if (family == null) {
-                  return;
-                }
-                onChanged(values.copyWith(textFontFamily: family));
-              },
-            ),
-            const SizedBox(height: 6),
-            Row(
-              children: <Widget>[
-                FilterChip(
-                  label: const Text('Gras'),
-                  selected: values.textBold,
-                  onSelected: (bool selected) {
-                    onChanged(values.copyWith(textBold: selected));
-                  },
-                ),
-                const SizedBox(width: 8),
-                FilterChip(
-                  label: const Text('Italique'),
-                  selected: values.textItalic,
-                  onSelected: (bool selected) {
-                    onChanged(values.copyWith(textItalic: selected));
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Row(
-              children: <Widget>[
-                FilterChip(
-                  label: const Text('Fond'),
-                  selected: values.textShowBackground,
-                  onSelected: (bool selected) {
-                    onChanged(values.copyWith(textShowBackground: selected));
-                  },
-                ),
-                const SizedBox(width: 8),
-                FilterChip(
-                  label: const Text('Bordure'),
-                  selected: values.textShowBorder,
-                  onSelected: (bool selected) {
-                    onChanged(values.copyWith(textShowBorder: selected));
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            _ColorChoiceRow(
-              label: 'Couleur texte',
-              selectedHex: values.textColorHex,
-              choices: const <String>[
-                '#FFFFFF',
-                '#FEE440',
-                '#FF9E00',
-                '#00E5FF',
-                '#FF4FB0',
-              ],
-              onSelect: (String hex) {
-                onChanged(values.copyWith(textColorHex: hex));
-              },
-            ),
-            const SizedBox(height: 4),
-            _ColorChoiceRow(
-              label: 'Fond texte',
-              selectedHex: values.textBackgroundHex,
-              choices: const <String>[
-                '#000000',
-                '#1A1A1A',
-                '#1F2937',
-                '#4A044E',
-                '#002B36',
-              ],
-              onSelect: (String hex) {
-                onChanged(values.copyWith(textBackgroundHex: hex));
-              },
+            _TextInspectorSection(
+              values: values,
+              onChanged: onChanged,
+              onEditText: onEditText,
             ),
             Divider(color: context.cyberpunk.border.withValues(alpha: 0.7)),
           ],
@@ -1341,6 +1183,594 @@ class _ClipInspectorCard extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _TextInspectorSection extends StatefulWidget {
+  const _TextInspectorSection({
+    required this.values,
+    required this.onChanged,
+    this.onEditText,
+  });
+
+  final _ClipInspectorValues values;
+  final ValueChanged<_ClipInspectorValues> onChanged;
+  final VoidCallback? onEditText;
+
+  @override
+  State<_TextInspectorSection> createState() => _TextInspectorSectionState();
+}
+
+class _TextInspectorSectionState extends State<_TextInspectorSection> {
+  int _tabIndex = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final _ClipInspectorValues values = widget.values;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          'Texte (rich text v1)',
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            color: context.cyberpunk.textMuted,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 6),
+        SegmentedButton<int>(
+          segments: const <ButtonSegment<int>>[
+            ButtonSegment<int>(
+              value: 0,
+              icon: Icon(Icons.text_fields_outlined),
+              label: Text('Texte'),
+            ),
+            ButtonSegment<int>(
+              value: 1,
+              icon: Icon(Icons.animation_outlined),
+              label: Text('Animation'),
+            ),
+          ],
+          selected: <int>{_tabIndex},
+          onSelectionChanged: (Set<int> selection) {
+            setState(() {
+              _tabIndex = selection.first;
+            });
+          },
+        ),
+        const SizedBox(height: 8),
+        if (_tabIndex == 0) ...<Widget>[
+          FilledButton.icon(
+            onPressed: widget.onEditText,
+            icon: const Icon(Icons.edit_outlined),
+            label: const Text('Editer texte'),
+          ),
+          _InspectorSlider(
+            label: 'Position X ${values.textPosXPx.toStringAsFixed(0)} px',
+            min: -900,
+            max: 900,
+            value: values.textPosXPx,
+            activeColor: context.cyberpunk.neonBlue,
+            onChanged: (double value) {
+              widget.onChanged(values.copyWith(textPosXPx: value));
+            },
+          ),
+          _InspectorSlider(
+            label: 'Position Y ${values.textPosYPx.toStringAsFixed(0)} px',
+            min: -500,
+            max: 500,
+            value: values.textPosYPx,
+            activeColor: context.cyberpunk.neonBlue,
+            onChanged: (double value) {
+              widget.onChanged(values.copyWith(textPosYPx: value));
+            },
+          ),
+          _InspectorSlider(
+            label: 'Angle ${values.rotationDeg.toStringAsFixed(0)}deg',
+            min: -180,
+            max: 180,
+            value: values.rotationDeg,
+            activeColor: context.cyberpunk.neonBlue,
+            onChanged: (double value) {
+              widget.onChanged(values.copyWith(rotationDeg: value));
+            },
+          ),
+          _InspectorSlider(
+            label:
+                'Taille police ${values.textFontSizePx.toStringAsFixed(0)} px',
+            min: 12,
+            max: 160,
+            value: values.textFontSizePx,
+            activeColor: context.cyberpunk.neonPink,
+            onChanged: (double value) {
+              widget.onChanged(values.copyWith(textFontSizePx: value));
+            },
+          ),
+          const SizedBox(height: 4),
+          DropdownButtonFormField<String>(
+            initialValue: values.textFontFamily,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: 'Police',
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+            items:
+                const <String>[
+                      'Roboto',
+                      'Arial',
+                      'Helvetica',
+                      'Avenir Next',
+                      'Futura',
+                      'Georgia',
+                      'Menlo',
+                      'Times New Roman',
+                      'Courier New',
+                    ]
+                    .map((String family) {
+                      return DropdownMenuItem<String>(
+                        value: family,
+                        child: Text(family),
+                      );
+                    })
+                    .toList(growable: false),
+            onChanged: (String? family) {
+              if (family == null) {
+                return;
+              }
+              widget.onChanged(values.copyWith(textFontFamily: family));
+            },
+          ),
+          const SizedBox(height: 6),
+          SwitchListTile(
+            value: values.karaokeEnabled,
+            onChanged: (bool enabled) {
+              widget.onChanged(values.copyWith(karaokeEnabled: enabled));
+            },
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Mode karaoke'),
+            subtitle: const Text(
+              'Remplissage lineaire progressif gauche -> droite',
+            ),
+          ),
+          _ColorChoiceRow(
+            label: 'Couleur remplissage karaoke',
+            selectedHex: values.karaokeFillColorHex,
+            choices: const <String>[
+              '#FEE440',
+              '#FF9E00',
+              '#00E5FF',
+              '#FF4FB0',
+              '#A3E635',
+            ],
+            onSelect: (String hex) {
+              widget.onChanged(values.copyWith(karaokeFillColorHex: hex));
+            },
+          ),
+          _InspectorSlider(
+            label:
+                'Delai depart karaoke ${values.karaokeLeadInMs.toStringAsFixed(0)} ms',
+            min: 0,
+            max: 3000,
+            value: values.karaokeLeadInMs,
+            activeColor: context.cyberpunk.neonBlue,
+            onChanged: (double value) {
+              widget.onChanged(values.copyWith(karaokeLeadInMs: value));
+            },
+          ),
+          _InspectorSlider(
+            label:
+                'Duree sweep karaoke ${values.karaokeSweepDurationMs.toStringAsFixed(0)} ms',
+            min: 300,
+            max: 10000,
+            value: values.karaokeSweepDurationMs,
+            activeColor: context.cyberpunk.neonPink,
+            onChanged: (double value) {
+              widget.onChanged(values.copyWith(karaokeSweepDurationMs: value));
+            },
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: <Widget>[
+              FilterChip(
+                label: const Text('Gras'),
+                selected: values.textBold,
+                onSelected: (bool selected) {
+                  widget.onChanged(values.copyWith(textBold: selected));
+                },
+              ),
+              const SizedBox(width: 8),
+              FilterChip(
+                label: const Text('Italique'),
+                selected: values.textItalic,
+                onSelected: (bool selected) {
+                  widget.onChanged(values.copyWith(textItalic: selected));
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: <Widget>[
+              FilterChip(
+                label: const Text('Fond'),
+                selected: values.textShowBackground,
+                onSelected: (bool selected) {
+                  widget.onChanged(
+                    values.copyWith(textShowBackground: selected),
+                  );
+                },
+              ),
+              const SizedBox(width: 8),
+              FilterChip(
+                label: const Text('Bordure'),
+                selected: values.textShowBorder,
+                onSelected: (bool selected) {
+                  widget.onChanged(values.copyWith(textShowBorder: selected));
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          _ColorChoiceRow(
+            label: 'Couleur texte',
+            selectedHex: values.textColorHex,
+            choices: const <String>[
+              '#FFFFFF',
+              '#FEE440',
+              '#FF9E00',
+              '#00E5FF',
+              '#FF4FB0',
+            ],
+            onSelect: (String hex) {
+              widget.onChanged(values.copyWith(textColorHex: hex));
+            },
+          ),
+          const SizedBox(height: 4),
+          _ColorChoiceRow(
+            label: 'Fond texte',
+            selectedHex: values.textBackgroundHex,
+            choices: const <String>[
+              '#000000',
+              '#1A1A1A',
+              '#1F2937',
+              '#4A044E',
+              '#002B36',
+            ],
+            onSelect: (String hex) {
+              widget.onChanged(values.copyWith(textBackgroundHex: hex));
+            },
+          ),
+        ] else ...<Widget>[
+          _TextAnimationMiniTimeline(values: values),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<TextAnimationType>(
+            initialValue: values.textEntryAnimation,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: 'Animation apparition',
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+            items: TextAnimationType.values
+                .map((TextAnimationType type) {
+                  return DropdownMenuItem<TextAnimationType>(
+                    value: type,
+                    child: Text(_labelForAnimation(type)),
+                  );
+                })
+                .toList(growable: false),
+            onChanged: (TextAnimationType? value) {
+              if (value == null) {
+                return;
+              }
+              widget.onChanged(values.copyWith(textEntryAnimation: value));
+            },
+          ),
+          _InspectorSlider(
+            label:
+                'Duree apparition ${values.textEntryDurationMs.toStringAsFixed(0)} ms',
+            min: 0,
+            max: 3000,
+            value: values.textEntryDurationMs,
+            activeColor: context.cyberpunk.neonBlue,
+            onChanged: (double value) {
+              widget.onChanged(values.copyWith(textEntryDurationMs: value));
+            },
+          ),
+          _InspectorSlider(
+            label:
+                'Offset apparition ${values.textEntryOffsetPx.toStringAsFixed(0)} px',
+            min: 0,
+            max: 180,
+            value: values.textEntryOffsetPx,
+            activeColor: context.cyberpunk.neonBlue,
+            onChanged: (double value) {
+              widget.onChanged(values.copyWith(textEntryOffsetPx: value));
+            },
+          ),
+          _InspectorSlider(
+            label:
+                'Zoom apparition ${(values.textEntryScale * 100).toStringAsFixed(0)}%',
+            min: 0.2,
+            max: 1.0,
+            value: values.textEntryScale,
+            activeColor: context.cyberpunk.neonBlue,
+            onChanged: (double value) {
+              widget.onChanged(values.copyWith(textEntryScale: value));
+            },
+          ),
+          const SizedBox(height: 6),
+          DropdownButtonFormField<TextAnimationType>(
+            initialValue: values.textExitAnimation,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: 'Animation sortie',
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+            items: TextAnimationType.values
+                .map((TextAnimationType type) {
+                  return DropdownMenuItem<TextAnimationType>(
+                    value: type,
+                    child: Text(_labelForAnimation(type)),
+                  );
+                })
+                .toList(growable: false),
+            onChanged: (TextAnimationType? value) {
+              if (value == null) {
+                return;
+              }
+              widget.onChanged(values.copyWith(textExitAnimation: value));
+            },
+          ),
+          _InspectorSlider(
+            label:
+                'Duree sortie ${values.textExitDurationMs.toStringAsFixed(0)} ms',
+            min: 0,
+            max: 3000,
+            value: values.textExitDurationMs,
+            activeColor: context.cyberpunk.neonPink,
+            onChanged: (double value) {
+              widget.onChanged(values.copyWith(textExitDurationMs: value));
+            },
+          ),
+          _InspectorSlider(
+            label:
+                'Offset sortie ${values.textExitOffsetPx.toStringAsFixed(0)} px',
+            min: 0,
+            max: 180,
+            value: values.textExitOffsetPx,
+            activeColor: context.cyberpunk.neonPink,
+            onChanged: (double value) {
+              widget.onChanged(values.copyWith(textExitOffsetPx: value));
+            },
+          ),
+          _InspectorSlider(
+            label:
+                'Zoom sortie ${(values.textExitScale * 100).toStringAsFixed(0)}%',
+            min: 0.2,
+            max: 1.0,
+            value: values.textExitScale,
+            activeColor: context.cyberpunk.neonPink,
+            onChanged: (double value) {
+              widget.onChanged(values.copyWith(textExitScale: value));
+            },
+          ),
+        ],
+      ],
+    );
+  }
+
+  String _labelForAnimation(TextAnimationType type) {
+    switch (type) {
+      case TextAnimationType.none:
+        return 'Aucune';
+      case TextAnimationType.fade:
+        return 'Fondu';
+      case TextAnimationType.slideUp:
+        return 'Glisser vers le haut';
+      case TextAnimationType.slideDown:
+        return 'Glisser vers le bas';
+      case TextAnimationType.zoom:
+        return 'Zoom';
+    }
+  }
+}
+
+class _TextAnimationMiniTimeline extends StatelessWidget {
+  const _TextAnimationMiniTimeline({required this.values});
+
+  final _ClipInspectorValues values;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 94,
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: context.cyberpunk.border),
+        color: context.cyberpunk.bgPrimary.withValues(alpha: 0.22),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            'Courbe animation entree/sortie',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: context.cyberpunk.textMuted,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Expanded(
+            child: CustomPaint(
+              painter: _TextAnimationMiniTimelinePainter(
+                values: values,
+                border: context.cyberpunk.border,
+                entryColor: context.cyberpunk.neonBlue,
+                exitColor: context.cyberpunk.neonPink,
+              ),
+              child: const SizedBox.expand(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TextAnimationMiniTimelinePainter extends CustomPainter {
+  const _TextAnimationMiniTimelinePainter({
+    required this.values,
+    required this.border,
+    required this.entryColor,
+    required this.exitColor,
+  });
+
+  final _ClipInspectorValues values;
+  final Color border;
+  final Color entryColor;
+  final Color exitColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.width <= 0 || size.height <= 0) {
+      return;
+    }
+    final Rect rect = Offset.zero & size;
+    final Paint grid = Paint()
+      ..color = border.withValues(alpha: 0.22)
+      ..strokeWidth = 1;
+    final Paint centerLine = Paint()
+      ..color = border.withValues(alpha: 0.35)
+      ..strokeWidth = 1.2;
+
+    for (int i = 1; i <= 3; i++) {
+      final double x = rect.left + rect.width * (i / 4);
+      canvas.drawLine(Offset(x, rect.top), Offset(x, rect.bottom), grid);
+    }
+    canvas.drawLine(
+      Offset(rect.left, rect.center.dy),
+      Offset(rect.right, rect.center.dy),
+      centerLine,
+    );
+
+    const double referenceMs = 6000;
+    final double entryFrac = (values.textEntryDurationMs / referenceMs).clamp(
+      0.0,
+      0.45,
+    );
+    final double exitFrac = (values.textExitDurationMs / referenceMs).clamp(
+      0.0,
+      0.45,
+    );
+
+    if (entryFrac > 0) {
+      final Paint entryZone = Paint()
+        ..color = entryColor.withValues(alpha: 0.10)
+        ..style = PaintingStyle.fill;
+      canvas.drawRect(
+        Rect.fromLTWH(rect.left, rect.top, rect.width * entryFrac, rect.height),
+        entryZone,
+      );
+    }
+    if (exitFrac > 0) {
+      final Paint exitZone = Paint()
+        ..color = exitColor.withValues(alpha: 0.10)
+        ..style = PaintingStyle.fill;
+      final double zoneWidth = rect.width * exitFrac;
+      canvas.drawRect(
+        Rect.fromLTWH(rect.right - zoneWidth, rect.top, zoneWidth, rect.height),
+        exitZone,
+      );
+    }
+
+    final Path entryPath = Path();
+    final Path exitPath = Path();
+    for (int i = 0; i <= 100; i++) {
+      final double t = i / 100;
+      final double x = rect.left + rect.width * t;
+      final double entryValue = _entryCurveValue(t, entryFrac);
+      final double exitValue = _exitCurveValue(t, exitFrac);
+      final double entryY = rect.bottom - (rect.height * entryValue);
+      final double exitY = rect.bottom - (rect.height * exitValue);
+      if (i == 0) {
+        entryPath.moveTo(x, entryY);
+        exitPath.moveTo(x, exitY);
+      } else {
+        entryPath.lineTo(x, entryY);
+        exitPath.lineTo(x, exitY);
+      }
+    }
+
+    canvas.drawPath(
+      entryPath,
+      Paint()
+        ..color = entryColor.withValues(alpha: 0.9)
+        ..strokeWidth = 1.8
+        ..style = PaintingStyle.stroke,
+    );
+    canvas.drawPath(
+      exitPath,
+      Paint()
+        ..color = exitColor.withValues(alpha: 0.85)
+        ..strokeWidth = 1.8
+        ..style = PaintingStyle.stroke,
+    );
+  }
+
+  double _entryCurveValue(double t, double entryFrac) {
+    if (entryFrac <= 0 || values.textEntryAnimation == TextAnimationType.none) {
+      return 1.0;
+    }
+    if (t > entryFrac) {
+      return 1.0;
+    }
+    final double p = (t / entryFrac).clamp(0.0, 1.0);
+    switch (values.textEntryAnimation) {
+      case TextAnimationType.none:
+        return 1.0;
+      case TextAnimationType.fade:
+        return p;
+      case TextAnimationType.slideUp:
+      case TextAnimationType.slideDown:
+        return Curves.easeOut.transform(p);
+      case TextAnimationType.zoom:
+        return values.textEntryScale + (1 - values.textEntryScale) * p;
+    }
+  }
+
+  double _exitCurveValue(double t, double exitFrac) {
+    if (exitFrac <= 0 || values.textExitAnimation == TextAnimationType.none) {
+      return 1.0;
+    }
+    final double start = 1 - exitFrac;
+    if (t < start) {
+      return 1.0;
+    }
+    final double p = ((t - start) / exitFrac).clamp(0.0, 1.0);
+    switch (values.textExitAnimation) {
+      case TextAnimationType.none:
+        return 1.0;
+      case TextAnimationType.fade:
+        return 1 - p;
+      case TextAnimationType.slideUp:
+      case TextAnimationType.slideDown:
+        return 1 - Curves.easeIn.transform(p);
+      case TextAnimationType.zoom:
+        return 1 - (1 - values.textExitScale) * p;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _TextAnimationMiniTimelinePainter oldDelegate) {
+    return oldDelegate.values != values ||
+        oldDelegate.border != border ||
+        oldDelegate.entryColor != entryColor ||
+        oldDelegate.exitColor != exitColor;
   }
 }
 

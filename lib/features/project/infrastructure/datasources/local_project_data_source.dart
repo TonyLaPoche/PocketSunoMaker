@@ -91,6 +91,14 @@ class LocalProjectDataSource {
       'textExitAnimation': clip.textExitAnimation.name,
       'textEntryDurationMs': clip.textEntryDurationMs,
       'textExitDurationMs': clip.textExitDurationMs,
+      'textEntryOffsetPx': clip.textEntryOffsetPx,
+      'textExitOffsetPx': clip.textExitOffsetPx,
+      'textEntryScale': clip.textEntryScale,
+      'textExitScale': clip.textExitScale,
+      'karaokeEnabled': clip.karaokeEnabled,
+      'karaokeFillColorHex': clip.karaokeFillColorHex,
+      'karaokeLeadInMs': clip.karaokeLeadInMs,
+      'karaokeSweepDurationMs': clip.karaokeSweepDurationMs,
     };
   }
 
@@ -165,6 +173,17 @@ class LocalProjectDataSource {
       ),
       textEntryDurationMs: _asInt(json['textEntryDurationMs'], fallback: 300),
       textExitDurationMs: _asInt(json['textExitDurationMs'], fallback: 300),
+      textEntryOffsetPx: _asDouble(json['textEntryOffsetPx'], fallback: 28.0),
+      textExitOffsetPx: _asDouble(json['textExitOffsetPx'], fallback: 28.0),
+      textEntryScale: _asDouble(json['textEntryScale'], fallback: 0.70),
+      textExitScale: _asDouble(json['textExitScale'], fallback: 0.70),
+      karaokeEnabled: _asBool(json['karaokeEnabled'], fallback: false),
+      karaokeFillColorHex: json['karaokeFillColorHex'] as String? ?? '#FEE440',
+      karaokeLeadInMs: _asInt(json['karaokeLeadInMs'], fallback: 0),
+      karaokeSweepDurationMs: _asInt(
+        json['karaokeSweepDurationMs'],
+        fallback: 2500,
+      ),
     );
   }
 

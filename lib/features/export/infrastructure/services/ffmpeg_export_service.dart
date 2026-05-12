@@ -298,7 +298,7 @@ class FfmpegExportService {
       }
       final String text = _escapeDrawText(rawText);
       final String? fontFile = _resolveFontFile(clip.textFontFamily);
-      final int fontSize = (clip.textFontSizePx * fontScale)
+      final int baseFontSize = (clip.textFontSizePx * fontScale)
           .round()
           .clamp(10, 420)
           .toInt();
@@ -316,19 +316,52 @@ class FfmpegExportService {
         end: end,
         baseOpacity: textOpacity,
       );
+      final String yExpr = _buildTextYExpression(
+        clip: clip,
+        start: start,
+        end: end,
+        baseYOffset: yOffset,
+      );
+      final String fontSizeExpr = _buildTextFontSizeExpression(
+        clip: clip,
+        start: start,
+        end: end,
+        baseFontSize: baseFontSize,
+      );
       final int boxEnabled = clip.textShowBackground ? 1 : 0;
       final String fontPart = fontFile == null
           ? ''
           : "fontfile='${_escapeDrawText(fontFile)}':";
       drawTextFilters.add(
         "drawtext=text='$text':$fontPart"
-        "fontsize=$fontSize:"
+        "fontsize='$fontSizeExpr':"
         "fontcolor=$fontColor:box=$boxEnabled:boxcolor=$boxColor@$boxOpacityStr:"
         "alpha='$alphaExpr':"
         "x=(w-text_w)/2+${xOffset.toStringAsFixed(2)}:"
-        "y=(h-text_h)/2+${yOffset.toStringAsFixed(2)}:"
+        "y='(h-text_h)/2+$yExpr':"
         "enable='between(t\\,${start.toStringAsFixed(3)}\\,${end.toStringAsFixed(3)})'",
       );
+      if (clip.karaokeEnabled) {
+        final String karaokeColor = clip.karaokeFillColorHex.replaceAll(
+          '#',
+          '',
+        );
+        final String karaokeProgressExpr = _buildKaraokeProgressExpression(
+          clip: clip,
+          start: start,
+        );
+        final String karaokeFillAlphaExpr =
+            "($alphaExpr)*if(lt(x\\,((w-text_w)/2+${xOffset.toStringAsFixed(2)}+text_w*($karaokeProgressExpr)))\\,1\\,0)";
+        drawTextFilters.add(
+          "drawtext=text='$text':$fontPart"
+          "fontsize='$fontSizeExpr':"
+          "fontcolor=$karaokeColor:box=0:"
+          "alpha='$karaokeFillAlphaExpr':"
+          "x=(w-text_w)/2+${xOffset.toStringAsFixed(2)}:"
+          "y='(h-text_h)/2+$yExpr':"
+          "enable='between(t\\,${start.toStringAsFixed(3)}\\,${end.toStringAsFixed(3)})'",
+        );
+      }
     }
     if (drawTextFilters.isEmpty) {
       return baseScalePad;
@@ -372,6 +405,93 @@ class FfmpegExportService {
     return expr;
   }
 
+  String _buildTextYExpression({
+    required Clip clip,
+    required double start,
+    required double end,
+    required double baseYOffset,
+  }) {
+    String expr = baseYOffset.toStringAsFixed(2);
+    final int clipDurationMs = clip.durationMs <= 0 ? 1 : clip.durationMs;
+    final double entryDuration =
+        (clip.textEntryDurationMs.clamp(0, clipDurationMs) / 1000.0).toDouble();
+    final double exitDuration =
+        (clip.textExitDurationMs.clamp(0, clipDurationMs) / 1000.0).toDouble();
+    final String entryProgress =
+        'max(0\\,min(1\\,(t-${start.toStringAsFixed(3)})/${entryDuration <= 0 ? 1 : entryDuration.toStringAsFixed(3)}))';
+    final String exitProgress =
+        'max(0\\,min(1\\,(${end.toStringAsFixed(3)}-t)/${exitDuration <= 0 ? 1 : exitDuration.toStringAsFixed(3)}))';
+    final String entryEnd = (start + entryDuration).toStringAsFixed(3);
+    final String exitStart = (end - exitDuration).toStringAsFixed(3);
+
+    if (clip.textEntryAnimation == TextAnimationType.slideUp &&
+        entryDuration > 0) {
+      expr =
+          '($expr)+if(lt(t\\,$entryEnd)\\,((1-$entryProgress)*${clip.textEntryOffsetPx.toStringAsFixed(2)})\\,0)';
+    }
+    if (clip.textEntryAnimation == TextAnimationType.slideDown &&
+        entryDuration > 0) {
+      expr =
+          '($expr)-if(lt(t\\,$entryEnd)\\,((1-$entryProgress)*${clip.textEntryOffsetPx.toStringAsFixed(2)})\\,0)';
+    }
+    if (clip.textExitAnimation == TextAnimationType.slideUp &&
+        exitDuration > 0) {
+      expr =
+          '($expr)-if(gt(t\\,$exitStart)\\,((1-$exitProgress)*${clip.textExitOffsetPx.toStringAsFixed(2)})\\,0)';
+    }
+    if (clip.textExitAnimation == TextAnimationType.slideDown &&
+        exitDuration > 0) {
+      expr =
+          '($expr)+if(gt(t\\,$exitStart)\\,((1-$exitProgress)*${clip.textExitOffsetPx.toStringAsFixed(2)})\\,0)';
+    }
+    return expr;
+  }
+
+  String _buildTextFontSizeExpression({
+    required Clip clip,
+    required double start,
+    required double end,
+    required int baseFontSize,
+  }) {
+    String expr = baseFontSize.toString();
+    final int clipDurationMs = clip.durationMs <= 0 ? 1 : clip.durationMs;
+    final double entryDuration =
+        (clip.textEntryDurationMs.clamp(0, clipDurationMs) / 1000.0).toDouble();
+    final double exitDuration =
+        (clip.textExitDurationMs.clamp(0, clipDurationMs) / 1000.0).toDouble();
+    final String entryProgress =
+        'max(0\\,min(1\\,(t-${start.toStringAsFixed(3)})/${entryDuration <= 0 ? 1 : entryDuration.toStringAsFixed(3)}))';
+    final String exitProgress =
+        'max(0\\,min(1\\,(${end.toStringAsFixed(3)}-t)/${exitDuration <= 0 ? 1 : exitDuration.toStringAsFixed(3)}))';
+    final String entryEnd = (start + entryDuration).toStringAsFixed(3);
+    final String exitStart = (end - exitDuration).toStringAsFixed(3);
+
+    if (clip.textEntryAnimation == TextAnimationType.zoom &&
+        entryDuration > 0) {
+      final double minScale = clip.textEntryScale.clamp(0.2, 1.0);
+      expr =
+          '($expr)*if(lt(t\\,$entryEnd)\\,($minScale+(1-$minScale)*$entryProgress)\\,1)';
+    }
+    if (clip.textExitAnimation == TextAnimationType.zoom && exitDuration > 0) {
+      final double minScale = clip.textExitScale.clamp(0.2, 1.0);
+      expr =
+          '($expr)*if(gt(t\\,$exitStart)\\,($minScale+(1-$minScale)*$exitProgress)\\,1)';
+    }
+    return expr;
+  }
+
+  String _buildKaraokeProgressExpression({
+    required Clip clip,
+    required double start,
+  }) {
+    final double leadInSec = (clip.karaokeLeadInMs.clamp(0, 10000) / 1000.0)
+        .toDouble();
+    final double sweepSec =
+        (clip.karaokeSweepDurationMs.clamp(300, 10000) / 1000.0).toDouble();
+    final double startSec = start + leadInSec;
+    return 'max(0\\,min(1\\,(t-${startSec.toStringAsFixed(3)})/${sweepSec.toStringAsFixed(3)}))';
+  }
+
   String _compactError(String stderr) {
     final List<String> lines = stderr
         .split('\n')
@@ -391,6 +511,13 @@ class FfmpegExportService {
     final Map<String, List<String>> candidatesByFamily = <String, List<String>>{
       'roboto': <String>['/System/Library/Fonts/Supplemental/Arial.ttf'],
       'arial': <String>['/System/Library/Fonts/Supplemental/Arial.ttf'],
+      'helvetica': <String>['/System/Library/Fonts/Supplemental/Helvetica.ttf'],
+      'avenir next': <String>[
+        '/System/Library/Fonts/Supplemental/Avenir Next.ttc',
+      ],
+      'futura': <String>['/System/Library/Fonts/Supplemental/Futura.ttc'],
+      'georgia': <String>['/System/Library/Fonts/Supplemental/Georgia.ttf'],
+      'menlo': <String>['/System/Library/Fonts/Menlo.ttc'],
       'times new roman': <String>[
         '/System/Library/Fonts/Supplemental/Times New Roman.ttf',
       ],

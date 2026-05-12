@@ -1,4 +1,4 @@
-enum TextAnimationType { none, fade }
+enum TextAnimationType { none, fade, slideUp, slideDown, zoom }
 
 class Clip {
   const Clip({
@@ -27,6 +27,14 @@ class Clip {
     this.textExitAnimation = TextAnimationType.none,
     this.textEntryDurationMs = 300,
     this.textExitDurationMs = 300,
+    this.textEntryOffsetPx = 28.0,
+    this.textExitOffsetPx = 28.0,
+    this.textEntryScale = 0.70,
+    this.textExitScale = 0.70,
+    this.karaokeEnabled = false,
+    this.karaokeFillColorHex = '#FEE440',
+    this.karaokeLeadInMs = 0,
+    this.karaokeSweepDurationMs = 2500,
   });
 
   final String id;
@@ -54,6 +62,14 @@ class Clip {
   final TextAnimationType textExitAnimation;
   final int textEntryDurationMs;
   final int textExitDurationMs;
+  final double textEntryOffsetPx;
+  final double textExitOffsetPx;
+  final double textEntryScale;
+  final double textExitScale;
+  final bool karaokeEnabled;
+  final String karaokeFillColorHex;
+  final int karaokeLeadInMs;
+  final int karaokeSweepDurationMs;
 
   int get durationMs => sourceOutMs - sourceInMs;
 
@@ -83,6 +99,14 @@ class Clip {
     TextAnimationType? textExitAnimation,
     int? textEntryDurationMs,
     int? textExitDurationMs,
+    double? textEntryOffsetPx,
+    double? textExitOffsetPx,
+    double? textEntryScale,
+    double? textExitScale,
+    bool? karaokeEnabled,
+    String? karaokeFillColorHex,
+    int? karaokeLeadInMs,
+    int? karaokeSweepDurationMs,
   }) {
     return Clip(
       id: id ?? this.id,
@@ -110,6 +134,15 @@ class Clip {
       textExitAnimation: textExitAnimation ?? this.textExitAnimation,
       textEntryDurationMs: textEntryDurationMs ?? this.textEntryDurationMs,
       textExitDurationMs: textExitDurationMs ?? this.textExitDurationMs,
+      textEntryOffsetPx: textEntryOffsetPx ?? this.textEntryOffsetPx,
+      textExitOffsetPx: textExitOffsetPx ?? this.textExitOffsetPx,
+      textEntryScale: textEntryScale ?? this.textEntryScale,
+      textExitScale: textExitScale ?? this.textExitScale,
+      karaokeEnabled: karaokeEnabled ?? this.karaokeEnabled,
+      karaokeFillColorHex: karaokeFillColorHex ?? this.karaokeFillColorHex,
+      karaokeLeadInMs: karaokeLeadInMs ?? this.karaokeLeadInMs,
+      karaokeSweepDurationMs:
+          karaokeSweepDurationMs ?? this.karaokeSweepDurationMs,
     );
   }
 }

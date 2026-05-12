@@ -501,6 +501,14 @@ class ProjectController extends Notifier<ProjectState> {
     TextAnimationType? textExitAnimation,
     int? textEntryDurationMs,
     int? textExitDurationMs,
+    double? textEntryOffsetPx,
+    double? textExitOffsetPx,
+    double? textEntryScale,
+    double? textExitScale,
+    bool? karaokeEnabled,
+    String? karaokeFillColorHex,
+    int? karaokeLeadInMs,
+    int? karaokeSweepDurationMs,
   }) {
     _updateClip(
       trackId: trackId,
@@ -530,6 +538,18 @@ class ProjectController extends Notifier<ProjectState> {
           textExitDurationMs: textExitDurationMs == null
               ? null
               : _clampInt(textExitDurationMs, 0, _maxTextAnimationDurationMs),
+          textEntryOffsetPx: textEntryOffsetPx?.clamp(0.0, 180.0),
+          textExitOffsetPx: textExitOffsetPx?.clamp(0.0, 180.0),
+          textEntryScale: textEntryScale?.clamp(0.2, 1.0),
+          textExitScale: textExitScale?.clamp(0.2, 1.0),
+          karaokeEnabled: karaokeEnabled,
+          karaokeFillColorHex: karaokeFillColorHex,
+          karaokeLeadInMs: karaokeLeadInMs == null
+              ? null
+              : _clampInt(karaokeLeadInMs, 0, _maxTextAnimationDurationMs),
+          karaokeSweepDurationMs: karaokeSweepDurationMs == null
+              ? null
+              : _clampInt(karaokeSweepDurationMs, 300, 10000),
         );
       },
     );
