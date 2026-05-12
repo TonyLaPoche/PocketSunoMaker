@@ -59,6 +59,7 @@ class LocalProjectDataSource {
       'id': track.id,
       'type': track.type.name,
       'index': track.index,
+      'name': track.name,
       'clips': track.clips.map(_clipToJson).toList(growable: false),
     };
   }
@@ -86,6 +87,10 @@ class LocalProjectDataSource {
       'textBackgroundHex': clip.textBackgroundHex,
       'textShowBackground': clip.textShowBackground,
       'textShowBorder': clip.textShowBorder,
+      'textEntryAnimation': clip.textEntryAnimation.name,
+      'textExitAnimation': clip.textExitAnimation.name,
+      'textEntryDurationMs': clip.textEntryDurationMs,
+      'textExitDurationMs': clip.textExitDurationMs,
     };
   }
 
@@ -119,6 +124,7 @@ class LocalProjectDataSource {
       id: json['id'] as String? ?? '',
       type: type,
       index: _asInt(json['index'], fallback: 0),
+      name: json['name'] as String?,
       clips: rawClips
           .whereType<Map<String, dynamic>>()
           .map(_clipFromJson)
@@ -149,6 +155,16 @@ class LocalProjectDataSource {
       textBackgroundHex: json['textBackgroundHex'] as String? ?? '#000000',
       textShowBackground: _asBool(json['textShowBackground'], fallback: true),
       textShowBorder: _asBool(json['textShowBorder'], fallback: true),
+      textEntryAnimation: _asTextAnimationType(
+        json['textEntryAnimation'],
+        fallback: TextAnimationType.none,
+      ),
+      textExitAnimation: _asTextAnimationType(
+        json['textExitAnimation'],
+        fallback: TextAnimationType.none,
+      ),
+      textEntryDurationMs: _asInt(json['textEntryDurationMs'], fallback: 300),
+      textExitDurationMs: _asInt(json['textExitDurationMs'], fallback: 300),
     );
   }
 
@@ -182,6 +198,20 @@ class LocalProjectDataSource {
       }
       if (value.toLowerCase() == 'false') {
         return false;
+      }
+    }
+    return fallback;
+  }
+
+  TextAnimationType _asTextAnimationType(
+    Object? value, {
+    required TextAnimationType fallback,
+  }) {
+    if (value is String) {
+      for (final TextAnimationType type in TextAnimationType.values) {
+        if (type.name == value) {
+          return type;
+        }
       }
     }
     return fallback;

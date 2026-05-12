@@ -51,6 +51,7 @@ class ProjectController extends Notifier<ProjectState> {
     extensions: <String>['psm'],
   );
   static const int _minClipDurationMs = 500;
+  static const int _maxTextAnimationDurationMs = 3000;
   static const int _snapThresholdMs = 120;
 
   @override
@@ -175,6 +176,7 @@ class ProjectController extends Notifier<ProjectState> {
       id: '${targetType.name}-track-${DateTime.now().millisecondsSinceEpoch}',
       type: targetType,
       index: tracks.length,
+      name: null,
       clips: const <Clip>[],
     );
     final Clip newClip = Clip(
@@ -246,6 +248,63 @@ class ProjectController extends Notifier<ProjectState> {
         tracks: updatedTracks,
         durationMs: projectDurationMs,
       ),
+    );
+  }
+
+  void moveClipToTrack({
+    required String sourceTrackId,
+    required String targetTrackId,
+    required String clipId,
+  }) {
+    if (sourceTrackId == targetTrackId) {
+      return;
+    }
+    final Project? project = state.currentProject;
+    if (project == null) {
+      return;
+    }
+
+    final int sourceTrackIndex = project.tracks.indexWhere(
+      (Track track) => track.id == sourceTrackId,
+    );
+    final int targetTrackIndex = project.tracks.indexWhere(
+      (Track track) => track.id == targetTrackId,
+    );
+    if (sourceTrackIndex == -1 || targetTrackIndex == -1) {
+      return;
+    }
+
+    final Track sourceTrack = project.tracks[sourceTrackIndex];
+    final Track targetTrack = project.tracks[targetTrackIndex];
+    final Clip? movingClip = sourceTrack.clips
+        .where((Clip clip) => clip.id == clipId)
+        .fold<Clip?>(null, (Clip? _, Clip clip) => clip);
+    if (movingClip == null) {
+      return;
+    }
+    if (sourceTrack.type != targetTrack.type) {
+      return;
+    }
+
+    final List<Track> tracks = List<Track>.from(project.tracks);
+    final List<Clip> sourceClips = sourceTrack.clips
+        .where((Clip clip) => clip.id != clipId)
+        .toList(growable: false);
+    final List<Clip> targetClips = List<Clip>.from(targetTrack.clips)
+      ..add(movingClip)
+      ..sort(
+        (Clip a, Clip b) => a.timelineStartMs.compareTo(b.timelineStartMs),
+      );
+
+    tracks[sourceTrackIndex] = sourceTrack.copyWith(clips: sourceClips);
+    tracks[targetTrackIndex] = targetTrack.copyWith(clips: targetClips);
+
+    state = state.copyWith(
+      currentProject: project.copyWith(
+        tracks: tracks,
+        durationMs: _computeProjectDurationMs(tracks),
+      ),
+      errorMessage: null,
     );
   }
 
@@ -438,6 +497,10 @@ class ProjectController extends Notifier<ProjectState> {
     String? textBackgroundHex,
     bool? textShowBackground,
     bool? textShowBorder,
+    TextAnimationType? textEntryAnimation,
+    TextAnimationType? textExitAnimation,
+    int? textEntryDurationMs,
+    int? textExitDurationMs,
   }) {
     _updateClip(
       trackId: trackId,
@@ -459,6 +522,14 @@ class ProjectController extends Notifier<ProjectState> {
           textBackgroundHex: textBackgroundHex,
           textShowBackground: textShowBackground,
           textShowBorder: textShowBorder,
+          textEntryAnimation: textEntryAnimation,
+          textExitAnimation: textExitAnimation,
+          textEntryDurationMs: textEntryDurationMs == null
+              ? null
+              : _clampInt(textEntryDurationMs, 0, _maxTextAnimationDurationMs),
+          textExitDurationMs: textExitDurationMs == null
+              ? null
+              : _clampInt(textExitDurationMs, 0, _maxTextAnimationDurationMs),
         );
       },
     );
@@ -468,6 +539,8 @@ class ProjectController extends Notifier<ProjectState> {
     required int startMs,
     String text = 'Nouveau texte',
     int durationMs = 3000,
+    String? targetTrackId,
+    bool forceCreateNewTrack = false,
   }) {
     final Project? project = state.currentProject;
     if (project == null) {
@@ -478,14 +551,24 @@ class ProjectController extends Notifier<ProjectState> {
     final int safeDurationMs = durationMs < _minClipDurationMs
         ? _minClipDurationMs
         : durationMs;
-    final Track? existingTextTrack = tracks
-        .where((Track track) => track.type == TrackType.text)
-        .fold<Track?>(null, (Track? current, Track next) {
-          if (current == null || next.index > current.index) {
-            return next;
-          }
-          return current;
-        });
+    final Track? existingTextTrack = forceCreateNewTrack
+        ? null
+        : targetTrackId == null
+        ? tracks
+              .where((Track track) => track.type == TrackType.text)
+              .fold<Track?>(null, (Track? current, Track next) {
+                if (current == null || next.index > current.index) {
+                  return next;
+                }
+                return current;
+              })
+        : tracks
+              .where((Track track) => track.id == targetTrackId)
+              .fold<Track?>(
+                null,
+                (Track? current, Track next) =>
+                    next.type == TrackType.text ? next : current,
+              );
     final Clip textClip = Clip(
       id: 'clip-${DateTime.now().microsecondsSinceEpoch}',
       assetPath: '',
@@ -499,6 +582,7 @@ class ProjectController extends Notifier<ProjectState> {
         id: 'text-track-${DateTime.now().millisecondsSinceEpoch}',
         type: TrackType.text,
         index: tracks.length,
+        name: _defaultTextTrackName(tracks),
         clips: <Clip>[textClip],
       );
       tracks.add(newTextTrack);
@@ -516,6 +600,40 @@ class ProjectController extends Notifier<ProjectState> {
       );
       tracks[trackIndex] = existingTextTrack.copyWith(clips: clips);
     }
+    state = state.copyWith(
+      currentProject: project.copyWith(
+        tracks: tracks,
+        durationMs: _computeProjectDurationMs(tracks),
+      ),
+      errorMessage: null,
+    );
+  }
+
+  void renameTextClip({
+    required String trackId,
+    required String clipId,
+    required String name,
+  }) {
+    updateClipTextContent(trackId: trackId, clipId: clipId, text: name);
+  }
+
+  void renameTrack({required String trackId, required String name}) {
+    final Project? project = state.currentProject;
+    if (project == null) {
+      return;
+    }
+    final String sanitized = name.trim();
+    if (sanitized.isEmpty) {
+      return;
+    }
+    final List<Track> tracks = project.tracks
+        .map((Track track) {
+          if (track.id != trackId) {
+            return track;
+          }
+          return track.copyWith(name: sanitized);
+        })
+        .toList(growable: false);
     state = state.copyWith(
       currentProject: project.copyWith(
         tracks: tracks,
@@ -579,6 +697,12 @@ class ProjectController extends Notifier<ProjectState> {
       return 0;
     }
     return clipEnds.reduce((int max, int value) => value > max ? value : max);
+  }
+
+  String _defaultTextTrackName(List<Track> tracks) {
+    final int count =
+        tracks.where((Track track) => track.type == TrackType.text).length + 1;
+    return 'Texte $count';
   }
 
   int _clipDurationForAsset(MediaAsset asset) {

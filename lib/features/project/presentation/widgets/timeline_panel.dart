@@ -23,8 +23,11 @@ class TimelinePanel extends StatefulWidget {
     required this.onTrimClipEndByDelta,
     required this.onSplitClipAtPlayhead,
     required this.onRemoveClip,
+    required this.onMoveClipToTrack,
     this.reducedVisualIntensity = false,
     this.onClipSelectionChanged,
+    this.onRenameTextClipRequested,
+    this.onRenameTrackRequested,
     super.key,
   });
 
@@ -61,8 +64,17 @@ class TimelinePanel extends StatefulWidget {
   onSplitClipAtPlayhead;
   final void Function({required String trackId, required String clipId})
   onRemoveClip;
+  final void Function({
+    required String sourceTrackId,
+    required String targetTrackId,
+    required String clipId,
+  })
+  onMoveClipToTrack;
   final bool reducedVisualIntensity;
   final void Function(String? trackId, Clip? clip)? onClipSelectionChanged;
+  final void Function({required String trackId, required Clip clip})?
+  onRenameTextClipRequested;
+  final void Function({required Track track})? onRenameTrackRequested;
 
   @override
   State<TimelinePanel> createState() => _TimelinePanelState();
@@ -311,6 +323,8 @@ class _TimelinePanelState extends State<TimelinePanel> {
                                                 (hasSoloTracks && !isTrackSolo);
                                             return _TimelineTrackRow(
                                               track: track,
+                                              trackRowIndex: index,
+                                              allTracks: widget.project!.tracks,
                                               rowHeight: _rowHeight,
                                               pixelsPerSecond: pixelsPerSecond,
                                               playheadMs: widget.playheadMs,
@@ -376,6 +390,31 @@ class _TimelinePanelState extends State<TimelinePanel> {
                                                   widget.onTrimClipEndByDelta,
                                               onSplitClipAtPlayhead:
                                                   widget.onSplitClipAtPlayhead,
+                                              onMoveClipToTrack:
+                                                  ({
+                                                    required String
+                                                    sourceTrackId,
+                                                    required String
+                                                    targetTrackId,
+                                                    required String clipId,
+                                                  }) {
+                                                    if (lockedTrackIds.contains(
+                                                      targetTrackId,
+                                                    )) {
+                                                      return;
+                                                    }
+                                                    widget.onMoveClipToTrack(
+                                                      sourceTrackId:
+                                                          sourceTrackId,
+                                                      targetTrackId:
+                                                          targetTrackId,
+                                                      clipId: clipId,
+                                                    );
+                                                  },
+                                              onRenameTextClipRequested: widget
+                                                  .onRenameTextClipRequested,
+                                              onRenameTrackRequested:
+                                                  widget.onRenameTrackRequested,
                                               onRemoveClip:
                                                   ({
                                                     required String trackId,
@@ -853,6 +892,8 @@ class _ToolButton extends StatelessWidget {
 class _TimelineTrackRow extends StatelessWidget {
   const _TimelineTrackRow({
     required this.track,
+    required this.trackRowIndex,
+    required this.allTracks,
     required this.rowHeight,
     required this.pixelsPerSecond,
     required this.playheadMs,
@@ -872,10 +913,15 @@ class _TimelineTrackRow extends StatelessWidget {
     required this.onTrimClipStartByDelta,
     required this.onTrimClipEndByDelta,
     required this.onSplitClipAtPlayhead,
+    required this.onMoveClipToTrack,
+    this.onRenameTextClipRequested,
+    this.onRenameTrackRequested,
     required this.onRemoveClip,
   });
 
   final Track track;
+  final int trackRowIndex;
+  final List<Track> allTracks;
   final double rowHeight;
   final double pixelsPerSecond;
   final int playheadMs;
@@ -919,6 +965,15 @@ class _TimelineTrackRow extends StatelessWidget {
     required int playheadMs,
   })
   onSplitClipAtPlayhead;
+  final void Function({
+    required String sourceTrackId,
+    required String targetTrackId,
+    required String clipId,
+  })
+  onMoveClipToTrack;
+  final void Function({required String trackId, required Clip clip})?
+  onRenameTextClipRequested;
+  final void Function({required Track track})? onRenameTrackRequested;
   final void Function({required String trackId, required String clipId})
   onRemoveClip;
   static const double _trackHeaderWidth = 148;
@@ -928,6 +983,9 @@ class _TimelineTrackRow extends StatelessWidget {
     final bool isSelectedTrack =
         selectedClipId != null &&
         track.clips.any((Clip clip) => clip.id == selectedClipId);
+    final String trackLabel = track.name?.trim().isNotEmpty == true
+        ? track.name!
+        : '${track.type.name.toUpperCase()} ${track.index + 1}';
     return SizedBox(
       height: rowHeight,
       child: Stack(
@@ -954,16 +1012,42 @@ class _TimelineTrackRow extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: <Widget>[
-                        Text(
-                          '${track.type.name.toUpperCase()} ${track.index + 1}',
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(
-                                color: context.cyberpunk.neonBlue,
-                                fontWeight: FontWeight.w700,
+                        Row(
+                          children: <Widget>[
+                            Expanded(
+                              child: Text(
+                                trackLabel,
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(
+                                      color: context.cyberpunk.neonBlue,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                overflow: TextOverflow.ellipsis,
                               ),
-                          overflow: TextOverflow.ellipsis,
+                            ),
+                            if (track.type == TrackType.text) ...<Widget>[
+                              const SizedBox(width: 4),
+                              Tooltip(
+                                message: 'Renommer piste',
+                                child: InkWell(
+                                  onTap: () {
+                                    onRenameTrackRequested?.call(track: track);
+                                  },
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(2),
+                                    child: Icon(
+                                      Icons.edit_outlined,
+                                      size: 12,
+                                      color: context.cyberpunk.textMuted,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 4),
                         Row(
                           children: <Widget>[
                             _TrackIconToggle(
@@ -1041,6 +1125,32 @@ class _TimelineTrackRow extends StatelessWidget {
                 onRemove: () =>
                     onRemoveClip(trackId: track.id, clipId: clip.id),
                 onSplitClipAtPlayhead: onSplitClipAtPlayhead,
+                onRenameTextClipRequested: isTextClip
+                    ? () => onRenameTextClipRequested?.call(
+                        trackId: track.id,
+                        clip: clip,
+                      )
+                    : null,
+                trackRowHeight: rowHeight,
+                onMoveToTrackByRowDelta: (int rowDelta) {
+                  if (!isTextClip || rowDelta == 0) {
+                    return;
+                  }
+                  final int targetIndex = (trackRowIndex + rowDelta).clamp(
+                    0,
+                    allTracks.length - 1,
+                  );
+                  final Track targetTrack = allTracks[targetIndex];
+                  if (targetTrack.id == track.id ||
+                      targetTrack.type != track.type) {
+                    return;
+                  }
+                  onMoveClipToTrack(
+                    sourceTrackId: track.id,
+                    targetTrackId: targetTrack.id,
+                    clipId: clip.id,
+                  );
+                },
                 displayLabel: track.type == TrackType.text
                     ? (clip.textContent?.trim().isNotEmpty == true
                           ? clip.textContent!.trim()
@@ -1141,7 +1251,7 @@ class _TrackIconToggle extends StatelessWidget {
   }
 }
 
-class _TimelineClipWidget extends StatelessWidget {
+class _TimelineClipWidget extends StatefulWidget {
   const _TimelineClipWidget({
     required this.clip,
     required this.width,
@@ -1159,6 +1269,9 @@ class _TimelineClipWidget extends StatelessWidget {
     required this.onSelect,
     required this.onRemove,
     required this.onSplitClipAtPlayhead,
+    this.onRenameTextClipRequested,
+    required this.trackRowHeight,
+    this.onMoveToTrackByRowDelta,
     required this.displayLabel,
     required this.onTrimStartByDeltaPx,
     required this.onTrimEndByDeltaPx,
@@ -1187,48 +1300,70 @@ class _TimelineClipWidget extends StatelessWidget {
     required int playheadMs,
   })
   onSplitClipAtPlayhead;
+  final VoidCallback? onRenameTextClipRequested;
+  final double trackRowHeight;
+  final ValueChanged<int>? onMoveToTrackByRowDelta;
   final ValueChanged<double> onTrimStartByDeltaPx;
   final ValueChanged<double> onTrimEndByDeltaPx;
   final ValueChanged<double> onMoveByDeltaPx;
 
   @override
+  State<_TimelineClipWidget> createState() => _TimelineClipWidgetState();
+}
+
+class _TimelineClipWidgetState extends State<_TimelineClipWidget> {
+  double _dragAccumulatedDy = 0;
+  bool _isDragging = false;
+
+  void _resetDrag() {
+    _dragAccumulatedDy = 0;
+    _isDragging = false;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final double baseAlpha = reducedVisualIntensity ? 0.68 : 0.85;
-    final double glowAlpha = reducedVisualIntensity ? 0.12 : 0.24;
-    final double selectedGlowAlpha = reducedVisualIntensity ? 0.2 : 0.35;
-    final List<Color> gradientColors = isTextClip
+    final double baseAlpha = widget.reducedVisualIntensity ? 0.68 : 0.85;
+    final double glowAlpha = widget.reducedVisualIntensity ? 0.12 : 0.24;
+    final double selectedGlowAlpha = widget.reducedVisualIntensity ? 0.2 : 0.35;
+    final List<Color> gradientColors = widget.isTextClip
         ? <Color>[
             context.cyberpunk.neonBlue.withValues(
-              alpha: reducedVisualIntensity ? 0.55 : 0.72,
+              alpha: widget.reducedVisualIntensity ? 0.55 : 0.72,
             ),
             context.cyberpunk.neonViolet.withValues(
-              alpha: reducedVisualIntensity ? 0.55 : 0.72,
+              alpha: widget.reducedVisualIntensity ? 0.55 : 0.72,
             ),
           ]
         : <Color>[
             context.cyberpunk.neonPink.withValues(alpha: baseAlpha),
             context.cyberpunk.neonViolet.withValues(alpha: baseAlpha),
           ];
-    final bool showDeleteIcon = isSelected && canDelete && width >= 44;
-    final double handleWidth = width < 34 ? 4 : 6;
+    final bool showDeleteIcon =
+        widget.isSelected && widget.canDelete && widget.width >= 44;
+    final bool showRenameIcon =
+        widget.isTextClip &&
+        widget.isSelected &&
+        widget.onRenameTextClipRequested != null &&
+        widget.width >= 64;
+    final double handleWidth = widget.width < 34 ? 4 : 6;
     return Opacity(
-      opacity: dimmed ? 0.35 : 1,
+      opacity: widget.dimmed ? 0.35 : 1,
       child: Container(
-        width: width,
-        height: height,
+        width: widget.width,
+        height: widget.height,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
           gradient: LinearGradient(colors: gradientColors),
           boxShadow: <BoxShadow>[
             BoxShadow(
               color:
-                  (isTextClip
+                  (widget.isTextClip
                           ? context.cyberpunk.neonBlue
                           : context.cyberpunk.neonPink)
                       .withValues(alpha: glowAlpha),
               blurRadius: 12,
             ),
-            if (isSelected)
+            if (widget.isSelected)
               BoxShadow(
                 color: context.cyberpunk.neonBlue.withValues(
                   alpha: selectedGlowAlpha,
@@ -1241,80 +1376,130 @@ class _TimelineClipWidget extends StatelessWidget {
         child: Row(
           children: <Widget>[
             _TrimHandle(
-              onDrag: onTrimStartByDeltaPx,
+              onDrag: widget.onTrimStartByDeltaPx,
               isLeft: true,
-              enabled: canTrim,
+              enabled: widget.canTrim,
               width: handleWidth,
             ),
             Expanded(
-              child: GestureDetector(
-                onHorizontalDragUpdate: (DragUpdateDetails details) {
-                  if (canMove) {
-                    onMoveByDeltaPx(details.delta.dx);
-                  }
-                },
-                onTap: () {
-                  if (canBladeSplit) {
-                    onSplitClipAtPlayhead(
-                      trackId: trackId,
-                      clipId: clip.id,
-                      playheadMs: playheadMs,
-                    );
-                    return;
-                  }
-                  onSelect();
-                },
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 2,
-                    vertical: 4,
-                  ),
-                  child: Row(
-                    children: <Widget>[
-                      if (isTextClip)
-                        const Padding(
-                          padding: EdgeInsets.only(right: 4),
-                          child: Icon(
-                            Icons.subtitles_outlined,
-                            size: 12,
-                            color: Colors.white,
-                          ),
-                        ),
-                      if (width >= 24)
-                        Expanded(
-                          child: Text(
-                            displayLabel,
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(
-                                  color: context.cyberpunk.textPrimary,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: isTextClip ? 11 : null,
-                                ),
-                          ),
-                        ),
-                      if (showDeleteIcon)
-                        InkWell(
-                          onTap: onRemove,
-                          child: const Padding(
-                            padding: EdgeInsets.only(left: 4),
+              child: MouseRegion(
+                cursor: widget.isTextClip && widget.canMove
+                    ? (_isDragging
+                          ? SystemMouseCursors.grabbing
+                          : SystemMouseCursors.grab)
+                    : SystemMouseCursors.basic,
+                child: GestureDetector(
+                  onPanStart: widget.canMove
+                      ? (_) {
+                          setState(() {
+                            _isDragging = true;
+                            _dragAccumulatedDy = 0;
+                          });
+                        }
+                      : null,
+                  onPanUpdate: (DragUpdateDetails details) {
+                    if (widget.canMove) {
+                      widget.onMoveByDeltaPx(details.delta.dx);
+                      _dragAccumulatedDy += details.delta.dy;
+                    }
+                  },
+                  onPanEnd: widget.canMove
+                      ? (_) {
+                          final int rowDelta =
+                              (_dragAccumulatedDy / widget.trackRowHeight)
+                                  .round();
+                          if (rowDelta != 0) {
+                            widget.onMoveToTrackByRowDelta?.call(rowDelta);
+                          }
+                          setState(_resetDrag);
+                        }
+                      : null,
+                  onPanCancel: widget.canMove
+                      ? () {
+                          setState(_resetDrag);
+                        }
+                      : null,
+                  onTap: () {
+                    if (widget.canBladeSplit) {
+                      widget.onSplitClipAtPlayhead(
+                        trackId: widget.trackId,
+                        clipId: widget.clip.id,
+                        playheadMs: widget.playheadMs,
+                      );
+                      return;
+                    }
+                    if (widget.isTextClip &&
+                        widget.isSelected &&
+                        widget.onRenameTextClipRequested != null) {
+                      widget.onRenameTextClipRequested!();
+                      return;
+                    }
+                    widget.onSelect();
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 2,
+                      vertical: 4,
+                    ),
+                    child: Row(
+                      children: <Widget>[
+                        if (widget.isTextClip)
+                          const Padding(
+                            padding: EdgeInsets.only(right: 4),
                             child: Icon(
-                              Icons.close,
-                              size: 14,
+                              Icons.subtitles_outlined,
+                              size: 12,
                               color: Colors.white,
                             ),
                           ),
-                        ),
-                    ],
+                        if (widget.width >= 24)
+                          Expanded(
+                            child: Text(
+                              widget.displayLabel,
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: context.cyberpunk.textPrimary,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: widget.isTextClip ? 11 : null,
+                                  ),
+                            ),
+                          ),
+                        if (showRenameIcon)
+                          InkWell(
+                            onTap: widget.onRenameTextClipRequested,
+                            child: const Padding(
+                              padding: EdgeInsets.only(left: 4),
+                              child: Icon(
+                                Icons.edit_outlined,
+                                size: 14,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        if (showDeleteIcon)
+                          InkWell(
+                            onTap: widget.onRemove,
+                            child: const Padding(
+                              padding: EdgeInsets.only(left: 4),
+                              child: Icon(
+                                Icons.close,
+                                size: 14,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
             _TrimHandle(
-              onDrag: onTrimEndByDeltaPx,
+              onDrag: widget.onTrimEndByDeltaPx,
               isLeft: false,
-              enabled: canTrim,
+              enabled: widget.canTrim,
               width: handleWidth,
             ),
           ],

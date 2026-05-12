@@ -1,3 +1,5 @@
+enum TextAnimationType { none, fade }
+
 class Clip {
   const Clip({
     required this.id,
@@ -21,6 +23,10 @@ class Clip {
     this.textBackgroundHex = '#000000',
     this.textShowBackground = true,
     this.textShowBorder = true,
+    this.textEntryAnimation = TextAnimationType.none,
+    this.textExitAnimation = TextAnimationType.none,
+    this.textEntryDurationMs = 300,
+    this.textExitDurationMs = 300,
   });
 
   final String id;
@@ -44,6 +50,10 @@ class Clip {
   final String textBackgroundHex;
   final bool textShowBackground;
   final bool textShowBorder;
+  final TextAnimationType textEntryAnimation;
+  final TextAnimationType textExitAnimation;
+  final int textEntryDurationMs;
+  final int textExitDurationMs;
 
   int get durationMs => sourceOutMs - sourceInMs;
 
@@ -69,6 +79,10 @@ class Clip {
     String? textBackgroundHex,
     bool? textShowBackground,
     bool? textShowBorder,
+    TextAnimationType? textEntryAnimation,
+    TextAnimationType? textExitAnimation,
+    int? textEntryDurationMs,
+    int? textExitDurationMs,
   }) {
     return Clip(
       id: id ?? this.id,
@@ -92,6 +106,10 @@ class Clip {
       textBackgroundHex: textBackgroundHex ?? this.textBackgroundHex,
       textShowBackground: textShowBackground ?? this.textShowBackground,
       textShowBorder: textShowBorder ?? this.textShowBorder,
+      textEntryAnimation: textEntryAnimation ?? this.textEntryAnimation,
+      textExitAnimation: textExitAnimation ?? this.textExitAnimation,
+      textEntryDurationMs: textEntryDurationMs ?? this.textEntryDurationMs,
+      textExitDurationMs: textExitDurationMs ?? this.textExitDurationMs,
     );
   }
 }

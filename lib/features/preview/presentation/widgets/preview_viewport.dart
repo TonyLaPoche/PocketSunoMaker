@@ -93,10 +93,9 @@ class _PreviewViewportState extends State<PreviewViewport> {
       positionMs: widget.positionMs,
       type: TrackType.video,
     );
-    final ActiveClipInfo? activeTextClip = findActiveClip(
-      project: widget.project,
-      positionMs: widget.positionMs,
-      type: TrackType.text,
+    final List<ActiveClipInfo> activeTextClips = _findActiveTextClips(
+      widget.project,
+      widget.positionMs,
     );
     final int stageWidth = widget.outputWidth ?? widget.project.canvasWidth;
     final int stageHeight = widget.outputHeight ?? widget.project.canvasHeight;
@@ -115,24 +114,23 @@ class _PreviewViewportState extends State<PreviewViewport> {
                 details: 'Place le playhead sur un clip video/image.',
               ),
               if (widget.showGuides) const _GuidesOverlay(),
-              if (activeTextClip != null)
-                _TextOverlay(
-                  clip: activeTextClip.clip,
-                  text: _resolveText(activeTextClip),
+              ...activeTextClips.map((ActiveClipInfo info) {
+                return _TextOverlay(
+                  clip: info.clip,
+                  text: _resolveText(info),
+                  clipPositionMs: widget.positionMs - info.clip.timelineStartMs,
                   projectCanvasWidth: widget.project.canvasWidth,
                   projectCanvasHeight: widget.project.canvasHeight,
                   stageWidth: stageWidth,
                   stageHeight: stageHeight,
-                  isSelected:
-                      widget.selectedTextClipId == activeTextClip.clip.id,
+                  isSelected: widget.selectedTextClipId == info.clip.id,
                   onTap: widget.onTextClipSelected == null
                       ? null
-                      : () => widget.onTextClipSelected!(
-                          activeTextClip.trackId,
-                          activeTextClip.clip,
-                        ),
+                      : () =>
+                            widget.onTextClipSelected!(info.trackId, info.clip),
                   onPanUpdate: widget.onMoveSelectedTextByDelta,
-                ),
+                );
+              }),
             ],
           ),
         ),
@@ -191,24 +189,26 @@ class _PreviewViewportState extends State<PreviewViewport> {
                     ),
                   ),
                   if (widget.showGuides) const _GuidesOverlay(),
-                  if (activeTextClip != null)
-                    _TextOverlay(
-                      clip: activeTextClip.clip,
-                      text: _resolveText(activeTextClip),
+                  ...activeTextClips.map((ActiveClipInfo info) {
+                    return _TextOverlay(
+                      clip: info.clip,
+                      text: _resolveText(info),
+                      clipPositionMs:
+                          widget.positionMs - info.clip.timelineStartMs,
                       projectCanvasWidth: widget.project.canvasWidth,
                       projectCanvasHeight: widget.project.canvasHeight,
                       stageWidth: stageWidth,
                       stageHeight: stageHeight,
-                      isSelected:
-                          widget.selectedTextClipId == activeTextClip.clip.id,
+                      isSelected: widget.selectedTextClipId == info.clip.id,
                       onTap: widget.onTextClipSelected == null
                           ? null
                           : () => widget.onTextClipSelected!(
-                              activeTextClip.trackId,
-                              activeTextClip.clip,
+                              info.trackId,
+                              info.clip,
                             ),
                       onPanUpdate: widget.onMoveSelectedTextByDelta,
-                    ),
+                    );
+                  }),
                 ],
               ),
             ),
@@ -253,24 +253,26 @@ class _PreviewViewportState extends State<PreviewViewport> {
                     ),
                   ),
                   if (widget.showGuides) const _GuidesOverlay(),
-                  if (activeTextClip != null)
-                    _TextOverlay(
-                      clip: activeTextClip.clip,
-                      text: _resolveText(activeTextClip),
+                  ...activeTextClips.map((ActiveClipInfo info) {
+                    return _TextOverlay(
+                      clip: info.clip,
+                      text: _resolveText(info),
+                      clipPositionMs:
+                          widget.positionMs - info.clip.timelineStartMs,
                       projectCanvasWidth: widget.project.canvasWidth,
                       projectCanvasHeight: widget.project.canvasHeight,
                       stageWidth: stageWidth,
                       stageHeight: stageHeight,
-                      isSelected:
-                          widget.selectedTextClipId == activeTextClip.clip.id,
+                      isSelected: widget.selectedTextClipId == info.clip.id,
                       onTap: widget.onTextClipSelected == null
                           ? null
                           : () => widget.onTextClipSelected!(
-                              activeTextClip.trackId,
-                              activeTextClip.clip,
+                              info.trackId,
+                              info.clip,
                             ),
                       onPanUpdate: widget.onMoveSelectedTextByDelta,
-                    ),
+                    );
+                  }),
                 ],
               ),
             ),
@@ -395,6 +397,40 @@ class _PreviewViewportState extends State<PreviewViewport> {
       return 'Texte';
     }
     return text;
+  }
+
+  List<ActiveClipInfo> _findActiveTextClips(Project project, int positionMs) {
+    final List<({Track track, project_clip.Clip clip})> active =
+        <({Track track, project_clip.Clip clip})>[];
+    for (final Track track in project.tracks) {
+      if (track.type != TrackType.text) {
+        continue;
+      }
+      for (final project_clip.Clip clip in track.clips) {
+        final int clipStart = clip.timelineStartMs;
+        final int clipEnd = clip.timelineStartMs + clip.durationMs;
+        if (positionMs < clipStart || positionMs > clipEnd) {
+          continue;
+        }
+        active.add((track: track, clip: clip));
+      }
+    }
+    active.sort((a, b) {
+      final int byTrack = a.track.index.compareTo(b.track.index);
+      if (byTrack != 0) {
+        return byTrack;
+      }
+      return a.clip.timelineStartMs.compareTo(b.clip.timelineStartMs);
+    });
+    return active
+        .map(
+          (entry) => ActiveClipInfo(
+            clip: entry.clip,
+            trackId: entry.track.id,
+            sourcePositionMs: positionMs - entry.clip.timelineStartMs,
+          ),
+        )
+        .toList(growable: false);
   }
 }
 
@@ -566,6 +602,7 @@ class _TextOverlay extends StatelessWidget {
   const _TextOverlay({
     required this.clip,
     required this.text,
+    required this.clipPositionMs,
     required this.projectCanvasWidth,
     required this.projectCanvasHeight,
     required this.stageWidth,
@@ -577,6 +614,7 @@ class _TextOverlay extends StatelessWidget {
 
   final project_clip.Clip clip;
   final String text;
+  final int clipPositionMs;
   final int projectCanvasWidth;
   final int projectCanvasHeight;
   final int stageWidth;
@@ -592,6 +630,7 @@ class _TextOverlay extends StatelessWidget {
     final double textScale = math.min(sx, sy);
     final double textOpacity = clip.opacity.clamp(0.0, 1.0);
     final double textRotationRad = clip.rotationDeg * (math.pi / 180.0);
+    final _TextOverlayAnimation overlayAnimation = _resolveAnimation();
     final TextStyle textStyle = TextStyle(
       color: _colorFromHex(
         clip.textColorHex,
@@ -615,7 +654,10 @@ class _TextOverlay extends StatelessWidget {
     return Align(
       alignment: Alignment.center,
       child: Transform.translate(
-        offset: Offset(clip.textPosXPx * sx, clip.textPosYPx * sy),
+        offset: Offset(
+          clip.textPosXPx * sx,
+          clip.textPosYPx * sy + overlayAnimation.offsetYPx * sy,
+        ),
         child: Transform.rotate(
           angle: textRotationRad,
           child: GestureDetector(
@@ -626,7 +668,10 @@ class _TextOverlay extends StatelessWidget {
                   )
                 : null,
             child: Opacity(
-              opacity: textOpacity,
+              opacity: (textOpacity * overlayAnimation.opacityFactor).clamp(
+                0.0,
+                1.0,
+              ),
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   color: clip.textShowBackground
@@ -669,6 +714,50 @@ class _TextOverlay extends StatelessWidget {
     }
     return Color(0xFF000000 | rgb);
   }
+
+  _TextOverlayAnimation _resolveAnimation() {
+    final int clipDurationMs = math.max(1, clip.durationMs);
+    final int localMs = clipPositionMs.clamp(0, clipDurationMs);
+    final int entryDurationMs = clip.textEntryDurationMs.clamp(
+      0,
+      clipDurationMs,
+    );
+    final int exitDurationMs = clip.textExitDurationMs.clamp(0, clipDurationMs);
+    final int remainingMs = clipDurationMs - localMs;
+    double alphaFactor = 1.0;
+    double offsetYPx = 0.0;
+
+    if (clip.textEntryAnimation == project_clip.TextAnimationType.fade &&
+        entryDurationMs > 0 &&
+        localMs < entryDurationMs) {
+      final double progress = localMs / entryDurationMs;
+      alphaFactor *= progress.clamp(0.0, 1.0);
+      offsetYPx += (1 - progress.clamp(0.0, 1.0)) * 20;
+    }
+
+    if (clip.textExitAnimation == project_clip.TextAnimationType.fade &&
+        exitDurationMs > 0 &&
+        remainingMs < exitDurationMs) {
+      final double progress = remainingMs / exitDurationMs;
+      alphaFactor *= progress.clamp(0.0, 1.0);
+      offsetYPx -= (1 - progress.clamp(0.0, 1.0)) * 20;
+    }
+
+    return _TextOverlayAnimation(
+      opacityFactor: alphaFactor.clamp(0.0, 1.0),
+      offsetYPx: offsetYPx,
+    );
+  }
+}
+
+class _TextOverlayAnimation {
+  const _TextOverlayAnimation({
+    required this.opacityFactor,
+    required this.offsetYPx,
+  });
+
+  final double opacityFactor;
+  final double offsetYPx;
 }
 
 class _FallbackLabel extends StatelessWidget {

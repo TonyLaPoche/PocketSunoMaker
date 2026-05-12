@@ -309,8 +309,13 @@ class FfmpegExportService {
       final String fontColor = clip.textColorHex.replaceAll('#', '');
       final String boxColor = clip.textBackgroundHex.replaceAll('#', '');
       final double textOpacity = clip.opacity.clamp(0.0, 1.0);
-      final String textOpacityStr = textOpacity.toStringAsFixed(3);
       final String boxOpacityStr = (textOpacity * 0.62).toStringAsFixed(3);
+      final String alphaExpr = _buildTextAlphaExpression(
+        clip: clip,
+        start: start,
+        end: end,
+        baseOpacity: textOpacity,
+      );
       final int boxEnabled = clip.textShowBackground ? 1 : 0;
       final String fontPart = fontFile == null
           ? ''
@@ -318,7 +323,8 @@ class FfmpegExportService {
       drawTextFilters.add(
         "drawtext=text='$text':$fontPart"
         "fontsize=$fontSize:"
-        "fontcolor=$fontColor@$textOpacityStr:box=$boxEnabled:boxcolor=$boxColor@$boxOpacityStr:"
+        "fontcolor=$fontColor:box=$boxEnabled:boxcolor=$boxColor@$boxOpacityStr:"
+        "alpha='$alphaExpr':"
         "x=(w-text_w)/2+${xOffset.toStringAsFixed(2)}:"
         "y=(h-text_h)/2+${yOffset.toStringAsFixed(2)}:"
         "enable='between(t\\,${start.toStringAsFixed(3)}\\,${end.toStringAsFixed(3)})'",
@@ -337,6 +343,33 @@ class FfmpegExportService {
         .replaceAll(',', r'\,')
         .replaceAll("'", r"\'")
         .replaceAll('%', r'\%');
+  }
+
+  String _buildTextAlphaExpression({
+    required Clip clip,
+    required double start,
+    required double end,
+    required double baseOpacity,
+  }) {
+    String expr = baseOpacity.toStringAsFixed(3);
+    final int clipDurationMs = clip.durationMs <= 0 ? 1 : clip.durationMs;
+    final double entryDuration =
+        (clip.textEntryDurationMs.clamp(0, clipDurationMs) / 1000.0).toDouble();
+    final double exitDuration =
+        (clip.textExitDurationMs.clamp(0, clipDurationMs) / 1000.0).toDouble();
+
+    if (clip.textEntryAnimation == TextAnimationType.fade &&
+        entryDuration > 0) {
+      final double entryEnd = start + entryDuration;
+      expr =
+          '($expr)*if(lt(t\\,${entryEnd.toStringAsFixed(3)})\\,max(0\\,min(1\\,(t-${start.toStringAsFixed(3)})/${entryDuration.toStringAsFixed(3)}))\\,1)';
+    }
+    if (clip.textExitAnimation == TextAnimationType.fade && exitDuration > 0) {
+      final double exitStart = end - exitDuration;
+      expr =
+          '($expr)*if(gt(t\\,${exitStart.toStringAsFixed(3)})\\,max(0\\,min(1\\,(${end.toStringAsFixed(3)}-t)/${exitDuration.toStringAsFixed(3)}))\\,1)';
+    }
+    return expr;
   }
 
   String _compactError(String stderr) {

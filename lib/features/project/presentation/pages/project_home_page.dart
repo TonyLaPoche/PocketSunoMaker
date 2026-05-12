@@ -225,6 +225,7 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
                                     title: 'Medias',
                                     comfortModeEnabled: _comfortModeEnabled,
                                     child: _MediaToolsTabs(
+                                      project: project,
                                       mediaChild: DropTarget(
                                         onDragEntered: (_) => mediaController
                                             .setDraggingOver(true),
@@ -256,11 +257,18 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
                                       ),
                                       onAddTextAtPlayhead: project == null
                                           ? null
-                                          : () =>
-                                                projectController.addTextClipAt(
-                                                  startMs: previewState
-                                                      .currentPositionMs,
-                                                ),
+                                          : ({
+                                              String? targetTrackId,
+                                              bool createNewTrack = false,
+                                            }) {
+                                              projectController.addTextClipAt(
+                                                startMs: previewState
+                                                    .currentPositionMs,
+                                                targetTrackId: targetTrackId,
+                                                forceCreateNewTrack:
+                                                    createNewTrack,
+                                              );
+                                            },
                                     ),
                                   ),
                                 ),
@@ -421,6 +429,16 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
                                                       values.textShowBackground,
                                                   textShowBorder:
                                                       values.textShowBorder,
+                                                  textEntryAnimation:
+                                                      values.textEntryAnimation,
+                                                  textExitAnimation:
+                                                      values.textExitAnimation,
+                                                  textEntryDurationMs: values
+                                                      .textEntryDurationMs
+                                                      .round(),
+                                                  textExitDurationMs: values
+                                                      .textExitDurationMs
+                                                      .round(),
                                                 );
                                             final _ClipInspectorValues
                                             activeValues =
@@ -536,6 +554,28 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
                                     projectController.trimClipEndByDelta,
                                 onSplitClipAtPlayhead:
                                     projectController.splitClipAtPlayhead,
+                                onMoveClipToTrack:
+                                    projectController.moveClipToTrack,
+                                onRenameTextClipRequested:
+                                    ({
+                                      required String trackId,
+                                      required Clip clip,
+                                    }) {
+                                      _showEditTextDialog(
+                                        context: context,
+                                        projectController: projectController,
+                                        trackId: trackId,
+                                        clip: clip,
+                                      );
+                                    },
+                                onRenameTrackRequested:
+                                    ({required Track track}) {
+                                      _showRenameTrackDialog(
+                                        context: context,
+                                        projectController: projectController,
+                                        track: track,
+                                      );
+                                    },
                                 onRemoveClip: projectController.removeClip,
                               ),
                             ),
@@ -753,6 +793,49 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
       text: edited,
     );
   }
+
+  Future<void> _showRenameTrackDialog({
+    required BuildContext context,
+    required ProjectController projectController,
+    required Track track,
+  }) async {
+    String draftName = track.name?.trim().isNotEmpty == true
+        ? track.name!
+        : 'Texte ${track.index + 1}';
+    final String? edited = await showDialog<String>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Renommer la piste texte'),
+          content: TextFormField(
+            initialValue: draftName,
+            autofocus: true,
+            maxLines: 1,
+            onChanged: (String value) {
+              draftName = value;
+            },
+            decoration: const InputDecoration(labelText: 'Nom de la piste'),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Annuler'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(draftName.trim());
+              },
+              child: const Text('Appliquer'),
+            ),
+          ],
+        );
+      },
+    );
+    if (edited == null || edited.isEmpty) {
+      return;
+    }
+    projectController.renameTrack(trackId: track.id, name: edited);
+  }
 }
 
 class _ClipInspectorValues {
@@ -770,6 +853,10 @@ class _ClipInspectorValues {
     required this.textItalic,
     required this.textColorHex,
     required this.textBackgroundHex,
+    required this.textEntryAnimation,
+    required this.textExitAnimation,
+    required this.textEntryDurationMs,
+    required this.textExitDurationMs,
     bool? textShowBackground,
     bool? textShowBorder,
   }) : _textShowBackground = textShowBackground,
@@ -789,6 +876,10 @@ class _ClipInspectorValues {
     textItalic: false,
     textColorHex: '#FFFFFF',
     textBackgroundHex: '#000000',
+    textEntryAnimation: TextAnimationType.none,
+    textExitAnimation: TextAnimationType.none,
+    textEntryDurationMs: 300,
+    textExitDurationMs: 300,
     textShowBackground: true,
     textShowBorder: true,
   );
@@ -808,6 +899,10 @@ class _ClipInspectorValues {
       textItalic: clip.textItalic,
       textColorHex: clip.textColorHex,
       textBackgroundHex: clip.textBackgroundHex,
+      textEntryAnimation: clip.textEntryAnimation,
+      textExitAnimation: clip.textExitAnimation,
+      textEntryDurationMs: clip.textEntryDurationMs.toDouble(),
+      textExitDurationMs: clip.textExitDurationMs.toDouble(),
       textShowBackground: clip.textShowBackground,
       textShowBorder: clip.textShowBorder,
     );
@@ -826,6 +921,10 @@ class _ClipInspectorValues {
   final bool textItalic;
   final String textColorHex;
   final String textBackgroundHex;
+  final TextAnimationType textEntryAnimation;
+  final TextAnimationType textExitAnimation;
+  final double textEntryDurationMs;
+  final double textExitDurationMs;
   final bool? _textShowBackground;
   final bool? _textShowBorder;
   bool get textShowBackground => _textShowBackground ?? true;
@@ -845,6 +944,10 @@ class _ClipInspectorValues {
     bool? textItalic,
     String? textColorHex,
     String? textBackgroundHex,
+    TextAnimationType? textEntryAnimation,
+    TextAnimationType? textExitAnimation,
+    double? textEntryDurationMs,
+    double? textExitDurationMs,
     bool? textShowBackground,
     bool? textShowBorder,
   }) {
@@ -862,6 +965,10 @@ class _ClipInspectorValues {
       textItalic: textItalic ?? this.textItalic,
       textColorHex: textColorHex ?? this.textColorHex,
       textBackgroundHex: textBackgroundHex ?? this.textBackgroundHex,
+      textEntryAnimation: textEntryAnimation ?? this.textEntryAnimation,
+      textExitAnimation: textExitAnimation ?? this.textExitAnimation,
+      textEntryDurationMs: textEntryDurationMs ?? this.textEntryDurationMs,
+      textExitDurationMs: textExitDurationMs ?? this.textExitDurationMs,
       textShowBackground: textShowBackground ?? this.textShowBackground,
       textShowBorder: textShowBorder ?? this.textShowBorder,
     );
@@ -960,6 +1067,82 @@ class _ClipInspectorCard extends StatelessWidget {
               activeColor: context.cyberpunk.neonBlue,
               onChanged: (double value) {
                 onChanged(values.copyWith(rotationDeg: value));
+              },
+            ),
+            const SizedBox(height: 4),
+            DropdownButtonFormField<TextAnimationType>(
+              initialValue: values.textEntryAnimation,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                labelText: 'Animation apparition',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              items: TextAnimationType.values
+                  .map(
+                    (TextAnimationType type) =>
+                        DropdownMenuItem<TextAnimationType>(
+                          value: type,
+                          child: Text(
+                            type == TextAnimationType.none ? 'Aucune' : 'Fondu',
+                          ),
+                        ),
+                  )
+                  .toList(growable: false),
+              onChanged: (TextAnimationType? value) {
+                if (value == null) {
+                  return;
+                }
+                onChanged(values.copyWith(textEntryAnimation: value));
+              },
+            ),
+            _InspectorSlider(
+              label:
+                  'Duree apparition ${values.textEntryDurationMs.toStringAsFixed(0)} ms',
+              min: 0,
+              max: 3000,
+              value: values.textEntryDurationMs,
+              activeColor: context.cyberpunk.neonBlue,
+              onChanged: (double value) {
+                onChanged(values.copyWith(textEntryDurationMs: value));
+              },
+            ),
+            const SizedBox(height: 4),
+            DropdownButtonFormField<TextAnimationType>(
+              initialValue: values.textExitAnimation,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                labelText: 'Animation sortie',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              items: TextAnimationType.values
+                  .map(
+                    (TextAnimationType type) =>
+                        DropdownMenuItem<TextAnimationType>(
+                          value: type,
+                          child: Text(
+                            type == TextAnimationType.none ? 'Aucune' : 'Fondu',
+                          ),
+                        ),
+                  )
+                  .toList(growable: false),
+              onChanged: (TextAnimationType? value) {
+                if (value == null) {
+                  return;
+                }
+                onChanged(values.copyWith(textExitAnimation: value));
+              },
+            ),
+            _InspectorSlider(
+              label:
+                  'Duree sortie ${values.textExitDurationMs.toStringAsFixed(0)} ms',
+              min: 0,
+              max: 3000,
+              value: values.textExitDurationMs,
+              activeColor: context.cyberpunk.neonBlue,
+              onChanged: (double value) {
+                onChanged(values.copyWith(textExitDurationMs: value));
               },
             ),
             _InspectorSlider(
@@ -1277,12 +1460,15 @@ class _ColorChoiceRow extends StatelessWidget {
 
 class _MediaToolsTabs extends StatefulWidget {
   const _MediaToolsTabs({
+    required this.project,
     required this.mediaChild,
     required this.onAddTextAtPlayhead,
   });
 
+  final Project? project;
   final Widget mediaChild;
-  final VoidCallback? onAddTextAtPlayhead;
+  final void Function({String? targetTrackId, bool createNewTrack})?
+  onAddTextAtPlayhead;
 
   @override
   State<_MediaToolsTabs> createState() => _MediaToolsTabsState();
@@ -1290,6 +1476,9 @@ class _MediaToolsTabs extends StatefulWidget {
 
 class _MediaToolsTabsState extends State<_MediaToolsTabs> {
   String _activeTool = 'text';
+  static const String _latestTextTrack = '__latest_text_track__';
+  static const String _newTextTrack = '__new_text_track__';
+  String _textTarget = _latestTextTrack;
 
   @override
   Widget build(BuildContext context) {
@@ -1359,6 +1548,11 @@ class _MediaToolsTabsState extends State<_MediaToolsTabs> {
 
   Widget _buildToolPanel(BuildContext context) {
     if (_activeTool == 'text') {
+      final List<Track> textTracks =
+          (widget.project?.tracks ?? const <Track>[])
+              .where((Track track) => track.type == TrackType.text)
+              .toList(growable: false)
+            ..sort((Track a, Track b) => a.index.compareTo(b.index));
       return Container(
         key: const ValueKey<String>('tool_text'),
         padding: const EdgeInsets.all(10),
@@ -1373,14 +1567,75 @@ class _MediaToolsTabsState extends State<_MediaToolsTabs> {
             Text('Texte', style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 4),
             Text(
-              'Ajoute un clip texte sur la timeline a la tete de lecture.',
+              'Ajoute un clip texte sur la timeline a la tete de lecture. Tu peux cibler la piste texte existante ou creer une nouvelle source.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: context.cyberpunk.textMuted,
               ),
             ),
             const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              initialValue: _textTarget,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                labelText: 'Destination texte',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              items: <DropdownMenuItem<String>>[
+                const DropdownMenuItem<String>(
+                  value: _latestTextTrack,
+                  child: Text(
+                    'Piste texte active (derniere)',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                ...textTracks.map((Track track) {
+                  final String trackLabel =
+                      track.name?.trim().isNotEmpty == true
+                      ? track.name!
+                      : 'Piste texte ${track.index + 1}';
+                  return DropdownMenuItem<String>(
+                    value: track.id,
+                    child: Text(
+                      trackLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  );
+                }),
+                const DropdownMenuItem<String>(
+                  value: _newTextTrack,
+                  child: Text(
+                    'Nouvelle piste texte',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+              onChanged: (String? value) {
+                if (value == null) {
+                  return;
+                }
+                setState(() {
+                  _textTarget = value;
+                });
+              },
+            ),
+            const SizedBox(height: 8),
             FilledButton.icon(
-              onPressed: widget.onAddTextAtPlayhead,
+              onPressed: widget.onAddTextAtPlayhead == null
+                  ? null
+                  : () {
+                      widget.onAddTextAtPlayhead!(
+                        targetTrackId:
+                            _textTarget == _latestTextTrack ||
+                                _textTarget == _newTextTrack
+                            ? null
+                            : _textTarget,
+                        createNewTrack: _textTarget == _newTextTrack,
+                      );
+                    },
               icon: const Icon(Icons.add_comment_outlined),
               label: const Text('Ajouter texte au playhead'),
             ),
