@@ -1452,6 +1452,11 @@ class _TimelineClipWidgetState extends State<_TimelineClipWidget> {
                               color: Colors.white,
                             ),
                           ),
+                        if (widget.isTextClip && widget.width >= 86)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 4),
+                            child: _TextClipAnimCurveBadge(clip: widget.clip),
+                          ),
                         if (widget.width >= 24)
                           Expanded(
                             child: Text(
@@ -1546,5 +1551,110 @@ class _TrimHandle extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _TextClipAnimCurveBadge extends StatelessWidget {
+  const _TextClipAnimCurveBadge({required this.clip});
+
+  final Clip clip;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 24,
+      height: 12,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(4),
+        color: Colors.black.withValues(alpha: 0.18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+      ),
+      child: CustomPaint(
+        painter: _TextClipAnimCurveBadgePainter(
+          clip: clip,
+          entryColor: context.cyberpunk.neonBlue,
+          exitColor: context.cyberpunk.neonPink,
+        ),
+      ),
+    );
+  }
+}
+
+class _TextClipAnimCurveBadgePainter extends CustomPainter {
+  const _TextClipAnimCurveBadgePainter({
+    required this.clip,
+    required this.entryColor,
+    required this.exitColor,
+  });
+
+  final Clip clip;
+  final Color entryColor;
+  final Color exitColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final bool hasEntry =
+        clip.hasEntryFade ||
+        clip.hasEntrySlideUp ||
+        clip.hasEntrySlideDown ||
+        clip.hasEntryZoom;
+    final bool hasExit =
+        clip.hasExitFade ||
+        clip.hasExitSlideUp ||
+        clip.hasExitSlideDown ||
+        clip.hasExitZoom;
+    if (!hasEntry && !hasExit) {
+      return;
+    }
+    final Paint baseline = Paint()
+      ..color = Colors.white.withValues(alpha: 0.2)
+      ..strokeWidth = 1;
+    canvas.drawLine(
+      Offset(1, size.height - 1),
+      Offset(size.width - 1, size.height - 1),
+      baseline,
+    );
+
+    if (hasEntry) {
+      final Path entry = Path()
+        ..moveTo(1, size.height - 1)
+        ..quadraticBezierTo(
+          size.width * 0.18,
+          size.height * 0.25,
+          size.width * 0.42,
+          1.2,
+        );
+      canvas.drawPath(
+        entry,
+        Paint()
+          ..color = entryColor
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.4,
+      );
+    }
+    if (hasExit) {
+      final Path exit = Path()
+        ..moveTo(size.width * 0.58, 1.2)
+        ..quadraticBezierTo(
+          size.width * 0.82,
+          size.height * 0.25,
+          size.width - 1,
+          size.height - 1,
+        );
+      canvas.drawPath(
+        exit,
+        Paint()
+          ..color = exitColor
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.4,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _TextClipAnimCurveBadgePainter oldDelegate) {
+    return oldDelegate.clip != clip ||
+        oldDelegate.entryColor != entryColor ||
+        oldDelegate.exitColor != exitColor;
   }
 }

@@ -748,41 +748,33 @@ class _TextOverlay extends StatelessWidget {
 
     if (entryDurationMs > 0 && localMs < entryDurationMs) {
       final double progress = (localMs / entryDurationMs).clamp(0.0, 1.0);
-      switch (clip.textEntryAnimation) {
-        case project_clip.TextAnimationType.none:
-          break;
-        case project_clip.TextAnimationType.fade:
-          alphaFactor *= progress;
-          break;
-        case project_clip.TextAnimationType.slideUp:
-          offsetYPx += (1 - progress) * clip.textEntryOffsetPx;
-          break;
-        case project_clip.TextAnimationType.slideDown:
-          offsetYPx -= (1 - progress) * clip.textEntryOffsetPx;
-          break;
-        case project_clip.TextAnimationType.zoom:
-          scaleFactor *= entryScaleFrom + (1 - entryScaleFrom) * progress;
-          break;
+      if (clip.hasEntryFade) {
+        alphaFactor *= progress;
+      }
+      if (clip.hasEntrySlideUp) {
+        offsetYPx += (1 - progress) * clip.textEntryOffsetPx;
+      }
+      if (clip.hasEntrySlideDown) {
+        offsetYPx -= (1 - progress) * clip.textEntryOffsetPx;
+      }
+      if (clip.hasEntryZoom) {
+        scaleFactor *= entryScaleFrom + (1 - entryScaleFrom) * progress;
       }
     }
 
     if (exitDurationMs > 0 && remainingMs < exitDurationMs) {
       final double progress = (remainingMs / exitDurationMs).clamp(0.0, 1.0);
-      switch (clip.textExitAnimation) {
-        case project_clip.TextAnimationType.none:
-          break;
-        case project_clip.TextAnimationType.fade:
-          alphaFactor *= progress;
-          break;
-        case project_clip.TextAnimationType.slideUp:
-          offsetYPx -= (1 - progress) * clip.textExitOffsetPx;
-          break;
-        case project_clip.TextAnimationType.slideDown:
-          offsetYPx += (1 - progress) * clip.textExitOffsetPx;
-          break;
-        case project_clip.TextAnimationType.zoom:
-          scaleFactor *= exitScaleTo + (1 - exitScaleTo) * progress;
-          break;
+      if (clip.hasExitFade) {
+        alphaFactor *= progress;
+      }
+      if (clip.hasExitSlideUp) {
+        offsetYPx -= (1 - progress) * clip.textExitOffsetPx;
+      }
+      if (clip.hasExitSlideDown) {
+        offsetYPx += (1 - progress) * clip.textExitOffsetPx;
+      }
+      if (clip.hasExitZoom) {
+        scaleFactor *= exitScaleTo + (1 - exitScaleTo) * progress;
       }
     }
 

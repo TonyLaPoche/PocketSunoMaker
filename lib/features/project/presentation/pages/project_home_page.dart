@@ -433,6 +433,22 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
                                                       values.textEntryAnimation,
                                                   textExitAnimation:
                                                       values.textExitAnimation,
+                                                  textEntryFade:
+                                                      values.textEntryFade,
+                                                  textEntrySlideUp:
+                                                      values.textEntrySlideUp,
+                                                  textEntrySlideDown:
+                                                      values.textEntrySlideDown,
+                                                  textEntryZoom:
+                                                      values.textEntryZoom,
+                                                  textExitFade:
+                                                      values.textExitFade,
+                                                  textExitSlideUp:
+                                                      values.textExitSlideUp,
+                                                  textExitSlideDown:
+                                                      values.textExitSlideDown,
+                                                  textExitZoom:
+                                                      values.textExitZoom,
                                                   textEntryDurationMs: values
                                                       .textEntryDurationMs
                                                       .round(),
@@ -873,6 +889,14 @@ class _ClipInspectorValues {
     required this.textBackgroundHex,
     required this.textEntryAnimation,
     required this.textExitAnimation,
+    required this.textEntryFade,
+    required this.textEntrySlideUp,
+    required this.textEntrySlideDown,
+    required this.textEntryZoom,
+    required this.textExitFade,
+    required this.textExitSlideUp,
+    required this.textExitSlideDown,
+    required this.textExitZoom,
     required this.textEntryDurationMs,
     required this.textExitDurationMs,
     required this.textEntryOffsetPx,
@@ -904,6 +928,14 @@ class _ClipInspectorValues {
     textBackgroundHex: '#000000',
     textEntryAnimation: TextAnimationType.none,
     textExitAnimation: TextAnimationType.none,
+    textEntryFade: false,
+    textEntrySlideUp: false,
+    textEntrySlideDown: false,
+    textEntryZoom: false,
+    textExitFade: false,
+    textExitSlideUp: false,
+    textExitSlideDown: false,
+    textExitZoom: false,
     textEntryDurationMs: 300,
     textExitDurationMs: 300,
     textEntryOffsetPx: 28.0,
@@ -935,6 +967,14 @@ class _ClipInspectorValues {
       textBackgroundHex: clip.textBackgroundHex,
       textEntryAnimation: clip.textEntryAnimation,
       textExitAnimation: clip.textExitAnimation,
+      textEntryFade: clip.hasEntryFade,
+      textEntrySlideUp: clip.hasEntrySlideUp,
+      textEntrySlideDown: clip.hasEntrySlideDown,
+      textEntryZoom: clip.hasEntryZoom,
+      textExitFade: clip.hasExitFade,
+      textExitSlideUp: clip.hasExitSlideUp,
+      textExitSlideDown: clip.hasExitSlideDown,
+      textExitZoom: clip.hasExitZoom,
       textEntryDurationMs: clip.textEntryDurationMs.toDouble(),
       textExitDurationMs: clip.textExitDurationMs.toDouble(),
       textEntryOffsetPx: clip.textEntryOffsetPx,
@@ -965,6 +1005,14 @@ class _ClipInspectorValues {
   final String textBackgroundHex;
   final TextAnimationType textEntryAnimation;
   final TextAnimationType textExitAnimation;
+  final bool textEntryFade;
+  final bool textEntrySlideUp;
+  final bool textEntrySlideDown;
+  final bool textEntryZoom;
+  final bool textExitFade;
+  final bool textExitSlideUp;
+  final bool textExitSlideDown;
+  final bool textExitZoom;
   final double textEntryDurationMs;
   final double textExitDurationMs;
   final double textEntryOffsetPx;
@@ -996,6 +1044,14 @@ class _ClipInspectorValues {
     String? textBackgroundHex,
     TextAnimationType? textEntryAnimation,
     TextAnimationType? textExitAnimation,
+    bool? textEntryFade,
+    bool? textEntrySlideUp,
+    bool? textEntrySlideDown,
+    bool? textEntryZoom,
+    bool? textExitFade,
+    bool? textExitSlideUp,
+    bool? textExitSlideDown,
+    bool? textExitZoom,
     double? textEntryDurationMs,
     double? textExitDurationMs,
     double? textEntryOffsetPx,
@@ -1025,6 +1081,14 @@ class _ClipInspectorValues {
       textBackgroundHex: textBackgroundHex ?? this.textBackgroundHex,
       textEntryAnimation: textEntryAnimation ?? this.textEntryAnimation,
       textExitAnimation: textExitAnimation ?? this.textExitAnimation,
+      textEntryFade: textEntryFade ?? this.textEntryFade,
+      textEntrySlideUp: textEntrySlideUp ?? this.textEntrySlideUp,
+      textEntrySlideDown: textEntrySlideDown ?? this.textEntrySlideDown,
+      textEntryZoom: textEntryZoom ?? this.textEntryZoom,
+      textExitFade: textExitFade ?? this.textExitFade,
+      textExitSlideUp: textExitSlideUp ?? this.textExitSlideUp,
+      textExitSlideDown: textExitSlideDown ?? this.textExitSlideDown,
+      textExitZoom: textExitZoom ?? this.textExitZoom,
       textEntryDurationMs: textEntryDurationMs ?? this.textEntryDurationMs,
       textExitDurationMs: textExitDurationMs ?? this.textExitDurationMs,
       textEntryOffsetPx: textEntryOffsetPx ?? this.textEntryOffsetPx,
@@ -1445,28 +1509,49 @@ class _TextInspectorSectionState extends State<_TextInspectorSection> {
         ] else ...<Widget>[
           _TextAnimationMiniTimeline(values: values),
           const SizedBox(height: 8),
-          DropdownButtonFormField<TextAnimationType>(
-            initialValue: values.textEntryAnimation,
-            isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Animation apparition',
-              border: OutlineInputBorder(),
-              isDense: true,
+          Text(
+            'Apparition (effets cumulables)',
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: context.cyberpunk.textMuted,
+              fontWeight: FontWeight.w600,
             ),
-            items: TextAnimationType.values
-                .map((TextAnimationType type) {
-                  return DropdownMenuItem<TextAnimationType>(
-                    value: type,
-                    child: Text(_labelForAnimation(type)),
+          ),
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: <Widget>[
+              FilterChip(
+                label: const Text('Fondu'),
+                selected: values.textEntryFade,
+                onSelected: (bool selected) {
+                  widget.onChanged(values.copyWith(textEntryFade: selected));
+                },
+              ),
+              FilterChip(
+                label: const Text('Slide haut'),
+                selected: values.textEntrySlideUp,
+                onSelected: (bool selected) {
+                  widget.onChanged(values.copyWith(textEntrySlideUp: selected));
+                },
+              ),
+              FilterChip(
+                label: const Text('Slide bas'),
+                selected: values.textEntrySlideDown,
+                onSelected: (bool selected) {
+                  widget.onChanged(
+                    values.copyWith(textEntrySlideDown: selected),
                   );
-                })
-                .toList(growable: false),
-            onChanged: (TextAnimationType? value) {
-              if (value == null) {
-                return;
-              }
-              widget.onChanged(values.copyWith(textEntryAnimation: value));
-            },
+                },
+              ),
+              FilterChip(
+                label: const Text('Zoom'),
+                selected: values.textEntryZoom,
+                onSelected: (bool selected) {
+                  widget.onChanged(values.copyWith(textEntryZoom: selected));
+                },
+              ),
+            ],
           ),
           _InspectorSlider(
             label:
@@ -1502,28 +1587,49 @@ class _TextInspectorSectionState extends State<_TextInspectorSection> {
             },
           ),
           const SizedBox(height: 6),
-          DropdownButtonFormField<TextAnimationType>(
-            initialValue: values.textExitAnimation,
-            isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Animation sortie',
-              border: OutlineInputBorder(),
-              isDense: true,
+          Text(
+            'Sortie (effets cumulables)',
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: context.cyberpunk.textMuted,
+              fontWeight: FontWeight.w600,
             ),
-            items: TextAnimationType.values
-                .map((TextAnimationType type) {
-                  return DropdownMenuItem<TextAnimationType>(
-                    value: type,
-                    child: Text(_labelForAnimation(type)),
+          ),
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: <Widget>[
+              FilterChip(
+                label: const Text('Fondu'),
+                selected: values.textExitFade,
+                onSelected: (bool selected) {
+                  widget.onChanged(values.copyWith(textExitFade: selected));
+                },
+              ),
+              FilterChip(
+                label: const Text('Slide haut'),
+                selected: values.textExitSlideUp,
+                onSelected: (bool selected) {
+                  widget.onChanged(values.copyWith(textExitSlideUp: selected));
+                },
+              ),
+              FilterChip(
+                label: const Text('Slide bas'),
+                selected: values.textExitSlideDown,
+                onSelected: (bool selected) {
+                  widget.onChanged(
+                    values.copyWith(textExitSlideDown: selected),
                   );
-                })
-                .toList(growable: false),
-            onChanged: (TextAnimationType? value) {
-              if (value == null) {
-                return;
-              }
-              widget.onChanged(values.copyWith(textExitAnimation: value));
-            },
+                },
+              ),
+              FilterChip(
+                label: const Text('Zoom'),
+                selected: values.textExitZoom,
+                onSelected: (bool selected) {
+                  widget.onChanged(values.copyWith(textExitZoom: selected));
+                },
+              ),
+            ],
           ),
           _InspectorSlider(
             label:
@@ -1561,21 +1667,6 @@ class _TextInspectorSectionState extends State<_TextInspectorSection> {
         ],
       ],
     );
-  }
-
-  String _labelForAnimation(TextAnimationType type) {
-    switch (type) {
-      case TextAnimationType.none:
-        return 'Aucune';
-      case TextAnimationType.fade:
-        return 'Fondu';
-      case TextAnimationType.slideUp:
-        return 'Glisser vers le haut';
-      case TextAnimationType.slideDown:
-        return 'Glisser vers le bas';
-      case TextAnimationType.zoom:
-        return 'Zoom';
-    }
   }
 }
 
@@ -1723,28 +1814,34 @@ class _TextAnimationMiniTimelinePainter extends CustomPainter {
   }
 
   double _entryCurveValue(double t, double entryFrac) {
-    if (entryFrac <= 0 || values.textEntryAnimation == TextAnimationType.none) {
+    final bool hasEntryAnim =
+        values.textEntryFade ||
+        values.textEntrySlideUp ||
+        values.textEntrySlideDown ||
+        values.textEntryZoom;
+    if (entryFrac <= 0 || !hasEntryAnim) {
       return 1.0;
     }
     if (t > entryFrac) {
       return 1.0;
     }
     final double p = (t / entryFrac).clamp(0.0, 1.0);
-    switch (values.textEntryAnimation) {
-      case TextAnimationType.none:
-        return 1.0;
-      case TextAnimationType.fade:
-        return p;
-      case TextAnimationType.slideUp:
-      case TextAnimationType.slideDown:
-        return Curves.easeOut.transform(p);
-      case TextAnimationType.zoom:
-        return values.textEntryScale + (1 - values.textEntryScale) * p;
+    if (values.textEntryFade) {
+      return p;
     }
+    if (values.textEntryZoom) {
+      return values.textEntryScale + (1 - values.textEntryScale) * p;
+    }
+    return Curves.easeOut.transform(p);
   }
 
   double _exitCurveValue(double t, double exitFrac) {
-    if (exitFrac <= 0 || values.textExitAnimation == TextAnimationType.none) {
+    final bool hasExitAnim =
+        values.textExitFade ||
+        values.textExitSlideUp ||
+        values.textExitSlideDown ||
+        values.textExitZoom;
+    if (exitFrac <= 0 || !hasExitAnim) {
       return 1.0;
     }
     final double start = 1 - exitFrac;
@@ -1752,17 +1849,13 @@ class _TextAnimationMiniTimelinePainter extends CustomPainter {
       return 1.0;
     }
     final double p = ((t - start) / exitFrac).clamp(0.0, 1.0);
-    switch (values.textExitAnimation) {
-      case TextAnimationType.none:
-        return 1.0;
-      case TextAnimationType.fade:
-        return 1 - p;
-      case TextAnimationType.slideUp:
-      case TextAnimationType.slideDown:
-        return 1 - Curves.easeIn.transform(p);
-      case TextAnimationType.zoom:
-        return 1 - (1 - values.textExitScale) * p;
+    if (values.textExitFade) {
+      return 1 - p;
     }
+    if (values.textExitZoom) {
+      return 1 - (1 - values.textExitScale) * p;
+    }
+    return 1 - Curves.easeIn.transform(p);
   }
 
   @override

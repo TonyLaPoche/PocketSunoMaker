@@ -391,13 +391,12 @@ class FfmpegExportService {
     final double exitDuration =
         (clip.textExitDurationMs.clamp(0, clipDurationMs) / 1000.0).toDouble();
 
-    if (clip.textEntryAnimation == TextAnimationType.fade &&
-        entryDuration > 0) {
+    if (clip.hasEntryFade && entryDuration > 0) {
       final double entryEnd = start + entryDuration;
       expr =
           '($expr)*if(lt(t\\,${entryEnd.toStringAsFixed(3)})\\,max(0\\,min(1\\,(t-${start.toStringAsFixed(3)})/${entryDuration.toStringAsFixed(3)}))\\,1)';
     }
-    if (clip.textExitAnimation == TextAnimationType.fade && exitDuration > 0) {
+    if (clip.hasExitFade && exitDuration > 0) {
       final double exitStart = end - exitDuration;
       expr =
           '($expr)*if(gt(t\\,${exitStart.toStringAsFixed(3)})\\,max(0\\,min(1\\,(${end.toStringAsFixed(3)}-t)/${exitDuration.toStringAsFixed(3)}))\\,1)';
@@ -424,23 +423,19 @@ class FfmpegExportService {
     final String entryEnd = (start + entryDuration).toStringAsFixed(3);
     final String exitStart = (end - exitDuration).toStringAsFixed(3);
 
-    if (clip.textEntryAnimation == TextAnimationType.slideUp &&
-        entryDuration > 0) {
+    if (clip.hasEntrySlideUp && entryDuration > 0) {
       expr =
           '($expr)+if(lt(t\\,$entryEnd)\\,((1-$entryProgress)*${clip.textEntryOffsetPx.toStringAsFixed(2)})\\,0)';
     }
-    if (clip.textEntryAnimation == TextAnimationType.slideDown &&
-        entryDuration > 0) {
+    if (clip.hasEntrySlideDown && entryDuration > 0) {
       expr =
           '($expr)-if(lt(t\\,$entryEnd)\\,((1-$entryProgress)*${clip.textEntryOffsetPx.toStringAsFixed(2)})\\,0)';
     }
-    if (clip.textExitAnimation == TextAnimationType.slideUp &&
-        exitDuration > 0) {
+    if (clip.hasExitSlideUp && exitDuration > 0) {
       expr =
           '($expr)-if(gt(t\\,$exitStart)\\,((1-$exitProgress)*${clip.textExitOffsetPx.toStringAsFixed(2)})\\,0)';
     }
-    if (clip.textExitAnimation == TextAnimationType.slideDown &&
-        exitDuration > 0) {
+    if (clip.hasExitSlideDown && exitDuration > 0) {
       expr =
           '($expr)+if(gt(t\\,$exitStart)\\,((1-$exitProgress)*${clip.textExitOffsetPx.toStringAsFixed(2)})\\,0)';
     }
@@ -466,13 +461,12 @@ class FfmpegExportService {
     final String entryEnd = (start + entryDuration).toStringAsFixed(3);
     final String exitStart = (end - exitDuration).toStringAsFixed(3);
 
-    if (clip.textEntryAnimation == TextAnimationType.zoom &&
-        entryDuration > 0) {
+    if (clip.hasEntryZoom && entryDuration > 0) {
       final double minScale = clip.textEntryScale.clamp(0.2, 1.0);
       expr =
           '($expr)*if(lt(t\\,$entryEnd)\\,($minScale+(1-$minScale)*$entryProgress)\\,1)';
     }
-    if (clip.textExitAnimation == TextAnimationType.zoom && exitDuration > 0) {
+    if (clip.hasExitZoom && exitDuration > 0) {
       final double minScale = clip.textExitScale.clamp(0.2, 1.0);
       expr =
           '($expr)*if(gt(t\\,$exitStart)\\,($minScale+(1-$minScale)*$exitProgress)\\,1)';

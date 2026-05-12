@@ -89,6 +89,14 @@ class LocalProjectDataSource {
       'textShowBorder': clip.textShowBorder,
       'textEntryAnimation': clip.textEntryAnimation.name,
       'textExitAnimation': clip.textExitAnimation.name,
+      'textEntryFade': clip.textEntryFade,
+      'textEntrySlideUp': clip.textEntrySlideUp,
+      'textEntrySlideDown': clip.textEntrySlideDown,
+      'textEntryZoom': clip.textEntryZoom,
+      'textExitFade': clip.textExitFade,
+      'textExitSlideUp': clip.textExitSlideUp,
+      'textExitSlideDown': clip.textExitSlideDown,
+      'textExitZoom': clip.textExitZoom,
       'textEntryDurationMs': clip.textEntryDurationMs,
       'textExitDurationMs': clip.textExitDurationMs,
       'textEntryOffsetPx': clip.textEntryOffsetPx,
@@ -141,6 +149,47 @@ class LocalProjectDataSource {
   }
 
   Clip _clipFromJson(Map<String, dynamic> json) {
+    final TextAnimationType entryLegacy = _asTextAnimationType(
+      json['textEntryAnimation'],
+      fallback: TextAnimationType.none,
+    );
+    final TextAnimationType exitLegacy = _asTextAnimationType(
+      json['textExitAnimation'],
+      fallback: TextAnimationType.none,
+    );
+    final bool entryFade = _asBool(
+      json['textEntryFade'],
+      fallback: entryLegacy == TextAnimationType.fade,
+    );
+    final bool entrySlideUp = _asBool(
+      json['textEntrySlideUp'],
+      fallback: entryLegacy == TextAnimationType.slideUp,
+    );
+    final bool entrySlideDown = _asBool(
+      json['textEntrySlideDown'],
+      fallback: entryLegacy == TextAnimationType.slideDown,
+    );
+    final bool entryZoom = _asBool(
+      json['textEntryZoom'],
+      fallback: entryLegacy == TextAnimationType.zoom,
+    );
+    final bool exitFade = _asBool(
+      json['textExitFade'],
+      fallback: exitLegacy == TextAnimationType.fade,
+    );
+    final bool exitSlideUp = _asBool(
+      json['textExitSlideUp'],
+      fallback: exitLegacy == TextAnimationType.slideUp,
+    );
+    final bool exitSlideDown = _asBool(
+      json['textExitSlideDown'],
+      fallback: exitLegacy == TextAnimationType.slideDown,
+    );
+    final bool exitZoom = _asBool(
+      json['textExitZoom'],
+      fallback: exitLegacy == TextAnimationType.zoom,
+    );
+
     return Clip(
       id: json['id'] as String? ?? '',
       assetPath: json['assetPath'] as String? ?? '',
@@ -163,14 +212,16 @@ class LocalProjectDataSource {
       textBackgroundHex: json['textBackgroundHex'] as String? ?? '#000000',
       textShowBackground: _asBool(json['textShowBackground'], fallback: true),
       textShowBorder: _asBool(json['textShowBorder'], fallback: true),
-      textEntryAnimation: _asTextAnimationType(
-        json['textEntryAnimation'],
-        fallback: TextAnimationType.none,
-      ),
-      textExitAnimation: _asTextAnimationType(
-        json['textExitAnimation'],
-        fallback: TextAnimationType.none,
-      ),
+      textEntryAnimation: entryLegacy,
+      textExitAnimation: exitLegacy,
+      textEntryFade: entryFade,
+      textEntrySlideUp: entrySlideUp,
+      textEntrySlideDown: entrySlideDown,
+      textEntryZoom: entryZoom,
+      textExitFade: exitFade,
+      textExitSlideUp: exitSlideUp,
+      textExitSlideDown: exitSlideDown,
+      textExitZoom: exitZoom,
       textEntryDurationMs: _asInt(json['textEntryDurationMs'], fallback: 300),
       textExitDurationMs: _asInt(json['textExitDurationMs'], fallback: 300),
       textEntryOffsetPx: _asDouble(json['textEntryOffsetPx'], fallback: 28.0),

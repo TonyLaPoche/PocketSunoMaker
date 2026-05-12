@@ -25,6 +25,14 @@ class Clip {
     this.textShowBorder = true,
     this.textEntryAnimation = TextAnimationType.none,
     this.textExitAnimation = TextAnimationType.none,
+    this.textEntryFade = false,
+    this.textEntrySlideUp = false,
+    this.textEntrySlideDown = false,
+    this.textEntryZoom = false,
+    this.textExitFade = false,
+    this.textExitSlideUp = false,
+    this.textExitSlideDown = false,
+    this.textExitZoom = false,
     this.textEntryDurationMs = 300,
     this.textExitDurationMs = 300,
     this.textEntryOffsetPx = 28.0,
@@ -60,6 +68,14 @@ class Clip {
   final bool textShowBorder;
   final TextAnimationType textEntryAnimation;
   final TextAnimationType textExitAnimation;
+  final bool textEntryFade;
+  final bool textEntrySlideUp;
+  final bool textEntrySlideDown;
+  final bool textEntryZoom;
+  final bool textExitFade;
+  final bool textExitSlideUp;
+  final bool textExitSlideDown;
+  final bool textExitZoom;
   final int textEntryDurationMs;
   final int textExitDurationMs;
   final double textEntryOffsetPx;
@@ -70,6 +86,24 @@ class Clip {
   final String karaokeFillColorHex;
   final int karaokeLeadInMs;
   final int karaokeSweepDurationMs;
+
+  bool get hasEntryFade =>
+      textEntryFade || textEntryAnimation == TextAnimationType.fade;
+  bool get hasEntrySlideUp =>
+      textEntrySlideUp || textEntryAnimation == TextAnimationType.slideUp;
+  bool get hasEntrySlideDown =>
+      textEntrySlideDown || textEntryAnimation == TextAnimationType.slideDown;
+  bool get hasEntryZoom =>
+      textEntryZoom || textEntryAnimation == TextAnimationType.zoom;
+
+  bool get hasExitFade =>
+      textExitFade || textExitAnimation == TextAnimationType.fade;
+  bool get hasExitSlideUp =>
+      textExitSlideUp || textExitAnimation == TextAnimationType.slideUp;
+  bool get hasExitSlideDown =>
+      textExitSlideDown || textExitAnimation == TextAnimationType.slideDown;
+  bool get hasExitZoom =>
+      textExitZoom || textExitAnimation == TextAnimationType.zoom;
 
   int get durationMs => sourceOutMs - sourceInMs;
 
@@ -97,6 +131,14 @@ class Clip {
     bool? textShowBorder,
     TextAnimationType? textEntryAnimation,
     TextAnimationType? textExitAnimation,
+    bool? textEntryFade,
+    bool? textEntrySlideUp,
+    bool? textEntrySlideDown,
+    bool? textEntryZoom,
+    bool? textExitFade,
+    bool? textExitSlideUp,
+    bool? textExitSlideDown,
+    bool? textExitZoom,
     int? textEntryDurationMs,
     int? textExitDurationMs,
     double? textEntryOffsetPx,
@@ -132,6 +174,14 @@ class Clip {
       textShowBorder: textShowBorder ?? this.textShowBorder,
       textEntryAnimation: textEntryAnimation ?? this.textEntryAnimation,
       textExitAnimation: textExitAnimation ?? this.textExitAnimation,
+      textEntryFade: textEntryFade ?? this.textEntryFade,
+      textEntrySlideUp: textEntrySlideUp ?? this.textEntrySlideUp,
+      textEntrySlideDown: textEntrySlideDown ?? this.textEntrySlideDown,
+      textEntryZoom: textEntryZoom ?? this.textEntryZoom,
+      textExitFade: textExitFade ?? this.textExitFade,
+      textExitSlideUp: textExitSlideUp ?? this.textExitSlideUp,
+      textExitSlideDown: textExitSlideDown ?? this.textExitSlideDown,
+      textExitZoom: textExitZoom ?? this.textExitZoom,
       textEntryDurationMs: textEntryDurationMs ?? this.textEntryDurationMs,
       textExitDurationMs: textExitDurationMs ?? this.textExitDurationMs,
       textEntryOffsetPx: textEntryOffsetPx ?? this.textEntryOffsetPx,

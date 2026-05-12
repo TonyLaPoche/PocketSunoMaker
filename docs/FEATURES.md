@@ -65,7 +65,8 @@
 - polices enrichies: Roboto, Arial, Helvetica, Avenir Next, Futura, Georgia, Menlo, Times New Roman, Courier New
 - sous-onglet "Animation" dans l inspecteur texte (entree/sortie)
 - mini timeline de courbe entree/sortie dans l onglet Animation pour preview rapide des reglages
-- animations texte: fade, slide up/down, zoom (avec controle duree/intensite)
+- animations texte cumulables: fade, slide up/down, zoom (ex: fondu + sortie vers le haut) avec controle duree/intensite
+- indicateur de courbe d animation affiche directement dans les blocs texte de la timeline
 - mode karaoke v1: remplissage couleur lineaire progressif du texte en mono-rendu shader (pas de double superposition visuelle), preview + export, couleur de remplissage configurable, delai de depart et duree de sweep
 
 ## 8) Audio
