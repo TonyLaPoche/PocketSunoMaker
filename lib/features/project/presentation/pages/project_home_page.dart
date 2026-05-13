@@ -339,6 +339,8 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
                                       audioReactiveLevel: audioReactiveLevel,
                                       interactionsEnabled:
                                           !exportState.isProcessing,
+                                      faithfulExportBusy:
+                                          exportState.isProcessing,
                                       onCaptureFrameProviderReady:
                                           (
                                             Future<Uint8List?> Function()

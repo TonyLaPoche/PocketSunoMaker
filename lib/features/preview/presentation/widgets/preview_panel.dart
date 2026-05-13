@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import '../../../../app/theme/cyberpunk_palette.dart';
-import '../../../project/domain/entities/clip.dart';
+import '../../../project/domain/entities/clip.dart' as proj_clip;
 import '../../../project/domain/entities/project.dart';
 import '../controllers/preview_state.dart';
 import 'preview_viewport.dart';
@@ -25,6 +25,7 @@ class PreviewPanel extends StatefulWidget {
     this.outputWidth,
     this.outputHeight,
     this.interactionsEnabled = true,
+    this.faithfulExportBusy = false,
     this.onCaptureFrameProviderReady,
     super.key,
   });
@@ -37,12 +38,14 @@ class PreviewPanel extends StatefulWidget {
   final VoidCallback onScrubEnd;
   final ValueChanged<int> onSeekTo;
   final String? selectedTextClipId;
-  final void Function(String trackId, Clip clip)? onTextClipSelected;
+  final void Function(String trackId, proj_clip.Clip clip)? onTextClipSelected;
   final ValueChanged<Offset>? onMoveSelectedTextByDelta;
   final bool showGuides;
   final int? outputWidth;
   final int? outputHeight;
   final bool interactionsEnabled;
+  /// Affiche un bandeau sur la preview pendant l’export frame-by-frame.
+  final bool faithfulExportBusy;
   final void Function(Future<Uint8List?> Function() captureFrame)?
   onCaptureFrameProviderReady;
 
@@ -132,23 +135,80 @@ class _PreviewPanelState extends State<PreviewPanel> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  PreviewViewport(
-                    project: widget.project!,
-                    positionMs: widget.state.currentPositionMs,
-                    isPlaying: widget.state.isPlaying,
-                    audioReactiveLevel: widget.audioReactiveLevel,
-                    viewportHeight: viewportHeight,
-                    selectedTextClipId: widget.selectedTextClipId,
-                    onTextClipSelected: widget.interactionsEnabled
-                        ? widget.onTextClipSelected
-                        : null,
-                    onMoveSelectedTextByDelta: widget.interactionsEnabled
-                        ? widget.onMoveSelectedTextByDelta
-                        : null,
-                    showGuides: widget.showGuides,
-                    outputWidth: widget.outputWidth,
-                    outputHeight: widget.outputHeight,
-                    captureBoundaryKey: _previewBoundaryKey,
+                  Stack(
+                    clipBehavior: Clip.none,
+                    alignment: Alignment.topCenter,
+                    children: <Widget>[
+                      PreviewViewport(
+                        project: widget.project!,
+                        positionMs: widget.state.currentPositionMs,
+                        isPlaying: widget.state.isPlaying,
+                        audioReactiveLevel: widget.audioReactiveLevel,
+                        viewportHeight: viewportHeight,
+                        selectedTextClipId: widget.selectedTextClipId,
+                        onTextClipSelected: widget.interactionsEnabled
+                            ? widget.onTextClipSelected
+                            : null,
+                        onMoveSelectedTextByDelta:
+                            widget.interactionsEnabled
+                            ? widget.onMoveSelectedTextByDelta
+                            : null,
+                        showGuides: widget.showGuides,
+                        outputWidth: widget.outputWidth,
+                        outputHeight: widget.outputHeight,
+                        captureBoundaryKey: _previewBoundaryKey,
+                      ),
+                      if (widget.faithfulExportBusy)
+                        Positioned(
+                          top: 10,
+                          left: 10,
+                          right: 10,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: context.cyberpunk.bgElevated.withValues(
+                                alpha: 0.94,
+                              ),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: context.cyberpunk.neonViolet,
+                              ),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              child: Row(
+                                children: <Widget>[
+                                  SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: context.cyberpunk.neonBlue,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      'Export fidèle en cours '
+                                      '(contrôles verrouillés)',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelMedium
+                                          ?.copyWith(
+                                            color:
+                                                context.cyberpunk.textPrimary,
+                                          ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                   Row(
