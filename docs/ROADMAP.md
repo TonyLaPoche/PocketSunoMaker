@@ -20,7 +20,7 @@ Construire un editeur video desktop macOS, 100% open source et gratuit, sous Flu
 - [x] Theme global dark-only cyberpunk neon (rose/violet)
 - [x] Timeline v1 (pistes + clips + trim/move)
 - [x] Preview synchronisee audio/video
-- [ ] Export FFmpeg reel (pipeline bout en bout)
+- [x] Export MP4 reel (FFmpeg assemble + mux; mode principal **fidèle preview** frame-by-frame)
 - [ ] Effets v1 (rotation, opacity, transforms de base)
 - [ ] Texte et sous-titres v1
 - [ ] Visualizer audio v1
@@ -67,29 +67,38 @@ Construire un editeur video desktop macOS, 100% open source et gratuit, sous Flu
 - [x] Synchronisation Media Bin depuis un projet `.psm` charge
 - [x] Suppression unitaire des medias depuis le Media Bin
 - [x] Contrat de parite preview/export: un outil applique dans l'editeur doit etre rendu a l'export (sinon export bloque avec erreur explicite)
+- [x] Export fidele depuis la preview (capture frame-by-frame, verrouillage transport + badge)
+- [x] ETA restante pendant export (inspecteur Export)
+- [x] Stabilisation export fidele: seek video a chaque pas timeline en pause de capture pour eviter des PNG repetees alors que la piste audio avance encore dans le MP4 sortant
 
-## M3.9 - Export fidele frame-by-frame + securite materiel (nouveau)
-- [ ] Etape 1 - Basculer vers un mode export "fidele preview"
-  - [ ] Capturer le rendu Flutter frame-by-frame depuis la timeline (moteur preview)
-  - [ ] Produire une sequence d'images temporaire horodatee (`frame_%06d.png`)
-  - [ ] Assembler la sequence en MP4 via FFmpeg (codec/pix_fmt compatibles)
-  - [ ] Mux audio source avec la video rendue (sync stricte sur la duree projet)
-- [ ] Etape 2 - Profil machine avant export
-  - [ ] Scanner les capacites materiel du Mac avant lancement (CPU, RAM dispo, etat thermique, batterie/secteur)
-  - [ ] Deriver un profil d'export (`safe`, `balanced`, `performance`) selon les ressources detectees
-  - [ ] Afficher un recapitulatif pre-export (profil choisi, estimation duree, impact machine)
-- [ ] Etape 3 - Garde-fous anti-surchauffe pendant export
-  - [ ] Piloter dynamiquement fps de rendu, parallelisme et taille des lots selon la charge instantanee
-  - [ ] Ralentir automatiquement en cas de seuil thermique/CPU/RAM critique (throttling progressif, sans crash)
-  - [ ] Permettre pause/reprise propre de l'export long
-- [ ] Etape 4 - Robustesse pipeline
-  - [ ] Nettoyer automatiquement les fichiers temporaires (succes, echec, annulation)
-  - [ ] Reprendre un export interrompu a partir du dernier segment valide (checkpointing)
-  - [ ] Journaliser un rapport technique complet (perf, throttling, erreurs, timings)
-- [ ] Etape 5 - UX produit "serieuse"
-  - [ ] Ajouter un selecteur "Mode export": `Rapide (FFmpeg)`, `Fidele (frame-by-frame)`
-  - [ ] Rendre le mode `Fidele` recommande par defaut pour les projets avec effets avances
-  - [ ] Ajouter une mention claire dans l'UI: "Le mode Fidele reproduit la preview au plus proche"
+## M3.9 - Export fidele frame-by-frame + securite materiel
+
+### Etape 1 - Mode export **fidele preview** (livré)
+- [x] Capturer le rendu Flutter frame-by-frame aligné sur la timeline (même moteur que la preview)
+- [x] Sequence temporaire `frame_%06d.png`
+- [x] Assemblage MP4 via FFmpeg (libx264, yuv420p, preset bitrate)
+- [x] Mux audio source avec durée projet (FFmpeg `-shortest` où pertinent)
+
+### Etape 2 - Profil machine avant export (partiellement livré)
+- [x] Scan best-effort: nombre de CPUs, mémoire via `sysctl`, batterie/secteur via `pmset -g batt`
+- [x] Dérivation d'un mode `safe` / `balanced` / `performance` et pause entre captures (`interFrameDelayMs`, réglée plus modeste pour la latence lorsque les ressources le permettent)
+- [x] Journal du profil + délai utilisé dans `.export-debug.txt` (phase rendu frames)
+- [ ] Récap pré-export dédié (profil détecté, impact machine prévu)
+
+### Etape 3 - Garde-fous anti-surchauffe pendant export (partiellement livré)
+- [x] Throttling léger entre captures selon profil matériel
+- [ ] Adaptation dynamique a la charge / temperatures en cours d'export
+- [ ] Pause / reprise d'un export long
+
+### Etape 4 - Robustesse pipeline (partiellement livré)
+- [x] Nettoyage du répertoire temporaire `*.preview-frames` (succès, échec, annulation) en `finally`
+- [ ] Reprise après interruption (checkpoint images / reprise FFmpeg)
+- [x] Snapshot debug `.export-debug.txt` (phases FFmpeg, filtres/classique, erreurs; notes profil fidèle)
+
+### Etape 5 - UX produit (partiellement livré)
+- [x] Pendant l’export fidèle : contrôle preview désactivés, badge visible **Export fidèle en cours (contrôles verrouillés)**, progression temps réel, annulation possible
+- [ ] Sélecteur explicite `Rapide (FFmpeg filtres)` vs `Fidèle (frame-by-frame)` dans l’onglet Export (aujourd’hui la voie fidèle est utilisée quand la capture depuis la preview est branchée au déclencheur d’export)
+- [ ] Texte UX standardisé recommandant le mode fidèle pour les projets à effets forts / parité maximale avec la prévisualisation
 
 ## M3.5 - Refonte UX/UI "Studio" (en cours)
 - [x] Etape 1 - Shell applicatif "pro montage"

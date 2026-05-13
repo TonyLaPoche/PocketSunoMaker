@@ -5,7 +5,7 @@ set -euo pipefail
 # Build, sign, notarize and verify a macOS release artifact.
 #
 # Example:
-#   CERT_NAME="Developer ID Application: John Doe (K934D5JR7T)" \
+#   CERT_NAME="Developer ID Application: Terrade Antoine (K934D5JR7T)" \
 #   ./scripts/macos_notarize_release.sh --version v0.1.1 --notary-profile AC_PROFILE
 #
 
