@@ -68,6 +68,29 @@ Construire un editeur video desktop macOS, 100% open source et gratuit, sous Flu
 - [x] Suppression unitaire des medias depuis le Media Bin
 - [x] Contrat de parite preview/export: un outil applique dans l'editeur doit etre rendu a l'export (sinon export bloque avec erreur explicite)
 
+## M3.9 - Export fidele frame-by-frame + securite materiel (nouveau)
+- [ ] Etape 1 - Basculer vers un mode export "fidele preview"
+  - [ ] Capturer le rendu Flutter frame-by-frame depuis la timeline (moteur preview)
+  - [ ] Produire une sequence d'images temporaire horodatee (`frame_%06d.png`)
+  - [ ] Assembler la sequence en MP4 via FFmpeg (codec/pix_fmt compatibles)
+  - [ ] Mux audio source avec la video rendue (sync stricte sur la duree projet)
+- [ ] Etape 2 - Profil machine avant export
+  - [ ] Scanner les capacites materiel du Mac avant lancement (CPU, RAM dispo, etat thermique, batterie/secteur)
+  - [ ] Deriver un profil d'export (`safe`, `balanced`, `performance`) selon les ressources detectees
+  - [ ] Afficher un recapitulatif pre-export (profil choisi, estimation duree, impact machine)
+- [ ] Etape 3 - Garde-fous anti-surchauffe pendant export
+  - [ ] Piloter dynamiquement fps de rendu, parallelisme et taille des lots selon la charge instantanee
+  - [ ] Ralentir automatiquement en cas de seuil thermique/CPU/RAM critique (throttling progressif, sans crash)
+  - [ ] Permettre pause/reprise propre de l'export long
+- [ ] Etape 4 - Robustesse pipeline
+  - [ ] Nettoyer automatiquement les fichiers temporaires (succes, echec, annulation)
+  - [ ] Reprendre un export interrompu a partir du dernier segment valide (checkpointing)
+  - [ ] Journaliser un rapport technique complet (perf, throttling, erreurs, timings)
+- [ ] Etape 5 - UX produit "serieuse"
+  - [ ] Ajouter un selecteur "Mode export": `Rapide (FFmpeg)`, `Fidele (frame-by-frame)`
+  - [ ] Rendre le mode `Fidele` recommande par defaut pour les projets avec effets avances
+  - [ ] Ajouter une mention claire dans l'UI: "Le mode Fidele reproduit la preview au plus proche"
+
 ## M3.5 - Refonte UX/UI "Studio" (en cours)
 - [x] Etape 1 - Shell applicatif "pro montage"
   - [x] Header compact avec actions reelles uniquement (placeholders retires tant qu'ils ne sont pas fonctionnels)
