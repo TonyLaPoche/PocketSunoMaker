@@ -157,6 +157,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
                         outputWidth: widget.outputWidth,
                         outputHeight: widget.outputHeight,
                         captureBoundaryKey: _previewBoundaryKey,
+                        precisePausedVideoSeek: widget.faithfulExportBusy,
                       ),
                       if (widget.faithfulExportBusy)
                         Positioned(

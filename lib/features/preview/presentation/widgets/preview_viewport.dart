@@ -26,6 +26,7 @@ class PreviewViewport extends StatefulWidget {
     this.outputWidth,
     this.outputHeight,
     this.captureBoundaryKey,
+    this.precisePausedVideoSeek = false,
     super.key,
   });
 
@@ -42,6 +43,12 @@ class PreviewViewport extends StatefulWidget {
   final int? outputWidth;
   final int? outputHeight;
   final GlobalKey? captureBoundaryKey;
+  /// Seek à chaque [positionMs] différent lorsque la lecture est en pause.
+  ///
+  /// Nécessaire pour l’export frame-by-frame : sans cela la vidéo ne se réajuste
+  /// pas entre deux poses à moins de 80 ms et des « gelées » successives sont
+  /// capturées (alors que l’audio / la timeline continuent dans le fichier final).
+  final bool precisePausedVideoSeek;
 
   @override
   State<PreviewViewport> createState() => _PreviewViewportState();
@@ -376,7 +383,10 @@ class _PreviewViewportState extends State<PreviewViewport> {
       if (controller.value.isPlaying) {
         await controller.pause();
       }
-      if ((targetMs - _lastSeekMs).abs() >= 80) {
+      final bool needSeek = widget.precisePausedVideoSeek
+          ? (targetMs != _lastSeekMs)
+          : ((targetMs - _lastSeekMs).abs() >= 80);
+      if (needSeek) {
         await controller.seekTo(Duration(milliseconds: targetMs));
         _lastSeekMs = targetMs;
       }

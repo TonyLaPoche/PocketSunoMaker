@@ -456,15 +456,27 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
                                                   project,
                                                   renderFramePngAt:
                                                       (int positionMs) async {
+                                                        final WidgetsBinding
+                                                        binding =
+                                                            WidgetsBinding
+                                                                .instance;
                                                         previewController
                                                             .pause();
                                                         previewController
-                                                            .seekTo(positionMs);
+                                                            .seekTo(
+                                                              positionMs,
+                                                            );
+                                                        for (int i = 0;
+                                                            i < 3;
+                                                            i++) {
+                                                          binding.scheduleFrame();
+                                                          await binding.endOfFrame;
+                                                        }
                                                         await Future<
                                                           void
                                                         >.delayed(
                                                           const Duration(
-                                                            milliseconds: 20,
+                                                            milliseconds: 12,
                                                           ),
                                                         );
                                                         return _capturePreviewFrame

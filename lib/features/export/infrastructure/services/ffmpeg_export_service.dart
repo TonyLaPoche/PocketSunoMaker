@@ -477,7 +477,7 @@ class FfmpegExportService {
         mode: 'safe',
         cpuCount: cpuCount,
         memoryGb: memoryGb,
-        interFrameDelayMs: 18,
+        interFrameDelayMs: 8,
       );
     }
     if (memoryGb < 16 || cpuCount <= 8) {
@@ -485,14 +485,14 @@ class FfmpegExportService {
         mode: 'balanced',
         cpuCount: cpuCount,
         memoryGb: memoryGb,
-        interFrameDelayMs: 8,
+        interFrameDelayMs: 2,
       );
     }
     return _HardwareProfile(
       mode: 'performance',
       cpuCount: cpuCount,
       memoryGb: memoryGb,
-      interFrameDelayMs: 3,
+      interFrameDelayMs: 0,
     );
   }
 
