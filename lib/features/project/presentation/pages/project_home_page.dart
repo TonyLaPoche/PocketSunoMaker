@@ -337,6 +337,8 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
                                       project: project,
                                       state: previewState,
                                       audioReactiveLevel: audioReactiveLevel,
+                                      interactionsEnabled:
+                                          !exportState.isProcessing,
                                       onCaptureFrameProviderReady:
                                           (
                                             Future<Uint8List?> Function()
@@ -3212,6 +3214,27 @@ class _InspectorExportTabs extends StatelessWidget {
     ).showSnackBar(const SnackBar(content: Text('Message d erreur copie')));
   }
 
+  String? _estimateRemaining(ExportJob? job) {
+    if (job == null || job.startedAtEpochMs == null) {
+      return null;
+    }
+    final double progress = (job.progress ?? 0).clamp(0.0, 1.0);
+    if (progress < 0.02 || progress >= 0.999) {
+      return null;
+    }
+    final int elapsedMs =
+        DateTime.now().millisecondsSinceEpoch - job.startedAtEpochMs!;
+    if (elapsedMs <= 0) {
+      return null;
+    }
+    final double totalMs = elapsedMs / progress;
+    final int remainingMs = math.max(0, (totalMs - elapsedMs).round());
+    final int totalSec = remainingMs ~/ 1000;
+    final int minutes = totalSec ~/ 60;
+    final int seconds = totalSec % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
   void _openExportInFinder(String outputPath) {
     final List<String> args = Platform.isMacOS
         ? <String>['-R', outputPath]
@@ -3394,6 +3417,14 @@ class _InspectorExportTabs extends StatelessWidget {
                                     color: context.cyberpunk.textMuted,
                                   ),
                             ),
+                            if (_estimateRemaining(runningExportJob) != null)
+                              Text(
+                                'Temps restant estime: ${_estimateRemaining(runningExportJob)}',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(
+                                      color: context.cyberpunk.textMuted,
+                                    ),
+                              ),
                             if (queuedExportsCount > 0) ...<Widget>[
                               const SizedBox(height: 6),
                               Text(

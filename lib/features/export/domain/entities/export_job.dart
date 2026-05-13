@@ -8,6 +8,7 @@ class ExportJob {
     required this.status,
     this.message,
     this.progress,
+    this.startedAtEpochMs,
   });
 
   final String id;
@@ -16,6 +17,7 @@ class ExportJob {
   final ExportJobStatus status;
   final String? message;
   final double? progress;
+  final int? startedAtEpochMs;
 
   ExportJob copyWith({
     String? id,
@@ -24,6 +26,7 @@ class ExportJob {
     ExportJobStatus? status,
     String? message,
     double? progress,
+    int? startedAtEpochMs,
   }) {
     return ExportJob(
       id: id ?? this.id,
@@ -32,6 +35,7 @@ class ExportJob {
       status: status ?? this.status,
       message: message,
       progress: progress ?? this.progress,
+      startedAtEpochMs: startedAtEpochMs ?? this.startedAtEpochMs,
     );
   }
 }

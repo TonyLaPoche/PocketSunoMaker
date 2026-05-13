@@ -24,6 +24,7 @@ class PreviewPanel extends StatefulWidget {
     this.showGuides = false,
     this.outputWidth,
     this.outputHeight,
+    this.interactionsEnabled = true,
     this.onCaptureFrameProviderReady,
     super.key,
   });
@@ -41,6 +42,7 @@ class PreviewPanel extends StatefulWidget {
   final bool showGuides;
   final int? outputWidth;
   final int? outputHeight;
+  final bool interactionsEnabled;
   final void Function(Future<Uint8List?> Function() captureFrame)?
   onCaptureFrameProviderReady;
 
@@ -103,24 +105,28 @@ class _PreviewPanelState extends State<PreviewPanel> {
                       ),
                       IconButton(
                         tooltip: 'Reduire preview',
-                        onPressed: () {
-                          setState(() {
-                            _viewportFactor = (_viewportFactor - 0.05)
-                                .clamp(0.35, 0.9)
-                                .toDouble();
-                          });
-                        },
+                        onPressed: widget.interactionsEnabled
+                            ? () {
+                                setState(() {
+                                  _viewportFactor = (_viewportFactor - 0.05)
+                                      .clamp(0.35, 0.9)
+                                      .toDouble();
+                                });
+                              }
+                            : null,
                         icon: const Icon(Icons.zoom_out),
                       ),
                       IconButton(
                         tooltip: 'Agrandir preview',
-                        onPressed: () {
-                          setState(() {
-                            _viewportFactor = (_viewportFactor + 0.05)
-                                .clamp(0.35, 0.9)
-                                .toDouble();
-                          });
-                        },
+                        onPressed: widget.interactionsEnabled
+                            ? () {
+                                setState(() {
+                                  _viewportFactor = (_viewportFactor + 0.05)
+                                      .clamp(0.35, 0.9)
+                                      .toDouble();
+                                });
+                              }
+                            : null,
                         icon: const Icon(Icons.zoom_in),
                       ),
                     ],
@@ -133,8 +139,12 @@ class _PreviewPanelState extends State<PreviewPanel> {
                     audioReactiveLevel: widget.audioReactiveLevel,
                     viewportHeight: viewportHeight,
                     selectedTextClipId: widget.selectedTextClipId,
-                    onTextClipSelected: widget.onTextClipSelected,
-                    onMoveSelectedTextByDelta: widget.onMoveSelectedTextByDelta,
+                    onTextClipSelected: widget.interactionsEnabled
+                        ? widget.onTextClipSelected
+                        : null,
+                    onMoveSelectedTextByDelta: widget.interactionsEnabled
+                        ? widget.onMoveSelectedTextByDelta
+                        : null,
                     showGuides: widget.showGuides,
                     outputWidth: widget.outputWidth,
                     outputHeight: widget.outputHeight,
@@ -144,7 +154,9 @@ class _PreviewPanelState extends State<PreviewPanel> {
                   Row(
                     children: <Widget>[
                       FilledButton.icon(
-                        onPressed: widget.state.durationMs <= 0
+                        onPressed:
+                            !widget.interactionsEnabled ||
+                                widget.state.durationMs <= 0
                             ? null
                             : widget.onTogglePlayPause,
                         icon: Icon(
@@ -175,10 +187,15 @@ class _PreviewPanelState extends State<PreviewPanel> {
                                     : widget.state.durationMs,
                               )
                               .toDouble(),
-                          onChangeStart: (_) => widget.onScrubStart(),
-                          onChangeEnd: (_) => widget.onScrubEnd(),
-                          onChanged: (double value) =>
-                              widget.onSeekTo(value.round()),
+                          onChangeStart: widget.interactionsEnabled
+                              ? (_) => widget.onScrubStart()
+                              : null,
+                          onChangeEnd: widget.interactionsEnabled
+                              ? (_) => widget.onScrubEnd()
+                              : null,
+                          onChanged: widget.interactionsEnabled
+                              ? (double value) => widget.onSeekTo(value.round())
+                              : null,
                         ),
                       ),
                     ],

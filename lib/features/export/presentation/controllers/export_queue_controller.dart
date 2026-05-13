@@ -64,6 +64,7 @@ class ExportQueueController extends Notifier<ExportQueueState> {
       outputPath: destination.path,
       status: ExportJobStatus.queued,
       progress: 0,
+      startedAtEpochMs: null,
     );
 
     _requests.add(
@@ -95,7 +96,12 @@ class ExportQueueController extends Notifier<ExportQueueState> {
     state = state.copyWith(isProcessing: true);
     final _QueuedExportRequest request = _requests.removeAt(0);
     _runningJobId = request.id;
-    _updateJobStatus(request.id, ExportJobStatus.running, progress: 0);
+    _updateJobStatus(
+      request.id,
+      ExportJobStatus.running,
+      progress: 0,
+      startedAtEpochMs: DateTime.now().millisecondsSinceEpoch,
+    );
 
     try {
       if (request.renderFramePngAt != null) {
@@ -168,6 +174,7 @@ class ExportQueueController extends Notifier<ExportQueueState> {
     ExportJobStatus status, {
     String? message,
     double? progress,
+    int? startedAtEpochMs,
   }) {
     final List<ExportJob> updated = state.jobs
         .map((ExportJob job) {
@@ -178,6 +185,7 @@ class ExportQueueController extends Notifier<ExportQueueState> {
             status: status,
             message: message,
             progress: progress,
+            startedAtEpochMs: startedAtEpochMs,
           );
         })
         .toList(growable: false);
