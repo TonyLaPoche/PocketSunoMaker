@@ -20,10 +20,10 @@
 
 ### Notes techniques
 
-- Build cible: **macOS**
-- Artifact conseille après `scripts/macos_notarize_release.sh --version v0.1.2` :
-  `build/macos/Build/Products/Release/PocketSunoMaker-macos-v0.1.2.zip`
-- SHA256 : `<a-remplir apres zip>` (`shasum -a 256 ...`)
+- Build cible: **macOS** (universal x86_64 + arm64)
+- Binaire **Developer ID** avec **notarisation Apple** (ticket appose sur l’app puis zip final)
+- Artifact publie sur GitHub : `PocketSunoMaker-macos-v0.1.2.zip`
+- SHA256 : `45922f9530886f396c6f4bafe7bf2af055d09d44c6b80667ba0bb2690e0571c1`
 
 Tag Git : `v0.1.2`
 
