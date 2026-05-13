@@ -83,7 +83,10 @@ class FfmpegExportService {
       ]);
     }
     if (audioClip != null) {
-      final String? audioFilter = _buildAudioFilter(project: project);
+      final String? audioFilter = _buildAudioFilter(
+        project: project,
+        timelineOriginMs: audioClip.timelineStartMs,
+      );
       if (audioFilter != null && audioFilter.isNotEmpty) {
         args.addAll(<String>['-af', audioFilter]);
       }
@@ -98,6 +101,7 @@ class FfmpegExportService {
         project: project,
         preset: preset,
         includeVisualEffects: hasVisualEffectClips,
+        timelineOriginMs: videoClip?.timelineStartMs ?? 0,
       ),
       '-r',
       preset.frameRate.toString(),
@@ -304,6 +308,7 @@ class FfmpegExportService {
     required Project project,
     required ExportPreset preset,
     required bool includeVisualEffects,
+    required int timelineOriginMs,
   }) {
     final String baseScalePad =
         'scale=${preset.width}:${preset.height}:force_original_aspect_ratio=decrease,'
@@ -328,7 +333,12 @@ class FfmpegExportService {
     final List<String> filters = <String>[baseScalePad];
     if (includeVisualEffects && visualEffectClips.isNotEmpty) {
       for (final Clip effectClip in visualEffectClips) {
-        filters.addAll(_buildVisualEffectFilters(effectClip));
+        filters.addAll(
+          _buildVisualEffectFilters(
+            effectClip,
+            timelineOriginMs: timelineOriginMs,
+          ),
+        );
       }
     }
     if (textClips.isEmpty) {
@@ -351,28 +361,34 @@ class FfmpegExportService {
           .toInt();
       final double xOffset = clip.textPosXPx * sx;
       final double yOffset = clip.textPosYPx * sy;
-      final double start = clip.timelineStartMs / 1000;
-      final double end = (clip.timelineStartMs + clip.durationMs) / 1000;
+      final double start = (clip.timelineStartMs - timelineOriginMs) / 1000;
+      final double end =
+          (clip.timelineStartMs + clip.durationMs - timelineOriginMs) / 1000;
+      if (end <= 0) {
+        continue;
+      }
+      final double safeStart = start < 0 ? 0 : start;
+      final double safeEnd = end < safeStart ? safeStart : end;
       final String fontColor = clip.textColorHex.replaceAll('#', '');
       final String boxColor = clip.textBackgroundHex.replaceAll('#', '');
       final double textOpacity = clip.opacity.clamp(0.0, 1.0);
       final String boxOpacityStr = (textOpacity * 0.62).toStringAsFixed(3);
       final String alphaExpr = _buildTextAlphaExpression(
         clip: clip,
-        start: start,
-        end: end,
+        start: safeStart,
+        end: safeEnd,
         baseOpacity: textOpacity,
       );
       final String yExpr = _buildTextYExpression(
         clip: clip,
-        start: start,
-        end: end,
+        start: safeStart,
+        end: safeEnd,
         baseYOffset: yOffset,
       );
       final String fontSizeExpr = _buildTextFontSizeExpression(
         clip: clip,
-        start: start,
-        end: end,
+        start: safeStart,
+        end: safeEnd,
         baseFontSize: baseFontSize,
       );
       final int boxEnabled = clip.textShowBackground ? 1 : 0;
@@ -386,7 +402,7 @@ class FfmpegExportService {
         "alpha='$alphaExpr':"
         "x=(w-text_w)/2+${xOffset.toStringAsFixed(2)}:"
         "y='(h-text_h)/2+$yExpr':"
-        "enable='between(t\\,${start.toStringAsFixed(3)}\\,${end.toStringAsFixed(3)})'",
+        "enable='between(t\\,${safeStart.toStringAsFixed(3)}\\,${safeEnd.toStringAsFixed(3)})'",
       );
       if (clip.karaokeEnabled) {
         final String karaokeColor = clip.karaokeFillColorHex.replaceAll(
@@ -395,7 +411,7 @@ class FfmpegExportService {
         );
         final String karaokeProgressExpr = _buildKaraokeProgressExpression(
           clip: clip,
-          start: start,
+          start: safeStart,
         );
         final String karaokeFillAlphaExpr =
             "($alphaExpr)*if(lt(x\\,((w-text_w)/2+${xOffset.toStringAsFixed(2)}+text_w*($karaokeProgressExpr)))\\,1\\,0)";
@@ -406,7 +422,7 @@ class FfmpegExportService {
           "alpha='$karaokeFillAlphaExpr':"
           "x=(w-text_w)/2+${xOffset.toStringAsFixed(2)}:"
           "y='(h-text_h)/2+$yExpr':"
-          "enable='between(t\\,${start.toStringAsFixed(3)}\\,${end.toStringAsFixed(3)})'",
+          "enable='between(t\\,${safeStart.toStringAsFixed(3)}\\,${safeEnd.toStringAsFixed(3)})'",
         );
       }
     }
@@ -416,29 +432,52 @@ class FfmpegExportService {
     return <String>[...filters, ...drawTextFilters].join(',');
   }
 
-  List<String> _buildVisualEffectFilters(Clip clip) {
+  List<String> _buildVisualEffectFilters(
+    Clip clip, {
+    required int timelineOriginMs,
+  }) {
     final VisualEffectType? type = clip.visualEffectType;
     if (type == null) {
       return const <String>[];
     }
+    final double start = (clip.timelineStartMs - timelineOriginMs) / 1000;
+    final double end =
+        (clip.timelineStartMs + clip.durationMs - timelineOriginMs) / 1000;
+    if (end <= 0) {
+      return const <String>[];
+    }
+    final double safeStart = start < 0 ? 0 : start;
+    final double safeEnd = end < safeStart ? safeStart : end;
     final double intensity = clip.effectIntensity.clamp(0.1, 1.0);
     final String enabled = _enableBetween(
-      clip.timelineStartMs / 1000,
-      (clip.timelineStartMs + clip.durationMs) / 1000,
+      safeStart,
+      safeEnd,
     );
     switch (type) {
       case VisualEffectType.glitch:
         final double tearStrength = clip.effectGlitchTearStrength.clamp(0.05, 1.0);
         final double noiseAmount = clip.effectGlitchNoiseAmount.clamp(0.0, 1.0);
         final bool audioSync = clip.effectGlitchAudioSync;
+        final double lineMix = clip.effectGlitchLineMix.clamp(0.0, 1.0);
+        final double blockMix = clip.effectGlitchBlockMix.clamp(0.0, 1.0);
+        final double blockSize = clip.effectGlitchBlockSizePx.clamp(6.0, 90.0);
         final String phaseExpr = audioSync
             ? 't'
-            : '(t-${(clip.timelineStartMs / 1000).toStringAsFixed(3)})';
+            : '(t-${safeStart.toStringAsFixed(3)})';
+        final String activeExpr = _betweenExpr(
+          safeStart,
+          safeEnd,
+        );
         final int noiseStrength = (8 + intensity * 22 + noiseAmount * 24).round();
         final int cropPx = (4 + intensity * 12 + tearStrength * 18).round();
         final double amp = 1.5 + intensity * 5 + tearStrength * 7;
-        final int boxH = (2 + intensity * 8).round();
-        final double boxAlpha = (0.12 + intensity * 0.28).clamp(0.0, 1.0);
+        final int boxH = (1 + (1 + intensity * 8) * (0.3 + lineMix)).round();
+        final double boxAlpha =
+            (0.06 + (0.10 + lineMix * 0.22) * intensity).clamp(0.0, 1.0);
+        final int blockW = (blockSize * (0.8 + blockMix * 1.8)).round();
+        final int blockH = (blockSize * (0.35 + blockMix * 0.9)).round();
+        final double blockAlpha =
+            (0.04 + (0.08 + blockMix * 0.24) * intensity).clamp(0.0, 0.75);
         final String colorA = _sanitizeHexRgb(
           clip.effectGlitchColorAHex,
           fallback: '00E5FF',
@@ -452,18 +491,25 @@ class FfmpegExportService {
           "eq=contrast=${(1.02 + intensity * 0.16).toStringAsFixed(3)}:"
               "saturation=${(1.00 + intensity * 0.12).toStringAsFixed(3)}:"
               "brightness=${(-0.01 + intensity * 0.02).toStringAsFixed(3)}:$enabled",
-          "crop=iw-$cropPx:ih-$cropPx:"
-              "x='${(cropPx / 2).toStringAsFixed(2)}+${amp.toStringAsFixed(2)}*sin(63*$phaseExpr)':"
-              "y='${(cropPx / 2).toStringAsFixed(2)}+${(amp * 0.7).toStringAsFixed(2)}*cos(41*$phaseExpr)':"
-              "$enabled",
-          'scale=iw:ih:$enabled',
+          "crop="
+              "w='iw-if($activeExpr\\,$cropPx\\,0)':"
+              "h='ih-if($activeExpr\\,$cropPx\\,0)':"
+              "x='if($activeExpr\\,${(cropPx / 2).toStringAsFixed(2)}+${amp.toStringAsFixed(2)}*sin(63*$phaseExpr)\\,0)':"
+              "y='if($activeExpr\\,${(cropPx / 2).toStringAsFixed(2)}+${(amp * 0.7).toStringAsFixed(2)}*cos(41*$phaseExpr)\\,0)'",
+          'scale=iw:ih',
           "drawbox=x=0:y='mod(t*240\\,ih)':w=iw:h=$boxH:"
               'color=0x$colorA@${boxAlpha.toStringAsFixed(3)}:t=fill:$enabled',
           "drawbox=x=0:y='mod(t*170+123\\,ih)':w=iw:h=$boxH:"
               'color=0x$colorB@${(boxAlpha * 0.85).toStringAsFixed(3)}:t=fill:$enabled',
+          "drawbox=x='mod($phaseExpr*97\\,iw)':y='mod($phaseExpr*61\\,ih)':"
+              "w=$blockW:h=$blockH:"
+              'color=0x$colorA@${blockAlpha.toStringAsFixed(3)}:t=fill:$enabled',
+          "drawbox=x='mod($phaseExpr*71+120\\,iw)':y='mod($phaseExpr*83+44\\,ih)':"
+              "w=${(blockW * 0.72).round()}:h=${(blockH * 0.72).round()}:"
+              'color=0x$colorB@${(blockAlpha * 0.9).toStringAsFixed(3)}:t=fill:$enabled',
         ];
       case VisualEffectType.shake:
-        final double start = clip.timelineStartMs / 1000;
+        final double start = safeStart;
         final double baseAmplitude = clip.effectShakeAmplitudePx.clamp(2.0, 40.0);
         final double amplitude = baseAmplitude * (0.45 + intensity * 0.90);
         final double frequencyHz =
@@ -473,6 +519,10 @@ class FfmpegExportService {
         final String phaseExpr = clip.effectShakeAudioSync
             ? 't'
             : '(t-${start.toStringAsFixed(3)})';
+        final String activeExpr = _betweenExpr(
+          safeStart,
+          safeEnd,
+        );
         final int cropPx = (8 + amplitude * 1.5).round().clamp(8, 80);
         final double shakeX = amplitude;
         final double shakeY = amplitude * 0.68;
@@ -481,11 +531,12 @@ class FfmpegExportService {
           3,
         );
         return <String>[
-          "crop=iw-$cropPx:ih-$cropPx:"
-              "x='${(cropPx / 2).toStringAsFixed(2)}+${shakeX.toStringAsFixed(2)}*sin($wx*$phaseExpr)':"
-              "y='${(cropPx / 2).toStringAsFixed(2)}+${shakeY.toStringAsFixed(2)}*cos($wy*$phaseExpr)':"
-              "$enabled",
-          'scale=iw:ih:$enabled',
+          "crop="
+              "w='iw-if($activeExpr\\,$cropPx\\,0)':"
+              "h='ih-if($activeExpr\\,$cropPx\\,0)':"
+              "x='if($activeExpr\\,${(cropPx / 2).toStringAsFixed(2)}+${shakeX.toStringAsFixed(2)}*sin($wx*$phaseExpr)\\,0)':"
+              "y='if($activeExpr\\,${(cropPx / 2).toStringAsFixed(2)}+${shakeY.toStringAsFixed(2)}*cos($wy*$phaseExpr)\\,0)'",
+          'scale=iw:ih',
         ];
       case VisualEffectType.rgbSplit:
         final double channelShift = 10 + intensity * 48;
@@ -523,7 +574,14 @@ class FfmpegExportService {
     return "enable='between(t\\,${startSec.toStringAsFixed(3)}\\,${endSec.toStringAsFixed(3)})'";
   }
 
-  String? _buildAudioFilter({required Project project}) {
+  String _betweenExpr(double startSec, double endSec) {
+    return 'between(t\\,${startSec.toStringAsFixed(3)}\\,${endSec.toStringAsFixed(3)})';
+  }
+
+  String? _buildAudioFilter({
+    required Project project,
+    required int timelineOriginMs,
+  }) {
     final List<Clip> audioEffects =
         project.tracks
             .where((Track track) => track.type == TrackType.audioEffect)
@@ -543,9 +601,15 @@ class FfmpegExportService {
       if (type == null) {
         continue;
       }
-      final double start = effect.timelineStartMs / 1000;
-      final double end = (effect.timelineStartMs + effect.durationMs) / 1000;
-      final String enabled = _enableBetween(start, end);
+      final double start = (effect.timelineStartMs - timelineOriginMs) / 1000;
+      final double end =
+          (effect.timelineStartMs + effect.durationMs - timelineOriginMs) / 1000;
+      if (end <= 0) {
+        continue;
+      }
+      final double safeStart = start < 0 ? 0 : start;
+      final double safeEnd = end < safeStart ? safeStart : end;
+      final String enabled = _enableBetween(safeStart, safeEnd);
       final double intensity = effect.effectIntensity.clamp(0.1, 1.0);
       switch (type) {
         case AudioEffectType.censorBeep:
@@ -563,11 +627,11 @@ class FfmpegExportService {
         case AudioEffectType.stutter:
           final double period = (0.18 - intensity * 0.11).clamp(0.05, 0.18);
           final double gateOn = (0.028 + intensity * 0.028).clamp(0.018, 0.08);
-          final String startS = start.toStringAsFixed(3);
+          final String startS = safeStart.toStringAsFixed(3);
           final String periodS = period.toStringAsFixed(3);
           final String gateOnS = gateOn.toStringAsFixed(3);
           filters.add(
-            "volume='if(between(t\\,$startS\\,${end.toStringAsFixed(3)})\\,"
+            "volume='if(between(t\\,$startS\\,${safeEnd.toStringAsFixed(3)})\\,"
             "if(lt(mod(t-$startS\\,$periodS)\\,$gateOnS)\\,1\\,0)\\,1)'",
           );
           break;

@@ -61,6 +61,9 @@ class Clip {
     this.effectGlitchColorBHex = '#FF00E6',
     this.effectGlitchAutoColors = true,
     this.effectGlitchAudioSync = false,
+    this.effectGlitchLineMix = 0.55,
+    this.effectGlitchBlockMix = 0.65,
+    this.effectGlitchBlockSizePx = 18.0,
   });
 
   final String id;
@@ -118,6 +121,9 @@ class Clip {
   final String effectGlitchColorBHex;
   final bool effectGlitchAutoColors;
   final bool effectGlitchAudioSync;
+  final double effectGlitchLineMix;
+  final double effectGlitchBlockMix;
+  final double effectGlitchBlockSizePx;
 
   bool get hasEntryFade =>
       textEntryFade || textEntryAnimation == TextAnimationType.fade;
@@ -195,6 +201,9 @@ class Clip {
     String? effectGlitchColorBHex,
     bool? effectGlitchAutoColors,
     bool? effectGlitchAudioSync,
+    double? effectGlitchLineMix,
+    double? effectGlitchBlockMix,
+    double? effectGlitchBlockSizePx,
   }) {
     return Clip(
       id: id ?? this.id,
@@ -259,6 +268,10 @@ class Clip {
       effectGlitchAutoColors:
           effectGlitchAutoColors ?? this.effectGlitchAutoColors,
       effectGlitchAudioSync: effectGlitchAudioSync ?? this.effectGlitchAudioSync,
+      effectGlitchLineMix: effectGlitchLineMix ?? this.effectGlitchLineMix,
+      effectGlitchBlockMix: effectGlitchBlockMix ?? this.effectGlitchBlockMix,
+      effectGlitchBlockSizePx:
+          effectGlitchBlockSizePx ?? this.effectGlitchBlockSizePx,
     );
   }
 }

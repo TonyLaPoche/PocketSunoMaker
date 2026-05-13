@@ -761,6 +761,9 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
       effectGlitchColorBHex: values.effectGlitchColorBHex,
       effectGlitchAutoColors: values.effectGlitchAutoColors,
       effectGlitchAudioSync: values.effectGlitchAudioSync,
+      effectGlitchLineMix: values.effectGlitchLineMix,
+      effectGlitchBlockMix: values.effectGlitchBlockMix,
+      effectGlitchBlockSizePx: values.effectGlitchBlockSizePx,
     );
   }
 
@@ -1140,6 +1143,9 @@ class _ClipInspectorValues {
     required this.effectGlitchColorBHex,
     required this.effectGlitchAutoColors,
     required this.effectGlitchAudioSync,
+    required this.effectGlitchLineMix,
+    required this.effectGlitchBlockMix,
+    required this.effectGlitchBlockSizePx,
     bool? textShowBackground,
     bool? textShowBorder,
   }) : _textShowBackground = textShowBackground,
@@ -1191,6 +1197,9 @@ class _ClipInspectorValues {
     effectGlitchColorBHex: '#FF00E6',
     effectGlitchAutoColors: true,
     effectGlitchAudioSync: false,
+    effectGlitchLineMix: 0.55,
+    effectGlitchBlockMix: 0.65,
+    effectGlitchBlockSizePx: 18.0,
     textShowBackground: true,
     textShowBorder: true,
   );
@@ -1242,6 +1251,9 @@ class _ClipInspectorValues {
       effectGlitchColorBHex: clip.effectGlitchColorBHex,
       effectGlitchAutoColors: clip.effectGlitchAutoColors,
       effectGlitchAudioSync: clip.effectGlitchAudioSync,
+      effectGlitchLineMix: clip.effectGlitchLineMix,
+      effectGlitchBlockMix: clip.effectGlitchBlockMix,
+      effectGlitchBlockSizePx: clip.effectGlitchBlockSizePx,
       textShowBackground: clip.textShowBackground,
       textShowBorder: clip.textShowBorder,
     );
@@ -1292,6 +1304,9 @@ class _ClipInspectorValues {
   final String effectGlitchColorBHex;
   final bool effectGlitchAutoColors;
   final bool effectGlitchAudioSync;
+  final double effectGlitchLineMix;
+  final double effectGlitchBlockMix;
+  final double effectGlitchBlockSizePx;
   final bool? _textShowBackground;
   final bool? _textShowBorder;
   bool get textShowBackground => _textShowBackground ?? true;
@@ -1343,6 +1358,9 @@ class _ClipInspectorValues {
     String? effectGlitchColorBHex,
     bool? effectGlitchAutoColors,
     bool? effectGlitchAudioSync,
+    double? effectGlitchLineMix,
+    double? effectGlitchBlockMix,
+    double? effectGlitchBlockSizePx,
     bool? textShowBackground,
     bool? textShowBorder,
   }) {
@@ -1402,6 +1420,10 @@ class _ClipInspectorValues {
           effectGlitchAutoColors ?? this.effectGlitchAutoColors,
       effectGlitchAudioSync:
           effectGlitchAudioSync ?? this.effectGlitchAudioSync,
+      effectGlitchLineMix: effectGlitchLineMix ?? this.effectGlitchLineMix,
+      effectGlitchBlockMix: effectGlitchBlockMix ?? this.effectGlitchBlockMix,
+      effectGlitchBlockSizePx:
+          effectGlitchBlockSizePx ?? this.effectGlitchBlockSizePx,
       textShowBackground: textShowBackground ?? this.textShowBackground,
       textShowBorder: textShowBorder ?? this.textShowBorder,
     );
@@ -1574,6 +1596,39 @@ class _ClipInspectorCard extends StatelessWidget {
                 activeColor: context.cyberpunk.neonPink,
                 onChanged: (double value) {
                   onChanged(values.copyWith(effectGlitchNoiseAmount: value));
+                },
+              ),
+              _InspectorSlider(
+                label:
+                    'Mix lignes ${(values.effectGlitchLineMix * 100).toStringAsFixed(0)}%',
+                min: 0,
+                max: 1.0,
+                value: values.effectGlitchLineMix,
+                activeColor: context.cyberpunk.neonPink,
+                onChanged: (double value) {
+                  onChanged(values.copyWith(effectGlitchLineMix: value));
+                },
+              ),
+              _InspectorSlider(
+                label:
+                    'Mix blocs ${(values.effectGlitchBlockMix * 100).toStringAsFixed(0)}%',
+                min: 0,
+                max: 1.0,
+                value: values.effectGlitchBlockMix,
+                activeColor: context.cyberpunk.neonPink,
+                onChanged: (double value) {
+                  onChanged(values.copyWith(effectGlitchBlockMix: value));
+                },
+              ),
+              _InspectorSlider(
+                label:
+                    'Taille blocs ${values.effectGlitchBlockSizePx.toStringAsFixed(0)} px',
+                min: 6,
+                max: 90,
+                value: values.effectGlitchBlockSizePx,
+                activeColor: context.cyberpunk.neonPink,
+                onChanged: (double value) {
+                  onChanged(values.copyWith(effectGlitchBlockSizePx: value));
                 },
               ),
               SwitchListTile(

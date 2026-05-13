@@ -529,6 +529,9 @@ class ProjectController extends Notifier<ProjectState> {
     String? effectGlitchColorBHex,
     bool? effectGlitchAutoColors,
     bool? effectGlitchAudioSync,
+    double? effectGlitchLineMix,
+    double? effectGlitchBlockMix,
+    double? effectGlitchBlockSizePx,
   }) {
     _updateClip(
       trackId: trackId,
@@ -590,6 +593,9 @@ class ProjectController extends Notifier<ProjectState> {
           effectGlitchColorBHex: effectGlitchColorBHex,
           effectGlitchAutoColors: effectGlitchAutoColors,
           effectGlitchAudioSync: effectGlitchAudioSync,
+          effectGlitchLineMix: effectGlitchLineMix?.clamp(0.0, 1.0),
+          effectGlitchBlockMix: effectGlitchBlockMix?.clamp(0.0, 1.0),
+          effectGlitchBlockSizePx: effectGlitchBlockSizePx?.clamp(6.0, 90.0),
         );
       },
     );

@@ -121,6 +121,9 @@ class LocalProjectDataSource {
       'effectGlitchColorBHex': clip.effectGlitchColorBHex,
       'effectGlitchAutoColors': clip.effectGlitchAutoColors,
       'effectGlitchAudioSync': clip.effectGlitchAudioSync,
+      'effectGlitchLineMix': clip.effectGlitchLineMix,
+      'effectGlitchBlockMix': clip.effectGlitchBlockMix,
+      'effectGlitchBlockSizePx': clip.effectGlitchBlockSizePx,
     };
   }
 
@@ -294,6 +297,15 @@ class LocalProjectDataSource {
       effectGlitchAudioSync: _asBool(
         json['effectGlitchAudioSync'],
         fallback: false,
+      ),
+      effectGlitchLineMix: _asDouble(json['effectGlitchLineMix'], fallback: 0.55),
+      effectGlitchBlockMix: _asDouble(
+        json['effectGlitchBlockMix'],
+        fallback: 0.65,
+      ),
+      effectGlitchBlockSizePx: _asDouble(
+        json['effectGlitchBlockSizePx'],
+        fallback: 18.0,
       ),
     );
   }

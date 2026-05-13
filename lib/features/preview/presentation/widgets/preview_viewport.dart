@@ -485,6 +485,9 @@ class _PreviewViewportState extends State<PreviewViewport> {
             ),
             glitchAutoColors: clip.effectGlitchAutoColors,
             glitchAudioSync: clip.effectGlitchAudioSync,
+            glitchLineMix: clip.effectGlitchLineMix.clamp(0.0, 1.0),
+            glitchBlockMix: clip.effectGlitchBlockMix.clamp(0.0, 1.0),
+            glitchBlockSizePx: clip.effectGlitchBlockSizePx.clamp(6.0, 90.0),
           ),
         );
       }
@@ -511,6 +514,9 @@ class _PreviewViewportState extends State<PreviewViewport> {
             autoColors: effect.glitchAutoColors,
             audioSync: effect.glitchAudioSync,
             audioReactiveLevel: widget.audioReactiveLevel,
+            lineMix: effect.glitchLineMix,
+            blockMix: effect.glitchBlockMix,
+            blockSizePx: effect.glitchBlockSizePx,
             child: current,
           );
           break;
@@ -572,6 +578,9 @@ class _ActiveVisualEffect {
     required this.glitchColorB,
     required this.glitchAutoColors,
     required this.glitchAudioSync,
+    required this.glitchLineMix,
+    required this.glitchBlockMix,
+    required this.glitchBlockSizePx,
   });
 
   final project_clip.VisualEffectType type;
@@ -589,6 +598,9 @@ class _ActiveVisualEffect {
   final Color glitchColorB;
   final bool glitchAutoColors;
   final bool glitchAudioSync;
+  final double glitchLineMix;
+  final double glitchBlockMix;
+  final double glitchBlockSizePx;
 }
 
 class _VisualTransform extends StatelessWidget {
@@ -729,6 +741,9 @@ class _EffectGlitch extends StatelessWidget {
     required this.autoColors,
     required this.audioSync,
     required this.audioReactiveLevel,
+    required this.lineMix,
+    required this.blockMix,
+    required this.blockSizePx,
   });
 
   final Widget child;
@@ -742,6 +757,9 @@ class _EffectGlitch extends StatelessWidget {
   final bool autoColors;
   final bool audioSync;
   final double audioReactiveLevel;
+  final double lineMix;
+  final double blockMix;
+  final double blockSizePx;
 
   @override
   Widget build(BuildContext context) {
@@ -784,6 +802,9 @@ class _EffectGlitch extends StatelessWidget {
               noiseAmount: noiseAmount,
               colorA: cA,
               colorB: cB,
+              lineMix: lineMix,
+              blockMix: blockMix,
+              blockSizePx: blockSizePx,
             ),
             child: const SizedBox.expand(),
           ),
@@ -801,6 +822,9 @@ class _GlitchSlicesPainter extends CustomPainter {
     required this.noiseAmount,
     required this.colorA,
     required this.colorB,
+    required this.lineMix,
+    required this.blockMix,
+    required this.blockSizePx,
   });
 
   final double phase;
@@ -809,6 +833,9 @@ class _GlitchSlicesPainter extends CustomPainter {
   final double noiseAmount;
   final Color colorA;
   final Color colorB;
+  final double lineMix;
+  final double blockMix;
+  final double blockSizePx;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -829,23 +856,50 @@ class _GlitchSlicesPainter extends CustomPainter {
       ..color = Colors.black.withValues(alpha: 0.08 + 0.14 * intensity)
       ..strokeWidth = 1.0;
 
-    final int bands = (4 + intensity * 8 + tearStrength * 10).round();
+    final int bands = (2 + (3 + intensity * 9 + tearStrength * 10) * lineMix)
+        .round();
     for (int i = 0; i < bands; i++) {
       final double seed = phase * (7.0 + i * 0.9) + i * 1.618;
       final double y = ((math.sin(seed) + 1) * 0.5) * size.height;
       final double h = (1.5 +
               (math.cos(seed * 1.7).abs() *
                   (7.0 + tearStrength * 14.0) *
-                  intensity))
-          .clamp(1.5, 14.0);
+                  intensity *
+                  lineMix))
+          .clamp(1.2, 16.0);
       final double shift =
-          math.cos(seed * 2.3) * (6 + 18 * intensity + 20 * tearStrength);
+          math.cos(seed * 2.3) * (5 + 16 * intensity + 20 * tearStrength);
       final Rect r = Rect.fromLTWH(shift, y, size.width, h);
       canvas.drawRect(r, i.isEven ? barA : barB);
       canvas.drawLine(Offset(0, y), Offset(size.width, y), darkLine);
       if (i.isEven) {
         final double gapY = (y + h + 1).clamp(0.0, size.height);
         canvas.drawLine(Offset(0, gapY), Offset(size.width, gapY), darkGapLine);
+      }
+    }
+
+    final int blockCount =
+        (2 + (4 + intensity * 14 + noiseAmount * 18) * blockMix).round();
+    final double baseW = blockSizePx.clamp(6.0, 90.0);
+    final double baseH = (blockSizePx * 0.52).clamp(4.0, 48.0);
+    for (int i = 0; i < blockCount; i++) {
+      final double seed = phase * (5.3 + i * 0.47) + i * 2.17;
+      final double x = ((math.sin(seed * 1.41) + 1) * 0.5) * size.width;
+      final double y = ((math.cos(seed * 1.77) + 1) * 0.5) * size.height;
+      final double w = (baseW * (0.55 + (math.sin(seed * 2.1).abs() * 1.35)))
+          .clamp(6.0, size.width * 0.45);
+      final double h = (baseH * (0.65 + (math.cos(seed * 2.7).abs() * 1.20)))
+          .clamp(3.0, size.height * 0.20);
+      final double shift = math.sin(seed * 3.2) * (8 + tearStrength * 20);
+      final Rect rect = Rect.fromLTWH(
+        (x + shift).clamp(0.0, math.max(0.0, size.width - w)),
+        y.clamp(0.0, math.max(0.0, size.height - h)),
+        w,
+        h,
+      );
+      canvas.drawRect(rect, i.isEven ? barA : barB);
+      if (i % 3 == 0) {
+        canvas.drawRect(rect.deflate(0.7), darkGapLine);
       }
     }
   }
@@ -857,7 +911,10 @@ class _GlitchSlicesPainter extends CustomPainter {
         oldDelegate.tearStrength != tearStrength ||
         oldDelegate.noiseAmount != noiseAmount ||
         oldDelegate.colorA != colorA ||
-        oldDelegate.colorB != colorB;
+        oldDelegate.colorB != colorB ||
+        oldDelegate.lineMix != lineMix ||
+        oldDelegate.blockMix != blockMix ||
+        oldDelegate.blockSizePx != blockSizePx;
   }
 }
 
