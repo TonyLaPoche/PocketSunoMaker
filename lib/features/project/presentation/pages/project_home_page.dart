@@ -52,6 +52,7 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
   final Map<String, AudioReactivityProfile> _audioReactiveByPath =
       <String, AudioReactivityProfile>{};
   final Set<String> _audioReactiveLoadingPaths = <String>{};
+  Future<Uint8List?> Function()? _capturePreviewFrame;
   static const double _minTimelineHeightPx = 180;
   static const double _minTopPanelsHeightPx = 220;
 
@@ -336,6 +337,13 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
                                       project: project,
                                       state: previewState,
                                       audioReactiveLevel: audioReactiveLevel,
+                                      onCaptureFrameProviderReady:
+                                          (
+                                            Future<Uint8List?> Function()
+                                            captureFrame,
+                                          ) {
+                                            _capturePreviewFrame = captureFrame;
+                                          },
                                       onTogglePlayPause:
                                           previewController.togglePlayPause,
                                       onScrubStart:
@@ -438,8 +446,29 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
                                           exportController.selectPreset,
                                       onEnqueueExport: project == null
                                           ? null
-                                          : () => exportController
-                                                .enqueueExport(project),
+                                          : () {
+                                              unawaited(
+                                                exportController.enqueueExport(
+                                                  project,
+                                                  renderFramePngAt:
+                                                      (int positionMs) async {
+                                                        previewController
+                                                            .pause();
+                                                        previewController
+                                                            .seekTo(positionMs);
+                                                        await Future<
+                                                          void
+                                                        >.delayed(
+                                                          const Duration(
+                                                            milliseconds: 20,
+                                                          ),
+                                                        );
+                                                        return _capturePreviewFrame
+                                                            ?.call();
+                                                      },
+                                                ),
+                                              );
+                                            },
                                       onCancelRunningExport:
                                           exportController.cancelRunningExport,
                                       statusLabelBuilder: _statusLabel,
@@ -457,7 +486,7 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
                                             final _ClipInspectorValues
                                             previousValues =
                                                 _inspectorByClipId[inspectedClip
-                                                        .id] ??
+                                                    .id] ??
                                                 _ClipInspectorValues.fromClip(
                                                   inspectedClip,
                                                 );
@@ -870,7 +899,9 @@ class _ProjectHomePageState extends ConsumerState<ProjectHomePage> {
     if (clips.isEmpty) {
       return null;
     }
-    clips.sort((Clip a, Clip b) => a.timelineStartMs.compareTo(b.timelineStartMs));
+    clips.sort(
+      (Clip a, Clip b) => a.timelineStartMs.compareTo(b.timelineStartMs),
+    );
     return clips.first;
   }
 
@@ -1693,8 +1724,8 @@ class _ClipInspectorCard extends StatelessWidget {
             ],
             Divider(color: context.cyberpunk.border.withValues(alpha: 0.7)),
           ],
-          if (trackType == TrackType.video || trackType == TrackType.overlay)
-            ...<Widget>[
+          if (trackType == TrackType.video ||
+              trackType == TrackType.overlay) ...<Widget>[
             Text(
               'Transform',
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
@@ -1724,8 +1755,8 @@ class _ClipInspectorCard extends StatelessWidget {
             ),
             Divider(color: context.cyberpunk.border.withValues(alpha: 0.7)),
           ],
-          if (trackType == TrackType.video || trackType == TrackType.overlay)
-            ...<Widget>[
+          if (trackType == TrackType.video ||
+              trackType == TrackType.overlay) ...<Widget>[
             Text(
               'Image / Video',
               style: Theme.of(context).textTheme.labelMedium?.copyWith(

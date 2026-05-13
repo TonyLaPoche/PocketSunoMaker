@@ -1,5 +1,6 @@
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:typed_data';
 
 import '../../../project/domain/entities/export_preset.dart';
 import '../../../project/domain/entities/project.dart';
@@ -38,7 +39,10 @@ class ExportQueueController extends Notifier<ExportQueueState> {
     state = state.copyWith(selectedPreset: preset, errorMessage: null);
   }
 
-  Future<void> enqueueExport(Project? project) async {
+  Future<void> enqueueExport(
+    Project? project, {
+    Future<Uint8List?> Function(int positionMs)? renderFramePngAt,
+  }) async {
     if (project == null) {
       state = state.copyWith(errorMessage: 'Cree un projet avant d exporter.');
       return;
@@ -68,6 +72,7 @@ class ExportQueueController extends Notifier<ExportQueueState> {
         project: project,
         preset: preset,
         outputPath: destination.path,
+        renderFramePngAt: renderFramePngAt,
       ),
     );
 
@@ -93,14 +98,26 @@ class ExportQueueController extends Notifier<ExportQueueState> {
     _updateJobStatus(request.id, ExportJobStatus.running, progress: 0);
 
     try {
-      await _ffmpegExportService.exportProject(
-        project: request.project,
-        preset: request.preset,
-        outputPath: request.outputPath,
-        onProgress: (double progress) {
-          _updateJobProgress(request.id, progress);
-        },
-      );
+      if (request.renderFramePngAt != null) {
+        await _ffmpegExportService.exportProjectFromPreviewFrames(
+          project: request.project,
+          preset: request.preset,
+          outputPath: request.outputPath,
+          renderFramePngAt: request.renderFramePngAt!,
+          onProgress: (double progress) {
+            _updateJobProgress(request.id, progress);
+          },
+        );
+      } else {
+        await _ffmpegExportService.exportProject(
+          project: request.project,
+          preset: request.preset,
+          outputPath: request.outputPath,
+          onProgress: (double progress) {
+            _updateJobProgress(request.id, progress);
+          },
+        );
+      }
       _updateJobStatus(
         request.id,
         ExportJobStatus.succeeded,
@@ -205,10 +222,12 @@ class _QueuedExportRequest {
     required this.project,
     required this.preset,
     required this.outputPath,
+    this.renderFramePngAt,
   });
 
   final String id;
   final Project project;
   final ExportPreset preset;
   final String outputPath;
+  final Future<Uint8List?> Function(int positionMs)? renderFramePngAt;
 }

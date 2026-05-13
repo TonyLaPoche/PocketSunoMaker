@@ -25,6 +25,7 @@ class PreviewViewport extends StatefulWidget {
     this.showGuides = false,
     this.outputWidth,
     this.outputHeight,
+    this.captureBoundaryKey,
     super.key,
   });
 
@@ -40,6 +41,7 @@ class PreviewViewport extends StatefulWidget {
   final bool showGuides;
   final int? outputWidth;
   final int? outputHeight;
+  final GlobalKey? captureBoundaryKey;
 
   @override
   State<PreviewViewport> createState() => _PreviewViewportState();
@@ -110,6 +112,7 @@ class _PreviewViewportState extends State<PreviewViewport> {
         child: _CanvasStage(
           canvasWidth: stageWidth,
           canvasHeight: stageHeight,
+          captureBoundaryKey: widget.captureBoundaryKey,
           child: Stack(
             fit: StackFit.expand,
             children: <Widget>[
@@ -170,6 +173,7 @@ class _PreviewViewportState extends State<PreviewViewport> {
             _CanvasStage(
               canvasWidth: stageWidth,
               canvasHeight: stageHeight,
+              captureBoundaryKey: widget.captureBoundaryKey,
               child: Stack(
                 fit: StackFit.expand,
                 children: <Widget>[
@@ -243,6 +247,7 @@ class _PreviewViewportState extends State<PreviewViewport> {
             _CanvasStage(
               canvasWidth: stageWidth,
               canvasHeight: stageHeight,
+              captureBoundaryKey: widget.captureBoundaryKey,
               child: Stack(
                 fit: StackFit.expand,
                 children: <Widget>[
@@ -660,10 +665,9 @@ class _EffectShake extends StatelessWidget {
         ? (detectedBpm / 60.0).clamp(0.8, 4.0)
         : frequencyHz;
     final double reactiveGate = audioSync
-        ? math.pow(
-            ((audioReactiveLevel - 0.05) / 0.95).clamp(0.0, 1.0),
-            0.72,
-          ).toDouble()
+        ? math
+              .pow(((audioReactiveLevel - 0.05) / 0.95).clamp(0.0, 1.0), 0.72)
+              .toDouble()
         : 1.0;
     final double beatPulse = audioSync
         ? (0.62 + 0.38 * math.sin(t * math.pi * 2 * effectiveFrequencyHz).abs())
@@ -765,15 +769,16 @@ class _EffectGlitch extends StatelessWidget {
   Widget build(BuildContext context) {
     final double t = (audioSync ? timelineMs : localMs) / 1000.0;
     final double reactive = audioSync
-        ? math.pow(
-            ((audioReactiveLevel - 0.04) / 0.96).clamp(0.0, 1.0),
-            0.72,
-          ).toDouble()
+        ? math
+              .pow(((audioReactiveLevel - 0.04) / 0.96).clamp(0.0, 1.0), 0.72)
+              .toDouble()
         : 1.0;
     final double amp = (2 + 16 * intensity) * (0.35 + tearStrength) * reactive;
     final double burst = math.sin(t * 22.0).abs();
-    final double dx =
-        (math.sin(t * 63.0) * amp * (0.55 + burst * 0.45)).clamp(-18.0, 18.0);
+    final double dx = (math.sin(t * 63.0) * amp * (0.55 + burst * 0.45)).clamp(
+      -18.0,
+      18.0,
+    );
     final double dy = (math.cos(t * 37.0) * 1.2 * intensity).clamp(-4.0, 4.0);
     final bool highEnergy = reactive > 0.62;
     final Color autoA = highEnergy
@@ -841,12 +846,18 @@ class _GlitchSlicesPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final Paint barA = Paint()
       ..color = colorA.withValues(
-        alpha: (0.05 + (0.14 + noiseAmount * 0.10) * intensity).clamp(0.0, 0.45),
+        alpha: (0.05 + (0.14 + noiseAmount * 0.10) * intensity).clamp(
+          0.0,
+          0.45,
+        ),
       )
       ..blendMode = BlendMode.plus;
     final Paint barB = Paint()
       ..color = colorB.withValues(
-        alpha: (0.04 + (0.12 + noiseAmount * 0.10) * intensity).clamp(0.0, 0.42),
+        alpha: (0.04 + (0.12 + noiseAmount * 0.10) * intensity).clamp(
+          0.0,
+          0.42,
+        ),
       )
       ..blendMode = BlendMode.plus;
     final Paint darkLine = Paint()
@@ -861,12 +872,13 @@ class _GlitchSlicesPainter extends CustomPainter {
     for (int i = 0; i < bands; i++) {
       final double seed = phase * (7.0 + i * 0.9) + i * 1.618;
       final double y = ((math.sin(seed) + 1) * 0.5) * size.height;
-      final double h = (1.5 +
-              (math.cos(seed * 1.7).abs() *
-                  (7.0 + tearStrength * 14.0) *
-                  intensity *
-                  lineMix))
-          .clamp(1.2, 16.0);
+      final double h =
+          (1.5 +
+                  (math.cos(seed * 1.7).abs() *
+                      (7.0 + tearStrength * 14.0) *
+                      intensity *
+                      lineMix))
+              .clamp(1.2, 16.0);
       final double shift =
           math.cos(seed * 2.3) * (5 + 16 * intensity + 20 * tearStrength);
       final Rect r = Rect.fromLTWH(shift, y, size.width, h);
@@ -1063,11 +1075,13 @@ class _CanvasStage extends StatelessWidget {
     required this.canvasWidth,
     required this.canvasHeight,
     required this.child,
+    this.captureBoundaryKey,
   });
 
   final int canvasWidth;
   final int canvasHeight;
   final Widget child;
+  final GlobalKey? captureBoundaryKey;
 
   @override
   Widget build(BuildContext context) {
@@ -1101,10 +1115,13 @@ class _CanvasStage extends StatelessWidget {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: SizedBox(
-                  width: canvasWidth.toDouble(),
-                  height: canvasHeight.toDouble(),
-                  child: child,
+                child: RepaintBoundary(
+                  key: captureBoundaryKey,
+                  child: SizedBox(
+                    width: canvasWidth.toDouble(),
+                    height: canvasHeight.toDouble(),
+                    child: child,
+                  ),
                 ),
               ),
             ),

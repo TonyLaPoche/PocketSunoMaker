@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import '../../../project/domain/entities/clip.dart';
 import '../../../project/domain/entities/export_preset.dart';
@@ -200,6 +201,183 @@ class FfmpegExportService {
     }
   }
 
+  Future<void> exportProjectFromPreviewFrames({
+    required Project project,
+    required ExportPreset preset,
+    required String outputPath,
+    required Future<Uint8List?> Function(int positionMs) renderFramePngAt,
+    void Function(double progress)? onProgress,
+  }) async {
+    _cancelRequested = false;
+    final String ffmpegCommand = _resolveFfmpegCommand();
+    final Clip? audioClip = _firstClip(project, TrackType.audio);
+    final int durationMs = math.max(1, project.durationMs);
+    final int fps = preset.frameRate <= 0 ? 30 : preset.frameRate;
+    final int totalFrames = math.max(1, ((durationMs / 1000.0) * fps).ceil());
+    final String debugPath = _debugFilePath(outputPath);
+    final _HardwareProfile hardwareProfile = await _scanHardwareProfile();
+    final Directory frameDir = Directory('$outputPath.preview-frames');
+    if (frameDir.existsSync()) {
+      frameDir.deleteSync(recursive: true);
+    }
+    frameDir.createSync(recursive: true);
+
+    await _appendDebugNote(
+      debugPath,
+      'frame_export_profile=${hardwareProfile.mode} '
+      'cpu=${hardwareProfile.cpuCount} '
+      'mem_gb=${hardwareProfile.memoryGb.toStringAsFixed(1)} '
+      'delay_ms=${hardwareProfile.interFrameDelayMs}',
+    );
+    await _writeExportDebugSnapshot(
+      debugPath: debugPath,
+      phase: 'before_frame_render',
+      project: project,
+      preset: preset,
+      command: ffmpegCommand,
+      args: const <String>[],
+      outputPath: outputPath,
+      timelineOriginMs: 0,
+      outputDurationMs: durationMs,
+      videoFilter: '<preview_frame_renderer>',
+      audioFilter: '<none>',
+    );
+
+    try {
+      for (int i = 0; i < totalFrames; i++) {
+        if (_cancelRequested) {
+          throw Exception('Export annule par utilisateur.');
+        }
+        final int positionMs = math.min(
+          durationMs - 1,
+          ((i * 1000.0) / fps).round(),
+        );
+        final Uint8List? pngBytes = await renderFramePngAt(positionMs);
+        if (pngBytes == null || pngBytes.isEmpty) {
+          throw Exception(
+            'Capture preview impossible a ${positionMs}ms (frame ${i + 1}/$totalFrames).',
+          );
+        }
+        final String fileName = 'frame_${i.toString().padLeft(6, '0')}.png';
+        final File outputFile = File('${frameDir.path}/$fileName');
+        await outputFile.writeAsBytes(pngBytes, flush: false);
+        if (onProgress != null) {
+          onProgress((i + 1) / totalFrames * 0.85);
+        }
+        if (hardwareProfile.interFrameDelayMs > 0) {
+          await Future<void>.delayed(
+            Duration(milliseconds: hardwareProfile.interFrameDelayMs),
+          );
+        }
+      }
+
+      final List<String> args = <String>[
+        '-y',
+        '-hide_banner',
+        '-framerate',
+        fps.toString(),
+        '-i',
+        '${frameDir.path}/frame_%06d.png',
+      ];
+      if (audioClip != null) {
+        _assertClipAccessible(audioClip);
+        args.addAll(<String>[
+          '-ss',
+          (audioClip.sourceInMs / 1000).toStringAsFixed(3),
+          '-t',
+          (durationMs / 1000).toStringAsFixed(3),
+          '-i',
+          audioClip.assetPath,
+          '-map',
+          '0:v:0',
+          '-map',
+          '1:a:0',
+        ]);
+      } else {
+        args.addAll(<String>['-map', '0:v:0', '-an']);
+      }
+      args.addAll(<String>[
+        '-progress',
+        'pipe:1',
+        '-nostats',
+        '-r',
+        fps.toString(),
+        '-c:v',
+        'libx264',
+        '-pix_fmt',
+        'yuv420p',
+        '-b:v',
+        '${preset.videoBitrateKbps}k',
+        if (audioClip != null) ...<String>[
+          '-c:a',
+          'aac',
+          '-b:a',
+          '${preset.audioBitrateKbps}k',
+        ],
+        '-movflags',
+        '+faststart',
+        '-shortest',
+        outputPath,
+      ]);
+
+      await _writeExportDebugSnapshot(
+        debugPath: debugPath,
+        phase: 'before_run_from_frames',
+        project: project,
+        preset: preset,
+        command: ffmpegCommand,
+        args: args,
+        outputPath: outputPath,
+        timelineOriginMs: 0,
+        outputDurationMs: durationMs,
+        videoFilter: '<assembled_from_preview_frames>',
+        audioFilter: '<none>',
+      );
+
+      final ProcessResult result = await _runFfmpegWithProgress(
+        command: ffmpegCommand,
+        args: args,
+        totalDurationMs: durationMs,
+        onProgress: onProgress == null
+            ? null
+            : (double progress) {
+                final double mapped = 0.85 + progress * 0.15;
+                onProgress(mapped.clamp(0.0, 1.0));
+              },
+      );
+      await _writeExportDebugSnapshot(
+        debugPath: debugPath,
+        phase: 'after_run_from_frames',
+        project: project,
+        preset: preset,
+        command: ffmpegCommand,
+        args: args,
+        outputPath: outputPath,
+        timelineOriginMs: 0,
+        outputDurationMs: durationMs,
+        videoFilter: '<assembled_from_preview_frames>',
+        audioFilter: '<none>',
+        result: result,
+      );
+
+      if (result.exitCode != 0) {
+        final String shortError = _compactError(
+          (result.stderr ?? '').toString(),
+        );
+        throw Exception('Export FFmpeg echoue: $shortError');
+      }
+      onProgress?.call(1.0);
+    } finally {
+      if (frameDir.existsSync()) {
+        try {
+          frameDir.deleteSync(recursive: true);
+        } on Object {
+          // No-op: cleanup failure should not hide export result.
+        }
+      }
+    }
+  }
+
   Future<ProcessResult> _runFfmpegWithProgress({
     required String command,
     required List<String> args,
@@ -263,6 +441,66 @@ class FfmpegExportService {
       if (identical(_runningProcess, process)) {
         _runningProcess = null;
       }
+    }
+  }
+
+  Future<_HardwareProfile> _scanHardwareProfile() async {
+    final int cpuCount = Platform.numberOfProcessors;
+    double memoryGb = 8;
+    bool onBattery = false;
+    try {
+      final ProcessResult memResult = await Process.run('sysctl', <String>[
+        '-n',
+        'hw.memsize',
+      ]);
+      final int? memBytes = int.tryParse(
+        (memResult.stdout ?? '').toString().trim(),
+      );
+      if (memBytes != null && memBytes > 0) {
+        memoryGb = memBytes / (1024 * 1024 * 1024);
+      }
+    } on Object {
+      // Best effort only.
+    }
+    try {
+      final ProcessResult battResult = await Process.run('pmset', <String>[
+        '-g',
+        'batt',
+      ]);
+      final String lower = '${battResult.stdout ?? ''}'.toLowerCase();
+      onBattery = lower.contains('battery power');
+    } on Object {
+      // Best effort only.
+    }
+    if (onBattery || memoryGb < 8 || cpuCount <= 4) {
+      return _HardwareProfile(
+        mode: 'safe',
+        cpuCount: cpuCount,
+        memoryGb: memoryGb,
+        interFrameDelayMs: 18,
+      );
+    }
+    if (memoryGb < 16 || cpuCount <= 8) {
+      return _HardwareProfile(
+        mode: 'balanced',
+        cpuCount: cpuCount,
+        memoryGb: memoryGb,
+        interFrameDelayMs: 8,
+      );
+    }
+    return _HardwareProfile(
+      mode: 'performance',
+      cpuCount: cpuCount,
+      memoryGb: memoryGb,
+      interFrameDelayMs: 3,
+    );
+  }
+
+  Future<void> _appendDebugNote(String debugPath, String note) async {
+    try {
+      await File(debugPath).writeAsString('$note\n', mode: FileMode.append);
+    } on Object {
+      // Best effort only.
     }
   }
 
@@ -1267,4 +1505,18 @@ class FfmpegExportService {
         lower.endsWith('.tif') ||
         lower.endsWith('.tiff');
   }
+}
+
+class _HardwareProfile {
+  const _HardwareProfile({
+    required this.mode,
+    required this.cpuCount,
+    required this.memoryGb,
+    required this.interFrameDelayMs,
+  });
+
+  final String mode;
+  final int cpuCount;
+  final double memoryGb;
+  final int interFrameDelayMs;
 }

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import '../../../../app/theme/cyberpunk_palette.dart';
 import '../../../project/domain/entities/clip.dart';
@@ -21,6 +24,7 @@ class PreviewPanel extends StatefulWidget {
     this.showGuides = false,
     this.outputWidth,
     this.outputHeight,
+    this.onCaptureFrameProviderReady,
     super.key,
   });
 
@@ -37,6 +41,8 @@ class PreviewPanel extends StatefulWidget {
   final bool showGuides;
   final int? outputWidth;
   final int? outputHeight;
+  final void Function(Future<Uint8List?> Function() captureFrame)?
+  onCaptureFrameProviderReady;
 
   @override
   State<PreviewPanel> createState() => _PreviewPanelState();
@@ -44,6 +50,23 @@ class PreviewPanel extends StatefulWidget {
 
 class _PreviewPanelState extends State<PreviewPanel> {
   double _viewportFactor = 0.55;
+  final GlobalKey _previewBoundaryKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.onCaptureFrameProviderReady?.call(_capturePreviewFramePng);
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant PreviewPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.onCaptureFrameProviderReady?.call(_capturePreviewFramePng);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -115,6 +138,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
                     showGuides: widget.showGuides,
                     outputWidth: widget.outputWidth,
                     outputHeight: widget.outputHeight,
+                    captureBoundaryKey: _previewBoundaryKey,
                   ),
                   const SizedBox(height: 8),
                   Row(
@@ -173,6 +197,33 @@ class _PreviewPanelState extends State<PreviewPanel> {
     final int minutes = totalSeconds ~/ 60;
     final int seconds = totalSeconds % 60;
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  Future<Uint8List?> _capturePreviewFramePng() async {
+    final BuildContext? boundaryContext = _previewBoundaryKey.currentContext;
+    if (boundaryContext == null) {
+      return null;
+    }
+    final RenderObject? renderObject = boundaryContext.findRenderObject();
+    if (renderObject is! RenderRepaintBoundary) {
+      return null;
+    }
+    if (!renderObject.hasSize || renderObject.size.width <= 0) {
+      return null;
+    }
+    final int? targetWidth = widget.outputWidth;
+    final double pixelRatio = targetWidth == null
+        ? 1.0
+        : (targetWidth / renderObject.size.width).clamp(0.5, 6.0);
+    final ui.Image image = await renderObject.toImage(pixelRatio: pixelRatio);
+    try {
+      final ByteData? byteData = await image.toByteData(
+        format: ui.ImageByteFormat.png,
+      );
+      return byteData?.buffer.asUint8List();
+    } finally {
+      image.dispose();
+    }
   }
 }
 
