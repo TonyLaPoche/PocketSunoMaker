@@ -56,6 +56,7 @@ class FfmpegExportService {
         args,
         videoClip,
         loopStillImage: _isImage(videoClip.assetPath),
+        stillImageFrameRate: preset.frameRate,
       );
     }
     if (audioClip != null) {
@@ -82,27 +83,34 @@ class FfmpegExportService {
         '0:a:0',
       ]);
     }
+    final int outputDurationMs =
+        videoClip?.durationMs ?? audioClip?.durationMs ?? project.durationMs;
+    final String? audioFilter = audioClip == null
+        ? null
+        : _buildAudioFilter(
+            project: project,
+            timelineOriginMs: audioClip.timelineStartMs,
+          );
     if (audioClip != null) {
-      final String? audioFilter = _buildAudioFilter(
-        project: project,
-        timelineOriginMs: audioClip.timelineStartMs,
-      );
       if (audioFilter != null && audioFilter.isNotEmpty) {
         args.addAll(<String>['-af', audioFilter]);
       }
     }
+    final String videoFilter = _buildVideoFilter(
+      project: project,
+      preset: preset,
+      includeVisualEffects: hasVisualEffectClips,
+      timelineOriginMs: videoClip?.timelineStartMs ?? 0,
+      sourceIsStillImage: videoClip != null && _isImage(videoClip.assetPath),
+      outputDurationMs: outputDurationMs,
+    );
 
     args.addAll(<String>[
       '-progress',
       'pipe:1',
       '-nostats',
       '-vf',
-      _buildVideoFilter(
-        project: project,
-        preset: preset,
-        includeVisualEffects: hasVisualEffectClips,
-        timelineOriginMs: videoClip?.timelineStartMs ?? 0,
-      ),
+      videoFilter,
       '-r',
       preset.frameRate.toString(),
       '-c:v',
@@ -120,6 +128,20 @@ class FfmpegExportService {
       '-shortest',
       outputPath,
     ]);
+    final String debugPath = _debugFilePath(outputPath);
+    await _writeExportDebugSnapshot(
+      debugPath: debugPath,
+      phase: 'before_run',
+      project: project,
+      preset: preset,
+      command: ffmpegCommand,
+      args: args,
+      outputPath: outputPath,
+      timelineOriginMs: videoClip?.timelineStartMs ?? 0,
+      outputDurationMs: outputDurationMs,
+      videoFilter: videoFilter,
+      audioFilter: audioFilter,
+    );
 
     final ProcessResult result;
     try {
@@ -130,10 +152,38 @@ class FfmpegExportService {
         onProgress: onProgress,
       );
     } on ProcessException catch (error) {
+      await _writeExportDebugSnapshot(
+        debugPath: debugPath,
+        phase: 'launch_error',
+        project: project,
+        preset: preset,
+        command: ffmpegCommand,
+        args: args,
+        outputPath: outputPath,
+        timelineOriginMs: videoClip?.timelineStartMs ?? 0,
+        outputDurationMs: outputDurationMs,
+        videoFilter: videoFilter,
+        audioFilter: audioFilter,
+        launchError: error,
+      );
       throw Exception(
         'Impossible de lancer ffmpeg (${error.message}). Verifie que ffmpeg (ou ffmpeg-full) est installe et accessible.',
       );
     }
+    await _writeExportDebugSnapshot(
+      debugPath: debugPath,
+      phase: 'after_run',
+      project: project,
+      preset: preset,
+      command: ffmpegCommand,
+      args: args,
+      outputPath: outputPath,
+      timelineOriginMs: videoClip?.timelineStartMs ?? 0,
+      outputDurationMs: outputDurationMs,
+      videoFilter: videoFilter,
+      audioFilter: audioFilter,
+      result: result,
+    );
 
     if (result.exitCode != 0) {
       if (_cancelRequested) {
@@ -230,6 +280,313 @@ class FfmpegExportService {
     return 'ffmpeg';
   }
 
+  String _debugFilePath(String outputPath) {
+    return '$outputPath.export-debug.txt';
+  }
+
+  Future<void> _writeExportDebugSnapshot({
+    required String debugPath,
+    required String phase,
+    required Project project,
+    required ExportPreset preset,
+    required String command,
+    required List<String> args,
+    required String outputPath,
+    required int timelineOriginMs,
+    required int outputDurationMs,
+    required String videoFilter,
+    required String? audioFilter,
+    ProcessResult? result,
+    Object? launchError,
+  }) async {
+    try {
+      final bool append = phase != 'before_run';
+      final StringBuffer buffer = StringBuffer();
+      if (!append) {
+        buffer.writeln('PocketSunoMaker export debug');
+        buffer.writeln('created_at=${DateTime.now().toIso8601String()}');
+        buffer.writeln();
+      }
+      buffer.writeln('phase=$phase');
+      buffer.writeln('output_path=$outputPath');
+      buffer.writeln('debug_path=$debugPath');
+      buffer.writeln(
+        'preset=${preset.label} (${preset.width}x${preset.height}@${preset.frameRate}fps)',
+      );
+      buffer.writeln(
+        'project_duration_ms=${project.durationMs}, output_duration_ms=$outputDurationMs',
+      );
+      buffer.writeln('timeline_origin_ms=$timelineOriginMs');
+      buffer.writeln(
+        'output_duration_sec=${(outputDurationMs / 1000).toStringAsFixed(3)}',
+      );
+      buffer.writeln();
+      buffer.writeln('preview_timeline_snapshot=');
+      for (final String line in _describePreviewTimelineSnapshot(
+        project: project,
+        timelineOriginMs: timelineOriginMs,
+      )) {
+        buffer.writeln(line);
+      }
+      buffer.writeln();
+      buffer.writeln('visual_effect_clips=');
+      for (final String line in _describeVisualEffectClips(
+        project,
+        timelineOriginMs,
+      )) {
+        buffer.writeln(line);
+      }
+      buffer.writeln();
+      buffer.writeln('diff_preview_vs_export=');
+      for (final String line in _describePreviewVsExportDiff(
+        project: project,
+        timelineOriginMs: timelineOriginMs,
+        outputDurationMs: outputDurationMs,
+      )) {
+        buffer.writeln(line);
+      }
+      buffer.writeln();
+      buffer.writeln('audio_effect_clips=');
+      for (final String line in _describeAudioEffectClips(project)) {
+        buffer.writeln(line);
+      }
+      buffer.writeln();
+      buffer.writeln('video_filter=');
+      buffer.writeln(videoFilter);
+      buffer.writeln();
+      buffer.writeln('audio_filter=');
+      buffer.writeln(audioFilter ?? '<none>');
+      buffer.writeln();
+      buffer.writeln('ffmpeg_command=');
+      buffer.writeln(command);
+      buffer.writeln('ffmpeg_args=');
+      buffer.writeln(args.map(_shellQuoteArg).join(' '));
+      if (launchError != null) {
+        buffer.writeln();
+        buffer.writeln('launch_error=$launchError');
+      }
+      if (result != null) {
+        buffer.writeln();
+        buffer.writeln('exit_code=${result.exitCode}');
+        buffer.writeln('stdout_tail=');
+        buffer.writeln(_tailLines((result.stdout ?? '').toString(), 80));
+        buffer.writeln();
+        buffer.writeln('stderr_tail=');
+        buffer.writeln(_tailLines((result.stderr ?? '').toString(), 80));
+      }
+      buffer.writeln('---');
+      await File(debugPath).writeAsString(
+        buffer.toString(),
+        mode: append ? FileMode.append : FileMode.write,
+      );
+    } on Object {
+      // Debug output must never fail the export path.
+    }
+  }
+
+  List<String> _describeVisualEffectClips(
+    Project project,
+    int timelineOriginMs,
+  ) {
+    final List<Clip> clips =
+        project.tracks
+            .where((Track track) => track.type == TrackType.visualEffect)
+            .expand((Track track) => track.clips)
+            .where((Clip clip) => clip.visualEffectType != null)
+            .toList(growable: false)
+          ..sort(
+            (Clip a, Clip b) => a.timelineStartMs.compareTo(b.timelineStartMs),
+          );
+    if (clips.isEmpty) {
+      return const <String>['<none>'];
+    }
+    return clips
+        .map((Clip clip) {
+          final int startRelMs = clip.timelineStartMs - timelineOriginMs;
+          final int endRelMs = startRelMs + clip.durationMs;
+          return '- id=${clip.id} type=${clip.visualEffectType?.name} '
+              'timeline=[${clip.timelineStartMs}-${clip.timelineStartMs + clip.durationMs}] '
+              'relative=[$startRelMs-$endRelMs] '
+              'duration_ms=${clip.durationMs} intensity=${clip.effectIntensity.toStringAsFixed(3)}';
+        })
+        .toList(growable: false);
+  }
+
+  List<String> _describePreviewTimelineSnapshot({
+    required Project project,
+    required int timelineOriginMs,
+  }) {
+    final List<String> lines = <String>[];
+    lines.add(
+      '- project_duration_ms=${project.durationMs} timeline_origin_ms=$timelineOriginMs',
+    );
+    lines.addAll(
+      _describeTrackClipsForPreview(
+        project: project,
+        type: TrackType.video,
+        label: 'video',
+        timelineOriginMs: timelineOriginMs,
+      ),
+    );
+    lines.addAll(
+      _describeTrackClipsForPreview(
+        project: project,
+        type: TrackType.audio,
+        label: 'audio',
+        timelineOriginMs: timelineOriginMs,
+      ),
+    );
+    lines.addAll(
+      _describeTrackClipsForPreview(
+        project: project,
+        type: TrackType.text,
+        label: 'text',
+        timelineOriginMs: timelineOriginMs,
+      ),
+    );
+    lines.addAll(
+      _describeTrackClipsForPreview(
+        project: project,
+        type: TrackType.visualEffect,
+        label: 'visual_effect',
+        timelineOriginMs: timelineOriginMs,
+      ),
+    );
+    lines.addAll(
+      _describeTrackClipsForPreview(
+        project: project,
+        type: TrackType.audioEffect,
+        label: 'audio_effect',
+        timelineOriginMs: timelineOriginMs,
+      ),
+    );
+    return lines;
+  }
+
+  List<String> _describeTrackClipsForPreview({
+    required Project project,
+    required TrackType type,
+    required String label,
+    required int timelineOriginMs,
+  }) {
+    final List<Clip> clips =
+        project.tracks
+            .where((Track track) => track.type == type)
+            .expand((Track track) => track.clips)
+            .toList(growable: false)
+          ..sort(
+            (Clip a, Clip b) => a.timelineStartMs.compareTo(b.timelineStartMs),
+          );
+    if (clips.isEmpty) {
+      return <String>['- $label: <none>'];
+    }
+    final List<String> lines = <String>['- $label: count=${clips.length}'];
+    for (final Clip clip in clips) {
+      final int startMs = clip.timelineStartMs;
+      final int endMs = clip.timelineStartMs + clip.durationMs;
+      final int relStartMs = startMs - timelineOriginMs;
+      final int relEndMs = relStartMs + clip.durationMs;
+      final String effectType =
+          clip.visualEffectType?.name ?? clip.audioEffectType?.name ?? '-';
+      lines.add(
+        '  - id=${clip.id} kind=$effectType timeline=[$startMs-$endMs] '
+        'relative=[$relStartMs-$relEndMs] duration_ms=${clip.durationMs}',
+      );
+    }
+    return lines;
+  }
+
+  List<String> _describePreviewVsExportDiff({
+    required Project project,
+    required int timelineOriginMs,
+    required int outputDurationMs,
+  }) {
+    final List<Clip> visualClips =
+        project.tracks
+            .where((Track track) => track.type == TrackType.visualEffect)
+            .expand((Track track) => track.clips)
+            .where((Clip clip) => clip.visualEffectType != null)
+            .toList(growable: false)
+          ..sort(
+            (Clip a, Clip b) => a.timelineStartMs.compareTo(b.timelineStartMs),
+          );
+    if (visualClips.isEmpty) {
+      return const <String>['- visual_effects: <none>'];
+    }
+    final double outputSec = outputDurationMs <= 0
+        ? 0
+        : outputDurationMs / 1000.0;
+    final List<String> lines = <String>[
+      '- output_window_sec=[0.000-${outputSec.toStringAsFixed(3)}]',
+    ];
+    for (final Clip clip in visualClips) {
+      final double previewStart =
+          (clip.timelineStartMs - timelineOriginMs) / 1000;
+      final double previewEnd = previewStart + (clip.durationMs / 1000.0);
+      final double exportStart = previewStart.clamp(0.0, outputSec);
+      final double exportEnd = previewEnd.clamp(0.0, outputSec);
+      final bool applies = outputSec > 0 && exportEnd > exportStart;
+      final String status = applies ? 'OK_APPLIED' : 'MISMATCH_OUT_OF_RANGE';
+      lines.add(
+        '- id=${clip.id} type=${clip.visualEffectType?.name} status=$status '
+        'preview_sec=[${previewStart.toStringAsFixed(3)}-${previewEnd.toStringAsFixed(3)}] '
+        'export_sec=[${exportStart.toStringAsFixed(3)}-${exportEnd.toStringAsFixed(3)}]',
+      );
+    }
+    return lines;
+  }
+
+  List<String> _describeAudioEffectClips(Project project) {
+    final List<Clip> clips =
+        project.tracks
+            .where((Track track) => track.type == TrackType.audioEffect)
+            .expand((Track track) => track.clips)
+            .where((Clip clip) => clip.audioEffectType != null)
+            .toList(growable: false)
+          ..sort(
+            (Clip a, Clip b) => a.timelineStartMs.compareTo(b.timelineStartMs),
+          );
+    if (clips.isEmpty) {
+      return const <String>['<none>'];
+    }
+    return clips
+        .map((Clip clip) {
+          return '- id=${clip.id} type=${clip.audioEffectType?.name} '
+              'timeline=[${clip.timelineStartMs}-${clip.timelineStartMs + clip.durationMs}] '
+              'duration_ms=${clip.durationMs} intensity=${clip.effectIntensity.toStringAsFixed(3)}';
+        })
+        .toList(growable: false);
+  }
+
+  String _shellQuoteArg(String arg) {
+    if (arg.isEmpty) {
+      return "''";
+    }
+    final bool needsQuote =
+        arg.contains(' ') ||
+        arg.contains('"') ||
+        arg.contains("'") ||
+        arg.contains(r'$') ||
+        arg.contains('`') ||
+        arg.contains(r'\');
+    if (!needsQuote) {
+      return arg;
+    }
+    return "'${arg.replaceAll("'", "'\"'\"'")}'";
+  }
+
+  String _tailLines(String value, int maxLines) {
+    final List<String> lines = value
+        .split('\n')
+        .where((String line) => line.trim().isNotEmpty)
+        .toList(growable: false);
+    if (lines.isEmpty) {
+      return '<empty>';
+    }
+    final int start = math.max(0, lines.length - maxLines);
+    return lines.sublist(start).join('\n');
+  }
+
   bool _hasTextOverlays(Project project) {
     return project.tracks
         .where((Track track) => track.type == TrackType.text)
@@ -295,10 +652,13 @@ class FfmpegExportService {
     List<String> args,
     Clip clip, {
     required bool loopStillImage,
+    int? stillImageFrameRate,
   }) {
     args.addAll(<String>['-ss', (clip.sourceInMs / 1000).toStringAsFixed(3)]);
     args.addAll(<String>['-t', (clip.durationMs / 1000).toStringAsFixed(3)]);
     if (loopStillImage) {
+      final int safeFrameRate = (stillImageFrameRate ?? 30).clamp(1, 120);
+      args.addAll(<String>['-framerate', safeFrameRate.toString()]);
       args.addAll(<String>['-loop', '1']);
     }
     args.addAll(<String>['-i', clip.assetPath]);
@@ -309,10 +669,22 @@ class FfmpegExportService {
     required ExportPreset preset,
     required bool includeVisualEffects,
     required int timelineOriginMs,
+    required bool sourceIsStillImage,
+    required int outputDurationMs,
   }) {
-    final String baseScalePad =
-        'scale=${preset.width}:${preset.height}:force_original_aspect_ratio=decrease,'
+    final String baseScale =
+        'scale=${preset.width}:${preset.height}:force_original_aspect_ratio=decrease';
+    final String finalPad =
         'pad=${preset.width}:${preset.height}:(ow-iw)/2:(oh-ih)/2';
+    final List<String> filters = <String>[
+      if (sourceIsStillImage)
+        // For looped still images, force a real frame timeline so FFmpeg's
+        // t/enable expressions used by visual effects evolve over time.
+        'fps=${preset.frameRate},setpts=N/(FRAME_RATE*TB)',
+      // Keep visual effects on the media surface before padding to better
+      // match preview behavior (where effects are applied on the visual layer).
+      baseScale,
+    ];
     final List<Clip> visualEffectClips =
         project.tracks
             .where((Track track) => track.type == TrackType.visualEffect)
@@ -330,17 +702,34 @@ class FfmpegExportService {
           ..sort(
             (Clip a, Clip b) => a.timelineStartMs.compareTo(b.timelineStartMs),
           );
-    final List<String> filters = <String>[baseScalePad];
     if (includeVisualEffects && visualEffectClips.isNotEmpty) {
+      int addedCount = 0;
       for (final Clip effectClip in visualEffectClips) {
-        filters.addAll(
-          _buildVisualEffectFilters(
-            effectClip,
-            timelineOriginMs: timelineOriginMs,
-          ),
+        final List<String> built = _buildVisualEffectFilters(
+          effectClip,
+          timelineOriginMs: timelineOriginMs,
+          outputDurationMs: outputDurationMs,
         );
+        addedCount += built.length;
+        filters.addAll(built);
+      }
+      // Fallback: if timing math clipped every effect out, force-apply effects
+      // to avoid silent "no effect in export" regressions.
+      if (addedCount == 0) {
+        for (final Clip effectClip in visualEffectClips) {
+          filters.addAll(
+            _buildVisualEffectFilters(
+              effectClip,
+              timelineOriginMs: timelineOriginMs,
+              outputDurationMs: outputDurationMs,
+              forceAlwaysOn: true,
+            ),
+          );
+        }
       }
     }
+    // Pad to final canvas after visual effects, before optional drawtext.
+    filters.add(finalPad);
     if (textClips.isEmpty) {
       return filters.join(',');
     }
@@ -435,27 +824,50 @@ class FfmpegExportService {
   List<String> _buildVisualEffectFilters(
     Clip clip, {
     required int timelineOriginMs,
+    required int outputDurationMs,
+    bool forceAlwaysOn = false,
   }) {
     final VisualEffectType? type = clip.visualEffectType;
     if (type == null) {
       return const <String>[];
     }
-    final double start = (clip.timelineStartMs - timelineOriginMs) / 1000;
-    final double end =
-        (clip.timelineStartMs + clip.durationMs - timelineOriginMs) / 1000;
+    final double start = forceAlwaysOn
+        ? 0
+        : (clip.timelineStartMs - timelineOriginMs) / 1000;
+    final double end = forceAlwaysOn
+        ? 1e9
+        : (clip.timelineStartMs + clip.durationMs - timelineOriginMs) / 1000;
     if (end <= 0) {
       return const <String>[];
     }
     final double safeStart = start < 0 ? 0 : start;
     final double safeEnd = end < safeStart ? safeStart : end;
+    final double outputDurationSec = outputDurationMs <= 0
+        ? 1e9
+        : outputDurationMs / 1000.0;
+    if (!forceAlwaysOn &&
+        (safeEnd <= 0 ||
+            safeStart >= outputDurationSec ||
+            outputDurationSec <= 0)) {
+      return const <String>[];
+    }
+    final double boundedStart = forceAlwaysOn
+        ? safeStart
+        : safeStart.clamp(0.0, outputDurationSec);
+    final double boundedEnd = forceAlwaysOn
+        ? safeEnd
+        : safeEnd.clamp(0.0, outputDurationSec);
+    if (!forceAlwaysOn && boundedEnd <= boundedStart) {
+      return const <String>[];
+    }
     final double intensity = clip.effectIntensity.clamp(0.1, 1.0);
-    final String enabled = _enableBetween(
-      safeStart,
-      safeEnd,
-    );
+    final String enabled = _enableBetween(boundedStart, boundedEnd);
     switch (type) {
       case VisualEffectType.glitch:
-        final double tearStrength = clip.effectGlitchTearStrength.clamp(0.05, 1.0);
+        final double tearStrength = clip.effectGlitchTearStrength.clamp(
+          0.05,
+          1.0,
+        );
         final double noiseAmount = clip.effectGlitchNoiseAmount.clamp(0.0, 1.0);
         final bool audioSync = clip.effectGlitchAudioSync;
         final double lineMix = clip.effectGlitchLineMix.clamp(0.0, 1.0);
@@ -463,21 +875,24 @@ class FfmpegExportService {
         final double blockSize = clip.effectGlitchBlockSizePx.clamp(6.0, 90.0);
         final String phaseExpr = audioSync
             ? 't'
-            : '(t-${safeStart.toStringAsFixed(3)})';
-        final String activeExpr = _betweenExpr(
-          safeStart,
-          safeEnd,
-        );
-        final int noiseStrength = (8 + intensity * 22 + noiseAmount * 24).round();
-        final int cropPx = (4 + intensity * 12 + tearStrength * 18).round();
-        final double amp = 1.5 + intensity * 5 + tearStrength * 7;
-        final int boxH = (1 + (1 + intensity * 8) * (0.3 + lineMix)).round();
-        final double boxAlpha =
-            (0.06 + (0.10 + lineMix * 0.22) * intensity).clamp(0.0, 1.0);
-        final int blockW = (blockSize * (0.8 + blockMix * 1.8)).round();
-        final int blockH = (blockSize * (0.35 + blockMix * 0.9)).round();
-        final double blockAlpha =
-            (0.04 + (0.08 + blockMix * 0.24) * intensity).clamp(0.0, 0.75);
+            : '(t-${boundedStart.toStringAsFixed(3)})';
+        final String activeExpr = _betweenExpr(boundedStart, boundedEnd);
+        final int noiseStrength = (14 + intensity * 32 + noiseAmount * 26)
+            .round()
+            .clamp(0, 100);
+        int cropPx = (12 + intensity * 24 + tearStrength * 26).round();
+        if (cropPx.isOdd) {
+          cropPx += 1;
+        }
+        final double amp = 6.0 + intensity * 20 + tearStrength * 14;
+        final int boxH = (4 + (1 + intensity * 12) * (0.55 + lineMix * 1.10))
+            .round();
+        final double boxAlpha = (0.22 + (0.20 + lineMix * 0.28) * intensity)
+            .clamp(0.0, 1.0);
+        final int blockW = (blockSize * (1.20 + blockMix * 2.2)).round();
+        final int blockH = (blockSize * (0.60 + blockMix * 1.2)).round();
+        final double blockAlpha = (0.16 + (0.16 + blockMix * 0.24) * intensity)
+            .clamp(0.0, 0.82);
         final String colorA = _sanitizeHexRgb(
           clip.effectGlitchColorAHex,
           fallback: '00E5FF',
@@ -488,14 +903,19 @@ class FfmpegExportService {
         );
         return <String>[
           'noise=alls=$noiseStrength:allf=t+u:$enabled',
+          "colorbalance="
+              "rs=${(0.03 + intensity * 0.18).toStringAsFixed(3)}:"
+              "bs=${(-0.03 - intensity * 0.18).toStringAsFixed(3)}:"
+              "$enabled",
           "eq=contrast=${(1.02 + intensity * 0.16).toStringAsFixed(3)}:"
               "saturation=${(1.00 + intensity * 0.12).toStringAsFixed(3)}:"
-              "brightness=${(-0.01 + intensity * 0.02).toStringAsFixed(3)}:$enabled",
+              "brightness='${(-0.01 + intensity * 0.02).toStringAsFixed(3)}+${(0.012 + intensity * 0.030).toStringAsFixed(3)}*sin(14*$phaseExpr)':"
+              "$enabled",
           "crop="
               "w='iw-if($activeExpr\\,$cropPx\\,0)':"
               "h='ih-if($activeExpr\\,$cropPx\\,0)':"
-              "x='if($activeExpr\\,${(cropPx / 2).toStringAsFixed(2)}+${amp.toStringAsFixed(2)}*sin(63*$phaseExpr)\\,0)':"
-              "y='if($activeExpr\\,${(cropPx / 2).toStringAsFixed(2)}+${(amp * 0.7).toStringAsFixed(2)}*cos(41*$phaseExpr)\\,0)'",
+              "x='if($activeExpr\\,clip(${(cropPx / 2).toStringAsFixed(2)}+${amp.toStringAsFixed(2)}*sin(63*$phaseExpr)\\,0\\,iw-ow)\\,0)':"
+              "y='if($activeExpr\\,clip(${(cropPx / 2).toStringAsFixed(2)}+${(amp * 0.7).toStringAsFixed(2)}*cos(41*$phaseExpr)\\,0\\,ih-oh)\\,0)'",
           'scale=iw:ih',
           "drawbox=x=0:y='mod(t*240\\,ih)':w=iw:h=$boxH:"
               'color=0x$colorA@${boxAlpha.toStringAsFixed(3)}:t=fill:$enabled',
@@ -509,21 +929,23 @@ class FfmpegExportService {
               'color=0x$colorB@${(blockAlpha * 0.9).toStringAsFixed(3)}:t=fill:$enabled',
         ];
       case VisualEffectType.shake:
-        final double start = safeStart;
-        final double baseAmplitude = clip.effectShakeAmplitudePx.clamp(2.0, 40.0);
-        final double amplitude = baseAmplitude * (0.45 + intensity * 0.90);
-        final double frequencyHz =
-            clip.effectShakeAutoBpm
-                ? (clip.effectShakeDetectedBpm.clamp(60.0, 220.0) / 60.0)
-                : clip.effectShakeFrequencyHz.clamp(4.0, 60.0);
+        final double start = boundedStart;
+        final double baseAmplitude = clip.effectShakeAmplitudePx.clamp(
+          2.0,
+          40.0,
+        );
+        final double amplitude = baseAmplitude * (1.10 + intensity * 1.50);
+        final double frequencyHz = clip.effectShakeAutoBpm
+            ? (clip.effectShakeDetectedBpm.clamp(60.0, 220.0) / 60.0)
+            : clip.effectShakeFrequencyHz.clamp(4.0, 60.0);
         final String phaseExpr = clip.effectShakeAudioSync
             ? 't'
             : '(t-${start.toStringAsFixed(3)})';
-        final String activeExpr = _betweenExpr(
-          safeStart,
-          safeEnd,
-        );
-        final int cropPx = (8 + amplitude * 1.5).round().clamp(8, 80);
+        final String activeExpr = _betweenExpr(boundedStart, boundedEnd);
+        int cropPx = (14 + amplitude * 2.6).round().clamp(14, 140);
+        if (cropPx.isOdd) {
+          cropPx += 1;
+        }
         final double shakeX = amplitude;
         final double shakeY = amplitude * 0.68;
         final String wx = (math.pi * 2 * frequencyHz).toStringAsFixed(3);
@@ -534,16 +956,15 @@ class FfmpegExportService {
           "crop="
               "w='iw-if($activeExpr\\,$cropPx\\,0)':"
               "h='ih-if($activeExpr\\,$cropPx\\,0)':"
-              "x='if($activeExpr\\,${(cropPx / 2).toStringAsFixed(2)}+${shakeX.toStringAsFixed(2)}*sin($wx*$phaseExpr)\\,0)':"
-              "y='if($activeExpr\\,${(cropPx / 2).toStringAsFixed(2)}+${shakeY.toStringAsFixed(2)}*cos($wy*$phaseExpr)\\,0)'",
+              "x='if($activeExpr\\,clip(${(cropPx / 2).toStringAsFixed(2)}+${shakeX.toStringAsFixed(2)}*sin($wx*$phaseExpr)\\,0\\,iw-ow)\\,0)':"
+              "y='if($activeExpr\\,clip(${(cropPx / 2).toStringAsFixed(2)}+${shakeY.toStringAsFixed(2)}*cos($wy*$phaseExpr)\\,0\\,ih-oh)\\,0)'",
           'scale=iw:ih',
         ];
       case VisualEffectType.rgbSplit:
-        final double channelShift = 10 + intensity * 48;
         return <String>[
-          "lutrgb=r='clip(val+${channelShift.toStringAsFixed(2)}*sin(19*t)\\,0\\,255)':"
-              "g='val':"
-              "b='clip(val-${channelShift.toStringAsFixed(2)}*sin(23*t)\\,0\\,255)':"
+          "colorbalance="
+              "rs=${(0.04 + intensity * 0.20).toStringAsFixed(3)}:"
+              "bs=${(-0.04 - intensity * 0.20).toStringAsFixed(3)}:"
               "$enabled",
           "eq=saturation=${(1.08 + intensity * 0.26).toStringAsFixed(3)}:$enabled",
         ];
@@ -603,7 +1024,8 @@ class FfmpegExportService {
       }
       final double start = (effect.timelineStartMs - timelineOriginMs) / 1000;
       final double end =
-          (effect.timelineStartMs + effect.durationMs - timelineOriginMs) / 1000;
+          (effect.timelineStartMs + effect.durationMs - timelineOriginMs) /
+          1000;
       if (end <= 0) {
         continue;
       }

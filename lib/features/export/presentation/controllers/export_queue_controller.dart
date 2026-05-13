@@ -104,7 +104,8 @@ class ExportQueueController extends Notifier<ExportQueueState> {
       _updateJobStatus(
         request.id,
         ExportJobStatus.succeeded,
-        message: 'Export termine.',
+        message:
+            'Export termine. Debug: ${request.outputPath}.export-debug.txt',
         progress: 1,
       );
     } catch (error) {
