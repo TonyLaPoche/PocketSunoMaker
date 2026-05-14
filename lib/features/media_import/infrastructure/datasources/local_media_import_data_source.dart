@@ -32,7 +32,9 @@ class LocalMediaImportDataSource {
 
       final FileStat stat = await file.stat();
       final MediaKind kind = _resolveKind(mediaPath);
-      final MediaProbeResult probeResult = await _safeReadMetadata(mediaPath);
+      final MediaProbeResult probeResult = _needsFfprobe(kind, mediaPath)
+          ? await _safeReadMetadata(mediaPath)
+          : const MediaProbeResult();
       final int? durationMs =
           probeResult.durationMs ??
           (kind == MediaKind.audio
@@ -102,6 +104,23 @@ class LocalMediaImportDataSource {
       return MediaKind.image;
     }
     return MediaKind.unknown;
+  }
+
+  /// Évite ffprobe pour les images statiques courantes : à l’ouverture depuis
+  /// Finder le `PATH` est souvent minimal et ffprobe peut être absent ou produire
+  /// une sortie JSON atypique ; ces métadonnées restent facultatives pour le bin.
+  bool _needsFfprobe(MediaKind kind, String mediaPath) {
+    if (kind == MediaKind.video || kind == MediaKind.audio) {
+      return true;
+    }
+    if (kind == MediaKind.image) {
+      final String extension = p
+          .extension(mediaPath)
+          .replaceFirst('.', '')
+          .toLowerCase();
+      return extension == 'gif';
+    }
+    return true;
   }
 
   Future<MediaProbeResult> _safeReadMetadata(String mediaPath) async {

@@ -54,7 +54,7 @@ class MediaAsset {
     if (videoWidth != null && videoHeight != null) {
       parts.add('${videoWidth}x$videoHeight');
     }
-    if (frameRate != null) {
+    if (frameRate != null && frameRate!.isFinite) {
       parts.add('${frameRate!.toStringAsFixed(2)} fps');
     }
     if (codec != null && codec!.isNotEmpty) {
